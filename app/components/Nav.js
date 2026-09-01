@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/dashboard", label: "Tableau de bord" },
   { href: "/demandes", label: "Demandes & TCO" },
   { href: "/commandes", label: "Bons de commande" },
+  { href: "/historique", label: "Historique" },
   { href: "/fournisseurs", label: "Fournisseurs" },
   { href: "/articles", label: "Articles" },
 ];
