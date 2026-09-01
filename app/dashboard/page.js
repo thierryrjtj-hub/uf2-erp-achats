@@ -6,6 +6,8 @@ import AuthGuard from "../components/AuthGuard";
 export default function DashboardPage() {
   const [nbFournisseurs, setNbFournisseurs] = useState(null);
   const [nbArticles, setNbArticles] = useState(null);
+  const [enAttente, setEnAttente] = useState(null);
+  const [impayes, setImpayes] = useState({ count: 0, total: 0 });
   const [dernieresActions, setDernieresActions] = useState([]);
 
   useEffect(() => {
@@ -14,6 +16,14 @@ export default function DashboardPage() {
       const { count: ca } = await supabase.from("articles").select("*", { count: "exact", head: true });
       setNbFournisseurs(cf ?? 0);
       setNbArticles(ca ?? 0);
+
+      const { data: demandesData } = await supabase.from("demandes").select("id, statut");
+      const nbEnAttente = (demandesData || []).filter((d) => d.statut !== "Basculée en commande").length;
+      setEnAttente(nbEnAttente);
+
+      const { data: commandesData } = await supabase.from("commandes").select("montant_ttc, statut_paiement");
+      const listeImpayes = (commandesData || []).filter((c) => c.statut_paiement !== "Payé");
+      setImpayes({ count: listeImpayes.length, total: listeImpayes.reduce((s, c) => s + Number(c.montant_ttc || 0), 0) });
 
       const { data } = await supabase
         .from("journal_audit")
@@ -28,9 +38,11 @@ export default function DashboardPage() {
     <AuthGuard>
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>Tableau de bord</h1>
 
-      <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+      <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
         <Card label="Fournisseurs" value={nbFournisseurs} />
         <Card label="Articles" value={nbArticles} />
+        <Card label="Demandes en attente de BC" value={enAttente} />
+        <Card label="Factures impayées" value={impayes.count} sub={impayes.total ? `${impayes.total.toLocaleString("fr-FR")} Ar` : null} />
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
@@ -46,11 +58,12 @@ export default function DashboardPage() {
   );
 }
 
-function Card({ label, value }) {
+function Card({ label, value, sub }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 12, padding: "16px 24px", minWidth: 140 }}>
+    <div style={{ background: "#fff", borderRadius: 12, padding: "16px 24px", minWidth: 160 }}>
       <div style={{ fontSize: 13, color: "#888" }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 600 }}>{value ?? "…"}</div>
+      {sub && <div style={{ fontSize: 12, color: "#B3261E", marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
