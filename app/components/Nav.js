@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabaseClient";
 
 const LINKS = [
   { href: "/dashboard", label: "Tableau de bord" },
+  { href: "/demandes", label: "Demandes & TCO" },
   { href: "/fournisseurs", label: "Fournisseurs" },
   { href: "/articles", label: "Articles" },
 ];
@@ -28,8 +29,8 @@ export default function Nav() {
             href={l.href}
             style={{
               fontSize: 14,
-              color: pathname === l.href ? "#1B2430" : "#888",
-              fontWeight: pathname === l.href ? 600 : 400,
+              color: pathname.startsWith(l.href) ? "#1B2430" : "#888",
+              fontWeight: pathname.startsWith(l.href) ? 600 : 400,
               textDecoration: "none",
             }}
           >
