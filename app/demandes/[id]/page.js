@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
+import Autocomplete from "../../components/Autocomplete";
 
 function computeTotal(lignesOffre, lignesDemande, assujettiTva) {
   let totalHT = 0;
@@ -328,18 +329,17 @@ export default function TCODetailPage() {
         <h2 style={{ fontSize: 15, marginBottom: 12 }} className="no-print">Tableau comparatif (TCO)</h2>
 
         <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-          <input
+          <Autocomplete
             placeholder="Taper le nom du fournisseur à comparer..."
             value={rechercheFournisseur}
-            onChange={(e) => setRechercheFournisseur(e.target.value)}
-            list="liste-fournisseurs-tco"
-            style={{ ...inputStyle, width: 320 }}
+            onChange={setRechercheFournisseur}
+            onSelect={(nom) => {
+              const f = fournisseurs.find((x) => x.nom === nom);
+              if (f) { ajouterFournisseur(f.id); setRechercheFournisseur(""); }
+            }}
+            suggestions={fournisseurs.filter((f) => !offres.some((o) => o.fournisseur_id === f.id)).map((f) => f.nom)}
+            style={{ width: 320 }}
           />
-          <datalist id="liste-fournisseurs-tco">
-            {fournisseurs.filter((f) => !offres.some((o) => o.fournisseur_id === f.id)).map((f) => (
-              <option key={f.id} value={f.nom} />
-            ))}
-          </datalist>
           <button
             onClick={() => {
               const f = fournisseurs.find((x) => x.nom.toLowerCase() === rechercheFournisseur.trim().toLowerCase());
