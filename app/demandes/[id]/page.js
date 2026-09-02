@@ -18,6 +18,8 @@ function computeTotal(lignesOffre, lignesDemande, assujettiTva) {
   return { totalHT, tva, totalTTC: totalHT + tva };
 }
 
+const FOURNISSEURS_PAR_PAGE = 4;
+
 export default function TCODetailPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -26,6 +28,7 @@ export default function TCODetailPage() {
   const [fournisseurs, setFournisseurs] = useState([]);
   const [offres, setOffres] = useState([]);
   const [lignesOffre, setLignesOffre] = useState([]);
+  const [dejaCouvertes, setDejaCouvertes] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
@@ -46,6 +49,12 @@ export default function TCODetailPage() {
     setFournisseurs(f || []);
     setOffres(o || []);
     setLignesOffre(lo);
+    if (ld && ld.length) {
+      const { data: dejaBc } = await supabase.from("lignes_bc").select("ligne_demande_id").in("ligne_demande_id", ld.map((x) => x.id));
+      setDejaCouvertes(new Set((dejaBc || []).map((x) => x.ligne_demande_id)));
+    } else {
+      setDejaCouvertes(new Set());
+    }
     setLoading(false);
   };
 
@@ -58,12 +67,6 @@ export default function TCODetailPage() {
     });
   }, [offres, lignesOffre, lignesDemande]);
 
-  const bestId = useMemo(() => {
-    const valides = offresAvecTotaux.filter((o) => o.totalHT > 0);
-    if (valides.length === 0) return null;
-    return valides.reduce((a, b) => (b.totalHT < a.totalHT ? b : a)).id;
-  }, [offresAvecTotaux]);
-
   const montantLigne = (o, ld) => {
     const lo = o.lignesOffre.find((x) => x.ligne_demande_id === ld.id);
     if (!lo || !lo.prix_unitaire_ht) return null;
@@ -73,6 +76,48 @@ export default function TCODetailPage() {
     return qte * pu * (1 - remise / 100);
   };
 
+  // Pour chaque ligne article, quel fournisseur est le moins cher (indépendant de la sélection manuelle)
+  const moinsCherParLigne = useMemo(() => {
+    const map = {};
+    for (const ld of lignesDemande) {
+      const candidats = offresAvecTotaux.filter((o) => montantLigne(o, ld) != null);
+      if (candidats.length) {
+        const meilleur = candidats.reduce((a, b) => (montantLigne(b, ld) < montantLigne(a, ld) ? b : a));
+        map[ld.id] = meilleur.id;
+      }
+    }
+    return map;
+  }, [offresAvecTotaux, lignesDemande]);
+
+  // Étiquette "moins cher" par fournisseur (point 1) : liste des numéros de ligne où il est le moins cher
+  const etiquetteParOffre = useMemo(() => {
+    const map = {};
+    offresAvecTotaux.forEach((o) => {
+      const numeros = [];
+      lignesDemande.forEach((ld, i) => {
+        if (moinsCherParLigne[ld.id] === o.id) numeros.push(i + 1);
+      });
+      if (numeros.length === 0) { map[o.id] = null; return; }
+      if (numeros.length === lignesDemande.length) { map[o.id] = "moins cher"; return; }
+      map[o.id] = `moins cher — article n°${numeros.join(", n°")}`;
+    });
+    return map;
+  }, [offresAvecTotaux, lignesDemande, moinsCherParLigne]);
+
+  // Total des articles au prix le moins cher sélectionné (point 18)
+  const totalPreconisation = useMemo(() => {
+    let total = 0;
+    for (const ld of lignesDemande) {
+      const offreId = selection[ld.id];
+      const offre = offresAvecTotaux.find((o) => o.id === offreId);
+      if (offre) {
+        const m = montantLigne(offre, ld);
+        if (m != null) total += m;
+      }
+    }
+    return total;
+  }, [selection, offresAvecTotaux, lignesDemande]);
+
   // Sélection par défaut : le fournisseur le moins cher, article par article
   useEffect(() => {
     setSelection((prev) => {
@@ -81,10 +126,8 @@ export default function TCODetailPage() {
       for (const ld of lignesDemande) {
         const valide = next[ld.id] && offresAvecTotaux.some((o) => o.id === next[ld.id] && montantLigne(o, ld) != null);
         if (!valide) {
-          const candidats = offresAvecTotaux.filter((o) => montantLigne(o, ld) != null);
-          if (candidats.length) {
-            const meilleur = candidats.reduce((a, b) => (montantLigne(b, ld) < montantLigne(a, ld) ? b : a));
-            next[ld.id] = meilleur.id;
+          if (moinsCherParLigne[ld.id]) {
+            next[ld.id] = moinsCherParLigne[ld.id];
             changed = true;
           } else if (next[ld.id]) {
             delete next[ld.id];
@@ -94,7 +137,7 @@ export default function TCODetailPage() {
       }
       return changed ? next : prev;
     });
-  }, [offresAvecTotaux, lignesDemande]);
+  }, [offresAvecTotaux, lignesDemande, moinsCherParLigne]);
 
   const ajouterFournisseur = async (fournisseurId) => {
     const f = fournisseurs.find((x) => x.id === fournisseurId);
@@ -105,12 +148,28 @@ export default function TCODetailPage() {
       .select()
       .single();
     if (offre) {
-      const payload = lignesDemande.map((ld) => ({
-        offre_id: offre.id,
-        ligne_demande_id: ld.id,
-        prix_unitaire_ht: null,
-        remise_pct: f.remise_par_defaut_pct || 0,
-      }));
+      // Pré-remplissage avec le dernier prix connu pour ce couple article + fournisseur (point 2)
+      const designations = lignesDemande.map((ld) => ld.designation);
+      let derniersPrix = {};
+      if (designations.length) {
+        const { data: histBc } = await supabase
+          .from("lignes_bc")
+          .select("designation, prix_unitaire_ht, remise_pct, commandes:bc_id(fournisseur_id, date)")
+          .in("designation", designations);
+        (histBc || [])
+          .filter((h) => h.commandes && h.commandes.fournisseur_id === f.id)
+          .sort((a, b) => new Date(a.commandes.date) - new Date(b.commandes.date))
+          .forEach((h) => { derniersPrix[h.designation.toLowerCase()] = h; });
+      }
+      const payload = lignesDemande.map((ld) => {
+        const hist = derniersPrix[ld.designation.toLowerCase()];
+        return {
+          offre_id: offre.id,
+          ligne_demande_id: ld.id,
+          prix_unitaire_ht: hist ? hist.prix_unitaire_ht : null,
+          remise_pct: hist ? hist.remise_pct : (f.remise_par_defaut_pct || 0),
+        };
+      });
       if (payload.length) await supabase.from("lignes_offre").insert(payload);
     }
     charger();
@@ -129,18 +188,23 @@ export default function TCODetailPage() {
 
   const majPrix = async (offreId, ligneDemandeId, field, value) => {
     const existante = lignesOffre.find((x) => x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId);
-    // mise à jour optimiste locale
     setLignesOffre((prev) =>
       prev.map((x) => (x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId ? { ...x, [field]: value } : x))
     );
     if (existante) {
       await supabase.from("lignes_offre").update({ [field]: value === "" ? null : Number(value) }).eq("id", existante.id);
+      // Le prix saisi devient le nouveau "dernier prix HT" de référence de l'article (point 2)
+      if (field === "prix_unitaire_ht" && value !== "") {
+        const ld = lignesDemande.find((l) => l.id === ligneDemandeId);
+        if (ld) await supabase.from("articles").update({ dernier_prix_ht: Number(value) }).ilike("designation", ld.designation);
+      }
     }
   };
 
   const genererBC = async () => {
     const groupes = {};
     for (const ld of lignesDemande) {
+      if (dejaCouvertes.has(ld.id)) continue;
       const offreId = selection[ld.id];
       if (!offreId) continue;
       if (!groupes[offreId]) groupes[offreId] = [];
@@ -193,13 +257,22 @@ export default function TCODetailPage() {
       }
     }
 
-    await supabase.from("demandes").update({ statut: "Basculée en commande" }).eq("id", id);
+    // Une demande n'est marquée "Basculée en commande" que si TOUS ses articles ont désormais un BC (point 19)
+    const nouvellesCouvertes = new Set(Object.values(groupes).flat().map((l) => l.id));
+    const restants = lignesDemande.filter((ld) => !dejaCouvertes.has(ld.id) && !nouvellesCouvertes.has(ld.id));
+    await supabase.from("demandes").update({ statut: restants.length === 0 ? "Basculée en commande" : "Partiellement traitée" }).eq("id", id);
     setGenerating(false);
     router.push("/commandes");
   };
 
   if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
   if (!demande) return <AuthGuard><p>Demande introuvable.</p></AuthGuard>;
+
+  // Découpage des fournisseurs en pages de 4 pour l'impression (point 21)
+  const pagesImpression = [];
+  for (let i = 0; i < offresAvecTotaux.length; i += FOURNISSEURS_PAR_PAGE) {
+    pagesImpression.push(offresAvecTotaux.slice(i, i + FOURNISSEURS_PAR_PAGE));
+  }
 
   return (
     <AuthGuard>
@@ -209,6 +282,13 @@ export default function TCODetailPage() {
           .print-area, .print-area * { visibility: visible; }
           .print-area { position: absolute; left: 0; top: 0; width: 100%; }
           .no-print { display: none !important; }
+          .ecran-seulement { display: none !important; }
+          .page-impression { page-break-after: always; }
+          .page-impression:last-child { page-break-after: auto; }
+          tr, td, th { break-inside: avoid; }
+        }
+        @media screen {
+          .impression-seulement { display: none !important; }
         }
       `}</style>
 
@@ -220,21 +300,23 @@ export default function TCODetailPage() {
             <h1 style={{ fontSize: 18, marginBottom: 4 }}>{demande.numero}</h1>
             <p style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>{demande.service} — {demande.motif_projet}</p>
           </div>
-          <button onClick={() => window.print()} style={{ ...buttonStyle }} className="no-print">Imprimer le comparatif</button>
+          <button onClick={() => window.print()} style={buttonStyle} className="no-print">Imprimer le comparatif</button>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
+              <th style={thStyle}>N°</th>
               <th style={thStyle}>Article</th>
               <th style={thStyle}>Qté</th>
               <th style={thStyle}>Unité</th>
             </tr>
           </thead>
           <tbody>
-            {lignesDemande.map((l) => (
+            {lignesDemande.map((l, i) => (
               <tr key={l.id}>
+                <td style={tdStyle}>{i + 1}</td>
                 <td style={tdStyle}>{l.designation}</td>
-                <td style={tdStyle}>{l.quantite}</td>
+                <td style={tdStyle}>{l.quantite.toLocaleString("fr-FR")}</td>
                 <td style={tdStyle}>{l.unite}</td>
               </tr>
             ))}
@@ -243,7 +325,7 @@ export default function TCODetailPage() {
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 20 }} className="print-area">
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Tableau comparatif (TCO)</h2>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }} className="no-print">Tableau comparatif (TCO)</h2>
 
         <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <input
@@ -271,27 +353,29 @@ export default function TCODetailPage() {
 
         {offresAvecTotaux.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Ajoute au moins un fournisseur pour saisir ses prix.</p>}
 
+        {/* ---- Vue écran : tableau unique interactif ---- */}
         {offresAvecTotaux.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
+          <div className="ecran-seulement" style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
+                  <th style={thStyle}>N°</th>
                   <th style={thStyle}>Article</th>
+                  <th style={thStyle}>Qté</th>
+                  <th style={thStyle}>Unité</th>
+                  <th style={{ ...thStyle, color: "#1B7A4C" }}>Préconisation</th>
                   {offresAvecTotaux.map((o) => (
-                    <th key={o.id} style={{ ...thStyle, ...(o.id === bestId ? { color: "#1B7A4C" } : {}) }}>
+                    <th key={o.id} style={{ ...thStyle, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
                       {o.fournisseur_nom}
-                      {o.id === bestId && <span style={{ fontSize: 11, color: "#1B7A4C" }}> — mora indrindra</span>}
-                      <button onClick={() => retirerOffre(o.id)} style={{ ...linkBtn, marginLeft: 8 }} className="no-print">x</button>
+                      {etiquetteParOffre[o.id] && <span style={{ fontSize: 11, color: "#1B7A4C" }}> — {etiquetteParOffre[o.id]}</span>}
+                      <button onClick={() => retirerOffre(o.id)} style={{ ...linkBtn, marginLeft: 8 }}>x</button>
                       <div style={{ display: "flex", gap: 4, fontWeight: 400, color: "#aaa", fontSize: 11, marginTop: 4 }}>
-                        <span style={{ width: 85 }}>Prix unitaire HT</span>
-                        <span style={{ width: 70 }}>Remise %</span>
+                        <span style={{ width: 30 }}></span>
+                        <span style={{ width: 80 }}>Prix unitaire HT</span>
+                        <span style={{ width: 65 }}>Remise %</span>
                       </div>
-                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 400, color: "#666", fontSize: 11, marginTop: 6 }} className="no-print">
-                        <input
-                          type="checkbox"
-                          checked={o.assujetti_tva === false}
-                          onChange={() => toggleTva(o.id, o.assujetti_tva)}
-                        />
+                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 400, color: "#666", fontSize: 11, marginTop: 6 }}>
+                        <input type="checkbox" checked={o.assujetti_tva === false} onChange={() => toggleTva(o.id, o.assujetti_tva)} />
                         Fournisseur non taxable
                       </label>
                     </th>
@@ -299,55 +383,76 @@ export default function TCODetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {lignesDemande.map((ld) => (
-                  <tr key={ld.id}>
-                    <td style={tdStyle}>{ld.designation} <span style={{ color: "#999" }}>({ld.quantite} {ld.unite})</span></td>
-                    {offresAvecTotaux.map((o) => {
-                      const lo = o.lignesOffre.find((x) => x.ligne_demande_id === ld.id) || {};
-                      const disponible = lo.prix_unitaire_ht != null && lo.prix_unitaire_ht !== "";
-                      const retenu = selection[ld.id] === o.id;
-                      return (
-                        <td key={o.id} style={{ ...tdStyle, ...(retenu ? { background: "#EAF7EE" } : {}) }}>
-                          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                            <input
-                              type="radio"
-                              name={`ligne-${ld.id}`}
-                              checked={retenu}
-                              disabled={!disponible}
-                              onChange={() => setSelection((prev) => ({ ...prev, [ld.id]: o.id }))}
-                              className="no-print"
-                              title="Retenir ce fournisseur pour cet article"
-                            />
-                            <input
-                              type="number"
-                              placeholder="PU HT"
-                              defaultValue={lo.prix_unitaire_ht ?? ""}
-                              onBlur={(e) => majPrix(o.id, ld.id, "prix_unitaire_ht", e.target.value)}
-                              style={{ ...inputStyle, width: 80 }}
-                            />
-                            <input
-                              type="number"
-                              placeholder="remise %"
-                              defaultValue={lo.remise_pct ?? 0}
-                              onBlur={(e) => majPrix(o.id, ld.id, "remise_pct", e.target.value)}
-                              style={{ ...inputStyle, width: 65 }}
-                            />
-                          </div>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                {lignesDemande.map((ld, i) => {
+                  const offreRetenue = offresAvecTotaux.find((o) => o.id === selection[ld.id]);
+                  const montantRetenu = offreRetenue ? montantLigne(offreRetenue, ld) : null;
+                  const couverte = dejaCouvertes.has(ld.id);
+                  return (
+                    <tr key={ld.id} style={couverte ? { opacity: 0.55 } : {}}>
+                      <td style={tdStyle}>{i + 1}</td>
+                      <td style={tdStyle}>
+                        {ld.designation}
+                        {couverte && <span style={{ marginLeft: 6, fontSize: 11, color: "#1B7A4C" }}>✓ BC déjà généré</span>}
+                      </td>
+                      <td style={tdStyle}>{ld.quantite.toLocaleString("fr-FR")}</td>
+                      <td style={tdStyle}>{ld.unite}</td>
+                      <td style={{ ...tdStyle, background: "#EAF7EE", fontSize: 12 }}>
+                        {offreRetenue ? (
+                          <>
+                            <strong>{offreRetenue.fournisseur_nom}</strong><br />
+                            {montantRetenu != null ? `${montantRetenu.toLocaleString("fr-FR")} Ar` : "-"}
+                          </>
+                        ) : "-"}
+                      </td>
+                      {offresAvecTotaux.map((o) => {
+                        const lo = o.lignesOffre.find((x) => x.ligne_demande_id === ld.id) || {};
+                        const disponible = lo.prix_unitaire_ht != null && lo.prix_unitaire_ht !== "";
+                        const retenu = selection[ld.id] === o.id;
+                        return (
+                          <td key={o.id} style={{ ...tdStyle, ...(retenu ? { background: "#EAF7EE" } : {}) }}>
+                            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                              <input
+                                type="radio"
+                                name={`ligne-${ld.id}`}
+                                checked={retenu}
+                                disabled={!disponible || couverte}
+                                onChange={() => setSelection((prev) => ({ ...prev, [ld.id]: o.id }))}
+                                title="Retenir ce fournisseur pour cet article"
+                              />
+                              <input
+                                type="number"
+                                placeholder="PU HT"
+                                defaultValue={lo.prix_unitaire_ht ?? ""}
+                                onBlur={(e) => majPrix(o.id, ld.id, "prix_unitaire_ht", e.target.value)}
+                                disabled={couverte}
+                                style={{ ...inputStyle, width: 80 }}
+                              />
+                              <input
+                                type="number"
+                                placeholder="remise %"
+                                defaultValue={lo.remise_pct ?? 0}
+                                onBlur={(e) => majPrix(o.id, ld.id, "remise_pct", e.target.value)}
+                                disabled={couverte}
+                                style={{ ...inputStyle, width: 65 }}
+                              />
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
                 <tr style={{ borderTop: "2px solid #eee" }}>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}>Total HT</td>
+                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>Total des articles au prix le moins cher retenu</td>
+                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.toLocaleString("fr-FR")} Ar</td>
                   {offresAvecTotaux.map((o) => (
-                    <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(o.id === bestId ? { color: "#1B7A4C" } : {}) }}>
+                    <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
                       {o.totalHT.toLocaleString("fr-FR")} Ar
                     </td>
                   ))}
                 </tr>
                 <tr>
-                  <td style={tdStyle}>TVA {offresAvecTotaux.some((o) => o.assujetti_tva !== false) ? "20%" : ""}</td>
+                  <td colSpan={5} style={tdStyle}>TVA {offresAvecTotaux.some((o) => o.assujetti_tva !== false) ? "20%" : ""}</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={tdStyle}>
                       {o.assujetti_tva === false ? <span style={{ color: "#999" }}>Non taxable</span> : `${o.tva.toLocaleString("fr-FR")} Ar`}
@@ -355,9 +460,9 @@ export default function TCODetailPage() {
                   ))}
                 </tr>
                 <tr>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}>Total TTC</td>
+                  <td colSpan={5} style={{ ...tdStyle, fontWeight: 600 }}>Total TTC</td>
                   {offresAvecTotaux.map((o) => (
-                    <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(o.id === bestId ? { color: "#1B7A4C" } : {}) }}>
+                    <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
                       {o.totalTTC.toLocaleString("fr-FR")} Ar
                     </td>
                   ))}
@@ -367,15 +472,73 @@ export default function TCODetailPage() {
           </div>
         )}
 
-        {offresAvecTotaux.length > 0 && (
+        {/* ---- Vue impression : pages de 4 fournisseurs, colonnes fixes répétées (point 21) ---- */}
+        {offresAvecTotaux.length > 0 && pagesImpression.map((page, pIdx) => (
+          <div key={pIdx} className="impression-seulement page-impression">
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>N°</th>
+                  <th style={thStyle}>Article</th>
+                  <th style={thStyle}>Qté</th>
+                  <th style={thStyle}>Unité</th>
+                  <th style={{ ...thStyle, color: "#1B7A4C" }}>Préconisation</th>
+                  {page.map((o) => (
+                    <th key={o.id} style={{ ...thStyle, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
+                      {o.fournisseur_nom}{etiquetteParOffre[o.id] ? ` — ${etiquetteParOffre[o.id]}` : ""}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lignesDemande.map((ld, i) => {
+                  const offreRetenue = offresAvecTotaux.find((o) => o.id === selection[ld.id]);
+                  const montantRetenu = offreRetenue ? montantLigne(offreRetenue, ld) : null;
+                  return (
+                    <tr key={ld.id}>
+                      <td style={tdStyle}>{i + 1}</td>
+                      <td style={tdStyle}>{ld.designation}</td>
+                      <td style={tdStyle}>{ld.quantite.toLocaleString("fr-FR")}</td>
+                      <td style={tdStyle}>{ld.unite}</td>
+                      <td style={tdStyle}>{offreRetenue ? `${offreRetenue.fournisseur_nom} — ${montantRetenu != null ? montantRetenu.toLocaleString("fr-FR") : "-"} Ar` : "-"}</td>
+                      {page.map((o) => {
+                        const lo = o.lignesOffre.find((x) => x.ligne_demande_id === ld.id) || {};
+                        const m = montantLigne(o, ld);
+                        return (
+                          <td key={o.id} style={tdStyle}>
+                            {lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR")} Ar (-${lo.remise_pct || 0}%) = ${m != null ? m.toLocaleString("fr-FR") : "-"} Ar` : "-"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+                <tr style={{ borderTop: "2px solid #eee" }}>
+                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>Total</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{totalPreconisation.toLocaleString("fr-FR")} Ar</td>
+                  {page.map((o) => (
+                    <td key={o.id} style={{ ...tdStyle, fontWeight: 600 }}>HT {o.totalHT.toLocaleString("fr-FR")} / TTC {o.totalTTC.toLocaleString("fr-FR")} Ar</td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ))}
+
+        {offresAvecTotaux.length > 0 && lignesDemande.some((ld) => !dejaCouvertes.has(ld.id)) && (
           <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
             <p style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
-              Le point (radio) coché sur chaque article indique le fournisseur retenu pour cet article (par défaut le moins cher). Change-le si besoin avant de générer les bons de commande — un BC distinct sera créé par fournisseur retenu.
+              Le point (radio) coché sur chaque article indique le fournisseur retenu pour cet article (par défaut le moins cher). Change-le si besoin avant de générer les bons de commande — un BC distinct sera créé par fournisseur retenu, seulement pour les articles pas encore attribués.
             </p>
             <button onClick={genererBC} disabled={generating} style={buttonStyle}>
               {generating ? "Génération..." : "Générer le(s) bon(s) de commande"}
             </button>
           </div>
+        )}
+        {offresAvecTotaux.length > 0 && lignesDemande.length > 0 && lignesDemande.every((ld) => dejaCouvertes.has(ld.id)) && (
+          <p className="no-print" style={{ fontSize: 13, color: "#1B7A4C", marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
+            ✓ Tous les articles de cette demande ont déjà un bon de commande.
+          </p>
         )}
       </div>
     </AuthGuard>
