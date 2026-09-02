@@ -29,6 +29,7 @@ export default function TCODetailPage() {
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
+  const [rechercheFournisseur, setRechercheFournisseur] = useState("");
 
   const charger = async () => {
     const { data: d } = await supabase.from("demandes").select("*").eq("id", id).single();
@@ -100,7 +101,7 @@ export default function TCODetailPage() {
     if (!f) return;
     const { data: offre } = await supabase
       .from("offres")
-      .insert({ demande_id: id, fournisseur_id: f.id, fournisseur_nom: f.nom })
+      .insert({ demande_id: id, fournisseur_id: f.id, fournisseur_nom: f.nom, assujetti_tva: f.tva_defaut_pct !== 0 })
       .select()
       .single();
     if (offre) {
@@ -244,17 +245,29 @@ export default function TCODetailPage() {
       <div style={{ background: "#fff", borderRadius: 12, padding: 20 }} className="print-area">
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Tableau comparatif (TCO)</h2>
 
-        <select
-          value=""
-          onChange={(e) => e.target.value && ajouterFournisseur(e.target.value)}
-          style={{ ...inputStyle, marginBottom: 16, width: 320 }}
-          className="no-print"
-        >
-          <option value="">+ Ajouter un fournisseur à comparer...</option>
-          {fournisseurs.filter((f) => !offres.some((o) => o.fournisseur_id === f.id)).map((f) => (
-            <option key={f.id} value={f.id}>{f.nom}</option>
-          ))}
-        </select>
+        <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          <input
+            placeholder="Taper le nom du fournisseur à comparer..."
+            value={rechercheFournisseur}
+            onChange={(e) => setRechercheFournisseur(e.target.value)}
+            list="liste-fournisseurs-tco"
+            style={{ ...inputStyle, width: 320 }}
+          />
+          <datalist id="liste-fournisseurs-tco">
+            {fournisseurs.filter((f) => !offres.some((o) => o.fournisseur_id === f.id)).map((f) => (
+              <option key={f.id} value={f.nom} />
+            ))}
+          </datalist>
+          <button
+            onClick={() => {
+              const f = fournisseurs.find((x) => x.nom.toLowerCase() === rechercheFournisseur.trim().toLowerCase());
+              if (f) { ajouterFournisseur(f.id); setRechercheFournisseur(""); }
+            }}
+            style={buttonStyle}
+          >
+            + Ajouter
+          </button>
+        </div>
 
         {offresAvecTotaux.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Ajoute au moins un fournisseur pour saisir ses prix.</p>}
 
