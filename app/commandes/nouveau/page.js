@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
+import Autocomplete from "../../components/Autocomplete";
 
 const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs", prix_unitaire_ht: "", remise_pct: 0 });
 
@@ -25,8 +26,8 @@ export default function NouveauBCDirectPage() {
     })();
   }, []);
 
-  const choisirFournisseur = () => {
-    const f = fournisseurs.find((x) => x.nom.toLowerCase() === rechercheFournisseur.trim().toLowerCase());
+  const choisirFournisseur = (nom) => {
+    const f = fournisseurs.find((x) => x.nom === nom);
     if (f) { setFournisseurChoisi(f); setAssujettiTva(f.tva_defaut_pct !== 0); }
   };
 
@@ -113,29 +114,30 @@ export default function NouveauBCDirectPage() {
           </div>
         ) : (
           <div style={{ display: "flex", gap: 8 }}>
-            <input
+            <Autocomplete
               placeholder="Taper le nom du fournisseur..."
               value={rechercheFournisseur}
-              onChange={(e) => setRechercheFournisseur(e.target.value)}
-              list="liste-fournisseurs-direct"
-              style={{ ...inputStyle, width: 320 }}
+              onChange={setRechercheFournisseur}
+              onSelect={choisirFournisseur}
+              suggestions={fournisseurs.map((f) => f.nom)}
+              style={{ width: 320 }}
             />
-            <datalist id="liste-fournisseurs-direct">
-              {fournisseurs.map((f) => <option key={f.id} value={f.nom} />)}
-            </datalist>
-            <button onClick={choisirFournisseur} style={buttonStyle}>Choisir</button>
+            <button onClick={() => choisirFournisseur(fournisseurs.find((x) => x.nom.toLowerCase() === rechercheFournisseur.trim().toLowerCase())?.nom)} style={buttonStyle}>Choisir</button>
           </div>
         )}
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Articles</h2>
-        <datalist id="liste-articles-direct">
-          {articlesBase.map((a) => <option key={a.id} value={a.designation} />)}
-        </datalist>
         {lignes.map((l) => (
           <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input placeholder="Désignation" value={l.designation} onChange={(e) => onDesignationChange(l.key, e.target.value)} list="liste-articles-direct" style={{ ...inputStyle, flex: 2 }} />
+            <Autocomplete
+              placeholder="Désignation"
+              value={l.designation}
+              onChange={(val) => onDesignationChange(l.key, val)}
+              suggestions={articlesBase.map((a) => a.designation)}
+              style={{ flex: 2 }}
+            />
             <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
             <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
             <input type="number" placeholder="PU HT" value={l.prix_unitaire_ht} onChange={(e) => updateLigne(l.key, "prix_unitaire_ht", e.target.value)} style={{ ...inputStyle, width: 110 }} />
@@ -164,4 +166,3 @@ export default function NouveauBCDirectPage() {
 const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
 const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
 const linkBtn = { border: "none", background: "none", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "underline", padding: 0 };
-
