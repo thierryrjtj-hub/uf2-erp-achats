@@ -33,7 +33,7 @@ export default function DemandesPage() {
   };
 
   const addLigne = () => setLignes([...lignes, ligneVide()]);
-  const updateLigne = (key, field, val) => setLignes(lignes.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
+  const updateLigne = (key, field, val) => setLignes((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
   const removeLigne = (key) => setLignes(lignes.filter((l) => l.key !== key));
 
   const creer = async () => {
