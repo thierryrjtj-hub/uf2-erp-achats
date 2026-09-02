@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
+import { exportExcel } from "../../lib/exportExcel";
 
 export default function CommandesPage() {
   const [liste, setListe] = useState([]);
@@ -39,9 +40,64 @@ export default function CommandesPage() {
     return d;
   };
 
+  const [exporting, setExporting] = useState(false);
+  const exporter = async () => {
+    setExporting(true);
+    const rows = liste.map((c) => {
+      const reception = receptions.find((r) => r.bc_id === c.id);
+      return {
+        numero: c.numero,
+        date: c.date,
+        fournisseur: c.fournisseur_nom,
+        statut: c.statut,
+        montantHt: Number(c.montant_ht) || 0,
+        montantTva: Number(c.montant_tva) || 0,
+        montantTtc: Number(c.montant_ttc) || 0,
+        numeroFacture: c.numero_facture || "",
+        dateFacture: c.date_facture || "",
+        statutPaiement: c.statut_paiement || "Impayé",
+        recu: reception ? new Date(reception.date_reception_reelle).toLocaleString("fr-FR") : "",
+        confirmePar: reception ? reception.confirme_par : "",
+      };
+    });
+    await exportExcel({
+      filename: `bons-de-commande_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheets: [{
+        name: "Bons de commande",
+        columns: [
+          { header: "N° BC", key: "numero", width: 18 },
+          { header: "Date", key: "date", width: 13 },
+          { header: "Fournisseur", key: "fournisseur", width: 22 },
+          { header: "Statut", key: "statut", width: 16 },
+          { header: "Montant HT", key: "montantHt", width: 15 },
+          { header: "TVA", key: "montantTva", width: 13 },
+          { header: "Montant TTC", key: "montantTtc", width: 15 },
+          { header: "N° facture", key: "numeroFacture", width: 16 },
+          { header: "Date facture", key: "dateFacture", width: 13 },
+          { header: "Statut paiement", key: "statutPaiement", width: 15 },
+          { header: "Reçu le", key: "recu", width: 20 },
+          { header: "Confirmé par", key: "confirmePar", width: 24 },
+        ],
+        rows,
+        currencyKeys: ["montantHt", "montantTva", "montantTtc"],
+      }],
+    });
+    setExporting(false);
+  };
+
   return (
     <AuthGuard>
-      <h1 style={{ fontSize: 20, marginBottom: 16 }}>Bons de commande</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h1 style={{ fontSize: 20 }}>Bons de commande</h1>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/commandes/nouveau" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
+            + Créer un BC directement
+          </Link>
+          <button onClick={exporter} disabled={exporting} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" }}>
+            {exporting ? "Génération..." : "Exporter en Excel"}
+          </button>
+        </div>
+      </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Liste ({liste.length})</h2>
