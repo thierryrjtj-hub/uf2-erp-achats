@@ -12,8 +12,7 @@ export default function Autocomplete({ value, onChange, onSelect, suggestions, p
     : suggestions.slice(0, 8);
 
   const choisir = (s) => {
-    onChange(s);
-    if (onSelect) onSelect(s);
+    if (onSelect) onSelect(s); else onChange(s);
     setOuvert(false);
   };
 
@@ -53,4 +52,3 @@ const dropdownStyle = {
   maxHeight: 220, overflowY: "auto", boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
 };
 const itemStyle = { padding: "8px 10px", fontSize: 13, cursor: "pointer", background: "#fff" };
-
