@@ -10,11 +10,18 @@ const empty = {
   tva_defaut_pct: 20, activite: "", conditions_paiement_jours: 30, remise_par_defaut_pct: 0,
 };
 
+function matchRecherche(f, q) {
+  if (!q.trim()) return true;
+  const s = q.toLowerCase();
+  return [f.nom, f.contact, f.activite, f.telephone, f.email, f.adresse, f.nif].some((v) => (v || "").toLowerCase().includes(s));
+}
+
 export default function FournisseursPage() {
   const [liste, setListe] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [recherche, setRecherche] = useState("");
 
   const charger = async () => {
     const { data } = await supabase.from("fournisseurs").select("*").order("nom");
@@ -49,6 +56,17 @@ export default function FournisseursPage() {
   const supprimer = async (id) => {
     await supabase.from("fournisseurs").delete().eq("id", id);
     charger();
+  };
+
+  const copierFiche = async (f) => {
+    const texte = [
+      f.nom, f.contact && `Contact : ${f.contact}`, f.telephone && `Tél : ${f.telephone}`, f.email && `E-mail : ${f.email}`,
+      f.adresse && `Adresse : ${f.adresse}${f.code_postal ? " " + f.code_postal : ""}`,
+      f.nif && `NIF : ${f.nif}`, f.stat && `STAT : ${f.stat}`, f.rcs && `RCS : ${f.rcs}`, f.cin && `CIN : ${f.cin}`,
+      f.type_reglement && `Règlement : ${f.type_reglement}`, `TVA : ${f.tva_defaut_pct === 0 ? "Non assujetti" : (f.tva_defaut_pct ?? 20) + "%"}`,
+      f.activite && `Activité : ${f.activite}`,
+    ].filter(Boolean).join("\n");
+    try { await navigator.clipboard.writeText(texte); } catch (e) {}
   };
 
   const exporter = async () => {
@@ -131,12 +149,16 @@ export default function FournisseursPage() {
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Liste ({liste.length})</h2>
-        {liste.map((f) => (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+          <h2 style={{ fontSize: 15 }}>Liste ({liste.filter(f => matchRecherche(f, recherche)).length} / {liste.length})</h2>
+          <input placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: 340 }} />
+        </div>
+        {liste.filter((f) => matchRecherche(f, recherche)).map((f) => (
           <div key={f.id} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{f.nom}</div>
               <div>
+                <button onClick={() => copierFiche(f)} style={linkBtn}>Copier tout</button>
                 <button onClick={() => modifier(f)} style={linkBtn}>Modifier</button>
                 <button onClick={() => supprimer(f.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
               </div>
@@ -183,10 +205,8 @@ function ChampCopiable({ label, value }) {
   return (
     <div>
       <div style={champLabel}>{label}</div>
-      <div style={champValue}>
-        {value}
-        <button onClick={copier} style={copyBtn}>{copie ? "Copié !" : "Copier"}</button>
-      </div>
+      <div style={{ fontSize: 13, marginTop: 2, wordBreak: "break-word" }}>{value}</div>
+      <button onClick={copier} style={{ ...copyBtn, marginTop: 4 }}>{copie ? "Copié !" : "Copier"}</button>
     </div>
   );
 }
@@ -199,7 +219,7 @@ const tdStyle = { padding: "8px 6px" };
 const tdBold = { padding: "8px 6px", fontWeight: 600 };
 const linkBtn = { border: "none", background: "none", color: "#1B2430", fontSize: 12, cursor: "pointer", marginRight: 10, textDecoration: "underline", padding: 0 };
 const cardStyle = { border: "1px solid #eee", borderRadius: 10, padding: 16, marginBottom: 12 };
-const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginTop: 10 };
+const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 14, marginTop: 10 };
 const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3 };
 const champValue = { fontSize: 13, marginTop: 2, display: "flex", alignItems: "center", gap: 6 };
 const copyBtn = { fontSize: 11, border: "1px solid #ddd", background: "#fff", borderRadius: 4, padding: "1px 6px", cursor: "pointer", color: "#1B2430" };
