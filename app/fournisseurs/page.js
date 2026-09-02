@@ -151,7 +151,12 @@ export default function FournisseursPage() {
       <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
           <h2 style={{ fontSize: 15 }}>Liste ({liste.filter(f => matchRecherche(f, recherche)).length} / {liste.length})</h2>
-          <input placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: 340 }} />
+          <div style={{ position: "relative", width: 340 }}>
+            <input placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+            {recherche && (
+              <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
+            )}
+          </div>
         </div>
         {liste.filter((f) => matchRecherche(f, recherche)).map((f) => (
           <div key={f.id} style={cardStyle}>
@@ -223,3 +228,4 @@ const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(2
 const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3 };
 const champValue = { fontSize: 13, marginTop: 2, display: "flex", alignItems: "center", gap: 6 };
 const copyBtn = { fontSize: 11, border: "1px solid #ddd", background: "#fff", borderRadius: 4, padding: "1px 6px", cursor: "pointer", color: "#1B2430" };
+const clearBtn = { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, lineHeight: 1, color: "#999", cursor: "pointer", padding: "2px 6px" };
