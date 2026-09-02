@@ -105,18 +105,21 @@ export default function TCODetailPage() {
     return map;
   }, [offresAvecTotaux, lignesDemande, moinsCherParLigne]);
 
-  // Total des articles au prix le moins cher sélectionné (point 18)
+  // Total des articles au prix le moins cher sélectionné (point 18), avec TVA/TTC selon le fournisseur retenu par ligne
   const totalPreconisation = useMemo(() => {
-    let total = 0;
+    let ht = 0, tva = 0;
     for (const ld of lignesDemande) {
       const offreId = selection[ld.id];
       const offre = offresAvecTotaux.find((o) => o.id === offreId);
       if (offre) {
         const m = montantLigne(offre, ld);
-        if (m != null) total += m;
+        if (m != null) {
+          ht += m;
+          tva += offre.assujetti_tva !== false ? m * 0.2 : 0;
+        }
       }
     }
-    return total;
+    return { ht, tva, ttc: ht + tva };
   }, [selection, offresAvecTotaux, lignesDemande]);
 
   // Sélection par défaut : le fournisseur le moins cher, article par article
@@ -400,7 +403,14 @@ export default function TCODetailPage() {
                         {offreRetenue ? (
                           <>
                             <strong>{offreRetenue.fournisseur_nom}</strong><br />
-                            {montantRetenu != null ? `${montantRetenu.toLocaleString("fr-FR")} Ar` : "-"}
+                            {montantRetenu != null ? (
+                              <>
+                                HT {montantRetenu.toLocaleString("fr-FR")} Ar<br />
+                                {offreRetenue.assujetti_tva !== false
+                                  ? `TTC ${(montantRetenu * 1.2).toLocaleString("fr-FR")} Ar`
+                                  : "Non taxable"}
+                              </>
+                            ) : "-"}
                           </>
                         ) : "-"}
                       </td>
@@ -443,8 +453,8 @@ export default function TCODetailPage() {
                   );
                 })}
                 <tr style={{ borderTop: "2px solid #eee" }}>
-                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>Total des articles au prix le moins cher retenu</td>
-                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.toLocaleString("fr-FR")} Ar</td>
+                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>Total des articles au prix le moins cher retenu (HT)</td>
+                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.ht.toLocaleString("fr-FR")} Ar</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
                       {o.totalHT.toLocaleString("fr-FR")} Ar
@@ -452,7 +462,8 @@ export default function TCODetailPage() {
                   ))}
                 </tr>
                 <tr>
-                  <td colSpan={5} style={tdStyle}>TVA {offresAvecTotaux.some((o) => o.assujetti_tva !== false) ? "20%" : ""}</td>
+                  <td colSpan={4} style={tdStyle}>TVA</td>
+                  <td style={{ ...tdStyle, color: "#1B7A4C" }}>{totalPreconisation.tva.toLocaleString("fr-FR")} Ar</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={tdStyle}>
                       {o.assujetti_tva === false ? <span style={{ color: "#999" }}>Non taxable</span> : `${o.tva.toLocaleString("fr-FR")} Ar`}
@@ -460,7 +471,8 @@ export default function TCODetailPage() {
                   ))}
                 </tr>
                 <tr>
-                  <td colSpan={5} style={{ ...tdStyle, fontWeight: 600 }}>Total TTC</td>
+                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 600 }}>Total TTC</td>
+                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.ttc.toLocaleString("fr-FR")} Ar</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
                       {o.totalTTC.toLocaleString("fr-FR")} Ar
@@ -514,8 +526,8 @@ export default function TCODetailPage() {
                   );
                 })}
                 <tr style={{ borderTop: "2px solid #eee" }}>
-                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>Total</td>
-                  <td style={{ ...tdStyle, fontWeight: 700 }}>{totalPreconisation.toLocaleString("fr-FR")} Ar</td>
+                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>Total (préconisation)</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>HT {totalPreconisation.ht.toLocaleString("fr-FR")} / TTC {totalPreconisation.ttc.toLocaleString("fr-FR")} Ar</td>
                   {page.map((o) => (
                     <td key={o.id} style={{ ...tdStyle, fontWeight: 600 }}>HT {o.totalHT.toLocaleString("fr-FR")} / TTC {o.totalTTC.toLocaleString("fr-FR")} Ar</td>
                   ))}
