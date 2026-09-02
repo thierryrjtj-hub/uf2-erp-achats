@@ -8,6 +8,7 @@ const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation
 
 export default function DemandesPage() {
   const [liste, setListe] = useState([]);
+  const [articlesBase, setArticlesBase] = useState([]);
   const [service, setService] = useState("");
   const [demandeur, setDemandeur] = useState("");
   const [motif, setMotif] = useState("");
@@ -17,9 +18,18 @@ export default function DemandesPage() {
   const charger = async () => {
     const { data } = await supabase.from("demandes").select("*").order("created_at", { ascending: false });
     setListe(data || []);
+    const { data: arts } = await supabase.from("articles").select("id, designation, unite_defaut");
+    setArticlesBase(arts || []);
   };
 
   useEffect(() => { charger(); }, []);
+
+  // Si la désignation tapée correspond à un article existant, pré-remplit son unité automatiquement
+  const onDesignationChange = (key, val) => {
+    updateLigne(key, "designation", val);
+    const match = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
+    if (match && match.unite_defaut) updateLigne(key, "unite", match.unite_defaut);
+  };
 
   const addLigne = () => setLignes([...lignes, ligneVide()]);
   const updateLigne = (key, field, val) => setLignes(lignes.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
@@ -41,12 +51,26 @@ export default function DemandesPage() {
       return;
     }
 
-    const payload = lignesValides.map((l) => ({
-      demande_id: demande.id,
-      designation: l.designation,
-      quantite: Number(l.quantite) || 1,
-      unite: l.unite,
-    }));
+    // Lie chaque ligne à un article existant, ou crée l'article automatiquement s'il n'existe pas encore
+    const payload = [];
+    for (const l of lignesValides) {
+      let article = articlesBase.find((a) => a.designation.toLowerCase() === l.designation.toLowerCase());
+      if (!article) {
+        const { data: nouvel } = await supabase
+          .from("articles")
+          .insert({ designation: l.designation, unite_defaut: l.unite || "pcs" })
+          .select()
+          .single();
+        article = nouvel;
+      }
+      payload.push({
+        demande_id: demande.id,
+        article_id: article ? article.id : null,
+        designation: l.designation,
+        quantite: Number(l.quantite) || 1,
+        unite: l.unite,
+      });
+    }
     await supabase.from("lignes_demande").insert(payload);
 
     setService(""); setDemandeur(""); setMotif("");
@@ -67,9 +91,19 @@ export default function DemandesPage() {
           <input placeholder="Motif / projet" value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
         </div>
 
+        <datalist id="liste-articles">
+          {articlesBase.map((a) => <option key={a.id} value={a.designation} />)}
+        </datalist>
+
         {lignes.map((l) => (
           <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input placeholder="Désignation de l'article" value={l.designation} onChange={(e) => updateLigne(l.key, "designation", e.target.value)} style={{ ...inputStyle, flex: 3 }} />
+            <input
+              placeholder="Désignation de l'article (tape pour voir les suggestions)"
+              value={l.designation}
+              onChange={(e) => onDesignationChange(l.key, e.target.value)}
+              list="liste-articles"
+              style={{ ...inputStyle, flex: 3 }}
+            />
             <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
             <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
             <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
