@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 
-const UNITES = ["pcs", "kg", "litre", "fût", "unité", "autre"];
+const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
 const empty = { designation: "", unite_defaut: "pcs", categorie: "", dernier_prix_ht: "" };
 
 function matchRecherche(a, q) {
@@ -20,6 +20,12 @@ export default function ArticlesPage() {
   const [editId, setEditId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [recherche, setRecherche] = useState("");
+  const [modeUniteLibre, setModeUniteLibre] = useState(false);
+
+  const uniteOptions = useMemo(() => {
+    const depuisArticles = liste.map((a) => a.unite_defaut).filter(Boolean);
+    return [...new Set([...UNITES_BASE, ...depuisArticles])].sort((a, b) => a.localeCompare(b));
+  }, [liste]);
 
   const charger = async () => {
     const { data } = await supabase.from("articles").select("*").order("designation");
@@ -59,6 +65,7 @@ export default function ArticlesPage() {
     }
     setForm(empty);
     setEditId(null);
+    setModeUniteLibre(false);
     charger();
   };
 
@@ -68,6 +75,7 @@ export default function ArticlesPage() {
       dernier_prix_ht: a.dernier_prix_ht ?? "",
     });
     setEditId(a.id);
+    setModeUniteLibre(false);
   };
 
   const supprimer = async (id) => {
@@ -121,15 +129,34 @@ export default function ArticlesPage() {
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>{editId ? "Modifier l'article" : "Ajouter un article"}</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input placeholder="Désignation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-          <select value={form.unite_defaut} onChange={(e) => setForm({ ...form, unite_defaut: e.target.value })} style={{ ...inputStyle, width: 120 }}>
-            {UNITES.map((u) => <option key={u} value={u}>{u}</option>)}
-          </select>
+          {modeUniteLibre ? (
+            <input
+              placeholder="Nouvelle unité (ex: Boîte)"
+              value={form.unite_defaut}
+              autoFocus
+              onChange={(e) => setForm({ ...form, unite_defaut: e.target.value })}
+              onBlur={() => { if (!form.unite_defaut.trim()) { setModeUniteLibre(false); setForm({ ...form, unite_defaut: "pcs" }); } }}
+              style={{ ...inputStyle, width: 160 }}
+            />
+          ) : (
+            <select
+              value={form.unite_defaut}
+              onChange={(e) => {
+                if (e.target.value === "__nouvelle__") { setModeUniteLibre(true); setForm({ ...form, unite_defaut: "" }); }
+                else setForm({ ...form, unite_defaut: e.target.value });
+              }}
+              style={{ ...inputStyle, width: 160 }}
+            >
+              {uniteOptions.map((u) => <option key={u} value={u}>{u}</option>)}
+              <option value="__nouvelle__">+ Nouvelle unité...</option>
+            </select>
+          )}
           <input placeholder="Catégorie" value={form.categorie} onChange={(e) => setForm({ ...form, categorie: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <input type="number" placeholder="Dernier prix HT" value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
           <button onClick={enregistrer} style={buttonStyle}>{editId ? "Enregistrer" : "Ajouter"}</button>
-          {editId && <button onClick={() => { setForm(empty); setEditId(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
+          {editId && <button onClick={() => { setForm(empty); setEditId(null); setModeUniteLibre(false); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
         </div>
       </div>
 
