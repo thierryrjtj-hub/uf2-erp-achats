@@ -31,7 +31,7 @@ export default function NouveauBCDirectPage() {
     if (f) { setFournisseurChoisi(f); setAssujettiTva(f.tva_defaut_pct !== 0); }
   };
 
-  const updateLigne = (key, field, val) => setLignes(lignes.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
+  const updateLigne = (key, field, val) => setLignes((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
   const addLigne = () => setLignes([...lignes, ligneVide()]);
   const removeLigne = (key) => setLignes(lignes.filter((l) => l.key !== key));
 
