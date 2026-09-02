@@ -7,12 +7,19 @@ import { exportExcel } from "../../lib/exportExcel";
 const UNITES = ["pcs", "kg", "litre", "fût", "unité", "autre"];
 const empty = { designation: "", unite_defaut: "pcs", categorie: "", dernier_prix_ht: "" };
 
+function matchRecherche(a, q) {
+  if (!q.trim()) return true;
+  const s = q.toLowerCase();
+  return [a.designation, a.categorie].some((v) => (v || "").toLowerCase().includes(s));
+}
+
 export default function ArticlesPage() {
   const [liste, setListe] = useState([]);
   const [lignesBc, setLignesBc] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [recherche, setRecherche] = useState("");
 
   const charger = async () => {
     const { data } = await supabase.from("articles").select("*").order("designation");
@@ -68,6 +75,15 @@ export default function ArticlesPage() {
     charger();
   };
 
+  const copierFiche = async (a, dernier) => {
+    const texte = [
+      a.designation, a.unite_defaut && `Unité : ${a.unite_defaut}`, a.categorie && `Catégorie : ${a.categorie}`,
+      a.dernier_prix_ht && `Dernier prix HT (référence) : ${Number(a.dernier_prix_ht).toLocaleString("fr-FR")} Ar`,
+      dernier && `Dernier achat réel : ${dernier.fournisseur} — ${dernier.pu.toLocaleString("fr-FR")} Ar HT le ${dernier.date} (BC ${dernier.bc})`,
+    ].filter(Boolean).join("\n");
+    try { await navigator.clipboard.writeText(texte); } catch (e) {}
+  };
+
   const exporter = async () => {
     setExporting(true);
     const rows = liste.map((a) => {
@@ -118,8 +134,11 @@ export default function ArticlesPage() {
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Liste ({liste.length})</h2>
-        {liste.map((a) => {
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+          <h2 style={{ fontSize: 15 }}>Liste ({liste.filter(a => matchRecherche(a, recherche)).length} / {liste.length})</h2>
+          <input placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: 340 }} />
+        </div>
+        {liste.filter((a) => matchRecherche(a, recherche)).map((a) => {
           const hist = historiqueParArticle[a.id] || [];
           const dernier = hist[0];
           const autres = [...new Map(hist.slice(1).map((h) => [h.fournisseur, h])).values()].slice(0, 4);
@@ -128,6 +147,7 @@ export default function ArticlesPage() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{a.designation}</div>
                 <div>
+                  <button onClick={() => copierFiche(a, dernier)} style={linkBtn}>Copier tout</button>
                   <button onClick={() => modifier(a)} style={linkBtn}>Modifier</button>
                   <button onClick={() => supprimer(a.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
                 </div>
