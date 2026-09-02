@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
+import Autocomplete from "../components/Autocomplete";
 
 const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs" });
 
@@ -91,18 +92,14 @@ export default function DemandesPage() {
           <input placeholder="Motif / projet" value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
         </div>
 
-        <datalist id="liste-articles">
-          {articlesBase.map((a) => <option key={a.id} value={a.designation} />)}
-        </datalist>
-
         {lignes.map((l) => (
           <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input
+            <Autocomplete
               placeholder="Désignation de l'article (tape pour voir les suggestions)"
               value={l.designation}
-              onChange={(e) => onDesignationChange(l.key, e.target.value)}
-              list="liste-articles"
-              style={{ ...inputStyle, flex: 3 }}
+              onChange={(val) => onDesignationChange(l.key, val)}
+              suggestions={articlesBase.map((a) => a.designation)}
+              style={{ flex: 3 }}
             />
             <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
             <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
