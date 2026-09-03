@@ -25,14 +25,6 @@ export default function CommandesPage() {
     await supabase.from("commandes").update({ statut }).eq("id", id);
   };
 
-  const confirmerReception = async (bcId) => {
-    const { data: userData } = await supabase.auth.getUser();
-    const email = userData?.user?.email || "utilisateur";
-    await supabase.from("receptions").insert({ bc_id: bcId, confirme_par: email });
-    await supabase.from("commandes").update({ statut: "Clôturée" }).eq("id", bcId);
-    charger();
-  };
-
   const echeanceInfo = (c) => {
     if (!c.date_facture) return null;
     const d = new Date(c.date_facture);
@@ -93,6 +85,9 @@ export default function CommandesPage() {
           <Link href="/commandes/nouveau" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
             + Créer un BC directement
           </Link>
+          <Link href="/commandes/pv-vierge" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
+            PV vierge
+          </Link>
           <button onClick={exporter} disabled={exporting} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" }}>
             {exporting ? "Génération..." : "Exporter en Excel"}
           </button>
@@ -137,12 +132,12 @@ export default function CommandesPage() {
                   </td>
                   <td style={tdStyle}>
                     {reception ? (
-                      <span style={{ fontSize: 12, color: "#1B7A4C" }}>
-                        Reçu le {new Date(reception.date_reception_reelle).toLocaleString("fr-FR")}<br />
-                        <span style={{ color: "#999" }}>par {reception.confirme_par}</span>
+                      <span style={{ fontSize: 12, color: reception.statut === "Totale" ? "#1B7A4C" : "#8A6100" }}>
+                        {reception.statut === "Totale" ? "Livré" : "Livré partiellement"}<br />
+                        <span style={{ color: "#999" }}>par {reception.receptionnaire || reception.confirme_par}</span>
                       </span>
                     ) : (
-                      <button onClick={() => confirmerReception(c.id)} style={smallBtn}>Marquer reçu maintenant</button>
+                      <span style={{ fontSize: 12, color: "#999" }}>Non livré</span>
                     )}
                   </td>
                   <td style={tdStyle}>
