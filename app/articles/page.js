@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
+import Autocomplete from "../components/Autocomplete";
 
 const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
 const CATEGORIES_BASE = [
@@ -107,6 +108,12 @@ export default function ArticlesPage() {
     charger();
   };
 
+  const supprimerCategorie = async (cat) => {
+    if (!confirm(`Supprimer la catégorie "${cat}" ? Elle sera retirée de tous les articles qui l'utilisent (ils redeviendront sans catégorie).`)) return;
+    await supabase.from("articles").update({ categorie: null }).eq("categorie", cat);
+    charger();
+  };
+
   const copierFiche = async (a, dernier) => {
     const texte = [
       a.designation, a.unite_defaut && `Unité : ${a.unite_defaut}`, a.categorie && `Catégorie : ${a.categorie}`,
@@ -153,56 +160,37 @@ export default function ArticlesPage() {
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>{editId ? "Modifier l'article" : "Ajouter un article"}</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input placeholder="Désignation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-          {modeUniteLibre ? (
-            <input
-              placeholder="Nouvelle unité (ex: Boîte)"
-              value={form.unite_defaut}
-              autoFocus
-              onChange={(e) => setForm({ ...form, unite_defaut: e.target.value })}
-              onBlur={() => { if (!form.unite_defaut.trim()) { setModeUniteLibre(false); setForm({ ...form, unite_defaut: "pcs" }); } }}
-              style={{ ...inputStyle, width: 160 }}
-            />
-          ) : (
-            <select
-              value={form.unite_defaut}
-              onChange={(e) => {
-                if (e.target.value === "__nouvelle__") { setModeUniteLibre(true); setForm({ ...form, unite_defaut: "" }); }
-                else setForm({ ...form, unite_defaut: e.target.value });
-              }}
-              style={{ ...inputStyle, width: 160 }}
-            >
-              {uniteOptions.map((u) => <option key={u} value={u}>{u}</option>)}
-              <option value="__nouvelle__">+ Nouvelle unité...</option>
-            </select>
-          )}
-          {modeCategorieLibre ? (
-            <input
-              placeholder="Nouvelle catégorie"
-              value={form.categorie}
-              autoFocus
-              onChange={(e) => setForm({ ...form, categorie: e.target.value })}
-              onBlur={() => { if (!form.categorie.trim()) setModeCategorieLibre(false); }}
-              style={{ ...inputStyle, flex: 1 }}
-            />
-          ) : (
-            <select
-              value={form.categorie || "__aucune__"}
-              onChange={(e) => {
-                if (e.target.value === "__nouvelle__") { setModeCategorieLibre(true); setForm({ ...form, categorie: "" }); }
-                else setForm({ ...form, categorie: e.target.value === "__aucune__" ? "" : e.target.value });
-              }}
-              style={{ ...inputStyle, flex: 1 }}
-            >
-              <option value="__aucune__">Catégorie...</option>
-              {categorieOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-              <option value="__nouvelle__">+ Nouvelle catégorie...</option>
-            </select>
-          )}
+          <Autocomplete
+            placeholder="Unité (tape pour voir les suggestions)"
+            value={form.unite_defaut}
+            onChange={(val) => setForm({ ...form, unite_defaut: val })}
+            suggestions={uniteOptions}
+            style={{ width: 190 }}
+          />
+          <Autocomplete
+            placeholder="Catégorie (tape pour voir les suggestions)"
+            value={form.categorie}
+            onChange={(val) => setForm({ ...form, categorie: val })}
+            suggestions={categorieOptions}
+            style={{ flex: 1 }}
+          />
           <input type="number" placeholder="Dernier prix HT" value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
           <button onClick={enregistrer} style={buttonStyle}>{editId ? "Enregistrer" : "Ajouter"}</button>
           {editId && <button onClick={() => { setForm(empty); setEditId(null); setModeUniteLibre(false); setModeCategorieLibre(false); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Catégories existantes</h2>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {categorieOptions.map((c) => (
+            <span key={c} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, background: "#F5F4F1", borderRadius: 6, padding: "4px 8px" }}>
+              {c}
+              <button onClick={() => supprimerCategorie(c)} style={{ border: "none", background: "none", color: "#B3261E", cursor: "pointer", fontSize: 13, padding: 0 }} title="Supprimer cette catégorie">×</button>
+            </span>
+          ))}
         </div>
       </div>
 
