@@ -25,6 +25,12 @@ export default function CommandesPage() {
     await supabase.from("commandes").update({ statut }).eq("id", id);
   };
 
+  const supprimerBc = async (c) => {
+    if (!confirm(`Supprimer définitivement le bon de commande ${c.numero} ? Sa réception et son historique seront aussi supprimés.`)) return;
+    await supabase.from("commandes").delete().eq("id", c.id);
+    charger();
+  };
+
   const echeanceInfo = (c) => {
     if (!c.date_facture) return null;
     const d = new Date(c.date_facture);
@@ -152,6 +158,7 @@ export default function CommandesPage() {
                   </td>
                   <td style={tdStyle}>
                     <Link href={`/commandes/${c.id}`} style={linkBtn}>Voir / Facture</Link>
+                    <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", marginLeft: 10 }}>Supprimer</button>
                   </td>
                 </tr>
               );
