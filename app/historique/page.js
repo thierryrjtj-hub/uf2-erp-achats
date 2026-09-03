@@ -3,14 +3,12 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel, slugify } from "../../lib/exportExcel";
+import Autocomplete from "../components/Autocomplete";
 
 export default function HistoriquePage() {
   const [lignes, setLignes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
-  const [filtreFournisseur, setFiltreFournisseur] = useState("");
-  const [filtreService, setFiltreService] = useState("");
-  const [filtreCategorie, setFiltreCategorie] = useState("");
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -87,21 +85,27 @@ export default function HistoriquePage() {
     })();
   }, []);
 
-  const fournisseursDistincts = useMemo(() => [...new Set(lignes.map((l) => l.fournisseur_nom).filter((v) => v && v !== "-"))].sort(), [lignes]);
-  const servicesDistincts = useMemo(() => [...new Set(lignes.map((l) => l.service).filter(Boolean))].sort(), [lignes]);
-  const categoriesDistinctes = useMemo(() => [...new Set(lignes.map((l) => l.categorie).filter(Boolean))].sort(), [lignes]);
+  // Suggestions combinées de toutes les colonnes textuelles, pour la barre de recherche unique
+  const suggestionsRecherche = useMemo(() => {
+    const s = new Set();
+    lignes.forEach((l) => {
+      [l.designation, l.fournisseur_nom, l.service, l.demandeur, l.usage_projet, l.categorie, l.bc_numero, l.statut, l.receptionnaire]
+        .forEach((v) => { if (v && v !== "-") s.add(v); });
+    });
+    return [...s].sort();
+  }, [lignes]);
+
+  const CHAMPS_RECHERCHABLES = ["designation", "fournisseur_nom", "service", "demandeur", "usage_projet", "categorie", "bc_numero", "statut", "observation", "receptionnaire"];
 
   const filtrees = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
     return lignes.filter((l) => {
-      const okRecherche = !recherche || l.designation.toLowerCase().includes(recherche.toLowerCase()) || (l.demandeur || "").toLowerCase().includes(recherche.toLowerCase());
-      const okFournisseur = !filtreFournisseur || l.fournisseur_nom === filtreFournisseur;
-      const okService = !filtreService || l.service === filtreService;
-      const okCategorie = !filtreCategorie || l.categorie === filtreCategorie;
+      const okRecherche = !q || CHAMPS_RECHERCHABLES.some((champ) => (l[champ] || "").toString().toLowerCase().includes(q));
       const okDebut = !dateDebut || (l.date_tri && l.date_tri >= dateDebut);
       const okFin = !dateFin || (l.date_tri && l.date_tri <= dateFin);
-      return okRecherche && okFournisseur && okService && okCategorie && okDebut && okFin;
+      return okRecherche && okDebut && okFin;
     });
-  }, [lignes, recherche, filtreFournisseur, filtreService, filtreCategorie, dateDebut, dateFin]);
+  }, [lignes, recherche, dateDebut, dateFin]);
 
   const totauxFiltres = useMemo(() => {
     return filtrees.reduce((acc, l) => ({ ht: acc.ht + (Number(l.montant_ht) || 0), ttc: acc.ttc + (Number(l.montant_ttc) || 0) }), { ht: 0, ttc: 0 });
@@ -122,7 +126,7 @@ export default function HistoriquePage() {
     const rows = filtrees.map((l) => ({
       dateDa: l.date_da, article: l.designation, qte: Number(l.quantite), unite: l.unite,
       fournisseur: l.fournisseur_nom, bc: l.bc_numero, dateBc: l.bc_date, dateSignature: l.date_signature, dateReception: l.date_reception,
-      receptionnaire: l.receptionnaire, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
+      receptionnaire: l.receptionnaire, etat: l.etat_livraison, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
       pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: l.remise_pct != null ? Number(l.remise_pct) : "",
       montantHt: Number(l.montant_ht) || 0, montantTtc: Number(l.montant_ttc) || 0, totalBc: Number(l.bc_total_ttc) || 0,
       statut: l.statut, observation: l.observation,
@@ -136,7 +140,6 @@ export default function HistoriquePage() {
 
     const parts = [];
     if (recherche) parts.push(slugify(recherche));
-    if (filtreFournisseur) parts.push(slugify(filtreFournisseur));
     const slug = parts.length ? parts.join("_") : "tous-achats";
 
     await exportExcel({
@@ -150,12 +153,12 @@ export default function HistoriquePage() {
             { header: "Fournisseur", key: "fournisseur", width: 20 }, { header: "N° BC", key: "bc", width: 16 },
             { header: "Date BC (création)", key: "dateBc", width: 14 }, { header: "Date signature (envoi commande)", key: "dateSignature", width: 16 },
             { header: "Date réception livraison", key: "dateReception", width: 15 }, { header: "Réceptionnaire", key: "receptionnaire", width: 15 },
-            { header: "Catégorie", key: "categorie", width: 20 }, { header: "Service demandeur", key: "service", width: 16 },
-            { header: "Demandeur", key: "demandeur", width: 16 }, { header: "Usage / Projet", key: "usage", width: 22 },
-            { header: "PU HT", key: "pu", width: 12 }, { header: "Remise %", key: "remise", width: 9 },
-            { header: "Montant HT", key: "montantHt", width: 14 }, { header: "Montant TTC", key: "montantTtc", width: 14 },
-            { header: "Total BC (TTC)", key: "totalBc", width: 14 }, { header: "Statut", key: "statut", width: 16 },
-            { header: "Observation", key: "observation", width: 26 },
+            { header: "État livraison", key: "etat", width: 14 }, { header: "Catégorie", key: "categorie", width: 20 },
+            { header: "Service demandeur", key: "service", width: 16 }, { header: "Demandeur", key: "demandeur", width: 16 },
+            { header: "Usage / Projet", key: "usage", width: 22 }, { header: "PU HT", key: "pu", width: 12 },
+            { header: "Remise %", key: "remise", width: 9 }, { header: "Montant HT", key: "montantHt", width: 14 },
+            { header: "Montant TTC", key: "montantTtc", width: 14 }, { header: "Total BC (TTC)", key: "totalBc", width: 14 },
+            { header: "Statut", key: "statut", width: 16 }, { header: "Observation", key: "observation", width: 26 },
           ],
           rows,
           currencyKeys: ["pu", "montantHt", "montantTtc", "totalBc"],
@@ -184,24 +187,13 @@ export default function HistoriquePage() {
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <input
-            placeholder="Rechercher un article ou un demandeur..."
+          <Autocomplete
+            placeholder="Rechercher — article, fournisseur, service, demandeur, catégorie, usage/projet, N° BC, statut..."
             value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            style={{ ...inputStyle, flex: 1, minWidth: 200 }}
+            onChange={setRecherche}
+            suggestions={suggestionsRecherche}
+            style={{ flex: 1, minWidth: 320 }}
           />
-          <select value={filtreFournisseur} onChange={(e) => setFiltreFournisseur(e.target.value)} style={inputStyle}>
-            <option value="">Tous les fournisseurs</option>
-            {fournisseursDistincts.map((f) => <option key={f} value={f}>{f}</option>)}
-          </select>
-          <select value={filtreService} onChange={(e) => setFiltreService(e.target.value)} style={inputStyle}>
-            <option value="">Tous les services</option>
-            {servicesDistincts.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <select value={filtreCategorie} onChange={(e) => setFiltreCategorie(e.target.value)} style={inputStyle}>
-            <option value="">Toutes les catégories</option>
-            {categoriesDistinctes.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
           <label style={{ fontSize: 12, color: "#666" }}>Du</label>
           <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
           <label style={{ fontSize: 12, color: "#666" }}>au</label>
@@ -236,6 +228,7 @@ export default function HistoriquePage() {
                   <th style={thStyle}>Date signature (envoi commande)</th>
                   <th style={thStyle}>Date réception livraison</th>
                   <th style={thStyle}>Réceptionnaire</th>
+                  <th style={thStyle}>État livraison</th>
                   <th style={thStyle}>Catégorie</th>
                   <th style={thStyle}>Service demandeur</th>
                   <th style={thStyle}>Demandeur</th>
@@ -245,7 +238,6 @@ export default function HistoriquePage() {
                   <th style={thStyle}>Montant HT</th>
                   <th style={thStyle}>Montant TTC</th>
                   <th style={thStyle}>Total BC (TTC)</th>
-                  <th style={thStyle}>Livraison</th>
                   <th style={thStyle}>Statut</th>
                   <th style={thStyle}>Observation</th>
                 </tr>
@@ -263,6 +255,7 @@ export default function HistoriquePage() {
                     <td style={tdStyle}>{l.date_signature}</td>
                     <td style={tdStyle}>{l.date_reception}</td>
                     <td style={tdStyle}>{l.receptionnaire}</td>
+                    <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
                     <td style={tdStyle}>{l.categorie || "-"}</td>
                     <td style={tdStyle}>{l.service || "-"}</td>
                     <td style={tdStyle}>{l.demandeur || "-"}</td>
@@ -272,7 +265,6 @@ export default function HistoriquePage() {
                     <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
                     <td style={tdStyle}>{Number(l.montant_ttc).toLocaleString("fr-FR")} Ar</td>
                     <td style={{ ...tdStyle, fontWeight: 600 }}>{l.bc_total_ttc ? `${Number(l.bc_total_ttc).toLocaleString("fr-FR")} Ar` : "-"}</td>
-                    <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
                     <td style={tdStyle}>{l.statut}</td>
                     <td style={tdStyle}>{l.observation}</td>
                   </tr>
@@ -280,10 +272,10 @@ export default function HistoriquePage() {
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: "2px solid #ddd" }}>
-                  <td colSpan={16} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length} ligne{filtrees.length > 1 ? "s" : ""} affichée{filtrees.length > 1 ? "s" : ""})</td>
+                  <td colSpan={17} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length} ligne{filtrees.length > 1 ? "s" : ""} affichée{filtrees.length > 1 ? "s" : ""})</td>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
-                  <td colSpan={4} style={tdStyle}></td>
+                  <td colSpan={3} style={tdStyle}></td>
                 </tr>
               </tfoot>
             </table>
