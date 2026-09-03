@@ -10,6 +10,7 @@ const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation
 export default function DemandesPage() {
   const [liste, setListe] = useState([]);
   const [articlesBase, setArticlesBase] = useState([]);
+  const [demandesAvecNonDispo, setDemandesAvecNonDispo] = useState(new Set());
   const [service, setService] = useState("");
   const [demandeur, setDemandeur] = useState("");
   const [motif, setMotif] = useState("");
@@ -21,6 +22,8 @@ export default function DemandesPage() {
     setListe(data || []);
     const { data: arts } = await supabase.from("articles").select("id, designation, unite_defaut");
     setArticlesBase(arts || []);
+    const { data: nonDispo } = await supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true);
+    setDemandesAvecNonDispo(new Set((nonDispo || []).map((x) => x.demande_id)));
   };
 
   useEffect(() => { charger(); }, []);
@@ -127,6 +130,9 @@ export default function DemandesPage() {
               </div>
               <div style={{ fontSize: 13, color: "#666", width: 150 }}>{d.service || "-"}</div>
               <div style={{ fontSize: 13, color: "#666", width: 110 }}>{d.date}</div>
+              {demandesAvecNonDispo.has(d.id) && (
+                <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
+              )}
               <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{d.statut}</span>
             </div>
           </Link>
