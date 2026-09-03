@@ -11,18 +11,22 @@ export default function HistoriquePage() {
   const [filtreFournisseur, setFiltreFournisseur] = useState("");
   const [filtreService, setFiltreService] = useState("");
   const [filtreCategorie, setFiltreCategorie] = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc");
+      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, statut, date_signature, observation");
       const { data: lignesBc } = await supabase.from("lignes_bc").select("*");
       const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle");
       const { data: lignesReceptionList } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree");
-      const { data: demandesList } = await supabase.from("demandes").select("id, service, demandeur, motif_projet");
+      const { data: demandesList } = await supabase.from("demandes").select("id, service, demandeur, motif_projet, statut, created_at");
+      const { data: lignesDemandeList } = await supabase.from("lignes_demande").select("id, demande_id, designation, quantite, unite");
       const { data: articlesList } = await supabase.from("articles").select("designation, categorie");
 
-      const enrichies = (lignesBc || []).map((l) => {
+      // ---- Lignes déjà passées en BC ----
+      const rowsBc = (lignesBc || []).map((l) => {
         const bc = (bcList || []).find((b) => b.id === l.bc_id);
         const receptionsDeCeBc = (receptionsList || []).filter((r) => r.bc_id === l.bc_id).map((r) => r.id);
         const cumulLivre = (lignesReceptionList || [])
@@ -37,28 +41,52 @@ export default function HistoriquePage() {
         let etatLivraison = "Non livré";
         if (cumulLivre >= Number(l.quantite) && cumulLivre > 0) etatLivraison = "Livré";
         else if (cumulLivre > 0) etatLivraison = "Livré partiellement";
+
         return {
-          ...l,
-          bc_numero: bc?.numero || "-",
-          bc_date: bc?.date || "-",
+          id: `bc-${l.id}`,
+          date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
+          designation: l.designation, quantite: l.quantite, unite: l.unite,
           fournisseur_nom: bc?.fournisseur_nom || "-",
-          bc_total_ttc: Number(bc?.montant_ttc) || 0,
-          date_reception: derniereReception?.date_reception_reelle || null,
-          service: dmd?.service || "",
-          demandeur: dmd?.demandeur || "",
-          usage_projet: dmd?.motif_projet || "",
-          categorie: art?.categorie || "",
-          montant_ttc: montantTtc,
-          etat_livraison: etatLivraison,
+          bc_numero: bc?.numero || "-", bc_date: bc?.date || "-",
+          date_signature: bc?.date_signature || "-",
+          date_reception: derniereReception?.date_reception_reelle ? derniereReception.date_reception_reelle.slice(0, 10) : "-",
+          categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
+          demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
+          prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct, montant_ht: montantHt, montant_ttc: montantTtc,
+          bc_total_ttc: Number(bc?.montant_ttc) || 0, etat_livraison: etatLivraison,
+          statut: bc?.statut || "-", observation: bc?.observation || "",
+          date_tri: bc?.date || (dmd?.created_at ? dmd.created_at.slice(0, 10) : ""),
         };
       });
-      enrichies.sort((a, b) => new Date(b.bc_date) - new Date(a.bc_date));
-      setLignes(enrichies);
+
+      // ---- Lignes de demande pas encore passées en BC (en attente) ----
+      const ligneDemandeCouvertes = new Set((lignesBc || []).map((l) => l.ligne_demande_id).filter(Boolean));
+      const rowsAttente = (lignesDemandeList || [])
+        .filter((ld) => !ligneDemandeCouvertes.has(ld.id))
+        .map((ld) => {
+          const dmd = (demandesList || []).find((d) => d.id === ld.demande_id);
+          const art = (articlesList || []).find((a) => a.designation.toLowerCase() === ld.designation.toLowerCase());
+          return {
+            id: `pending-${ld.id}`,
+            date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
+            designation: ld.designation, quantite: ld.quantite, unite: ld.unite,
+            fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-",
+            categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
+            demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
+            prix_unitaire_ht: null, remise_pct: null, montant_ht: 0, montant_ttc: 0, bc_total_ttc: 0, etat_livraison: "-",
+            statut: dmd?.statut === "Partiellement traitée" ? "Partiellement traitée" : "A faire",
+            observation: dmd?.statut === "Partiellement traitée" ? "Reste à traiter — devis en cours" : "En attente de devis / TCO",
+            date_tri: dmd?.created_at ? dmd.created_at.slice(0, 10) : "",
+          };
+        });
+
+      const toutes = [...rowsBc, ...rowsAttente].sort((a, b) => new Date(b.date_tri) - new Date(a.date_tri));
+      setLignes(toutes);
       setLoading(false);
     })();
   }, []);
 
-  const fournisseursDistincts = useMemo(() => [...new Set(lignes.map((l) => l.fournisseur_nom))].sort(), [lignes]);
+  const fournisseursDistincts = useMemo(() => [...new Set(lignes.map((l) => l.fournisseur_nom).filter((v) => v && v !== "-"))].sort(), [lignes]);
   const servicesDistincts = useMemo(() => [...new Set(lignes.map((l) => l.service).filter(Boolean))].sort(), [lignes]);
   const categoriesDistinctes = useMemo(() => [...new Set(lignes.map((l) => l.categorie).filter(Boolean))].sort(), [lignes]);
 
@@ -68,9 +96,11 @@ export default function HistoriquePage() {
       const okFournisseur = !filtreFournisseur || l.fournisseur_nom === filtreFournisseur;
       const okService = !filtreService || l.service === filtreService;
       const okCategorie = !filtreCategorie || l.categorie === filtreCategorie;
-      return okRecherche && okFournisseur && okService && okCategorie;
+      const okDebut = !dateDebut || (l.date_tri && l.date_tri >= dateDebut);
+      const okFin = !dateFin || (l.date_tri && l.date_tri <= dateFin);
+      return okRecherche && okFournisseur && okService && okCategorie && okDebut && okFin;
     });
-  }, [lignes, recherche, filtreFournisseur, filtreService, filtreCategorie]);
+  }, [lignes, recherche, filtreFournisseur, filtreService, filtreCategorie, dateDebut, dateFin]);
 
   const totauxFiltres = useMemo(() => {
     return filtrees.reduce((acc, l) => ({ ht: acc.ht + (Number(l.montant_ht) || 0), ttc: acc.ttc + (Number(l.montant_ttc) || 0) }), { ht: 0, ttc: 0 });
@@ -79,6 +109,7 @@ export default function HistoriquePage() {
   const dernierAchatParArticle = useMemo(() => {
     const map = {};
     for (const l of lignes) {
+      if (l.bc_numero === "-") continue;
       const key = l.designation;
       if (!map[key] || new Date(l.bc_date) > new Date(map[key].bc_date)) map[key] = l;
     }
@@ -88,25 +119,18 @@ export default function HistoriquePage() {
   const exporter = async () => {
     setExporting(true);
     const rows = filtrees.map((l) => ({
-      article: l.designation, categorie: l.categorie, fournisseur: l.fournisseur_nom, bc: l.bc_numero, dateBc: l.bc_date,
-      demandeur: l.demandeur, usage: l.usage_projet, etat: l.etat_livraison,
-      qte: Number(l.quantite), unite: l.unite, pu: Number(l.prix_unitaire_ht) || 0, remise: Number(l.remise_pct) || 0,
+      dateDa: l.date_da, article: l.designation, qte: Number(l.quantite), unite: l.unite,
+      fournisseur: l.fournisseur_nom, bc: l.bc_numero, dateBc: l.bc_date, dateSignature: l.date_signature, dateReception: l.date_reception,
+      categorie: l.categorie, demandeur: l.demandeur, usage: l.usage_projet, demandeCloturee: l.demande_cloturee,
+      pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: l.remise_pct != null ? Number(l.remise_pct) : "",
       montantHt: Number(l.montant_ht) || 0, montantTtc: Number(l.montant_ttc) || 0, totalBc: Number(l.bc_total_ttc) || 0,
+      statut: l.statut, observation: l.observation,
     }));
-
-    const parFournisseur = {};
-    filtrees.forEach((l) => { parFournisseur[l.fournisseur_nom] = (parFournisseur[l.fournisseur_nom] || 0) + Number(l.montant_ht || 0); });
-    const topFournisseurs = Object.entries(parFournisseur).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
     const kpiRows = [
       { label: "Montant total HT (filtré)", valeur: totauxFiltres.ht },
       { label: "Montant total TTC (filtré)", valeur: totauxFiltres.ttc },
-      { label: "Nombre de lignes d'achat", valeur: filtrees.length },
-      { label: "Nombre d'articles distincts", valeur: new Set(filtrees.map((l) => l.designation)).size },
-      { label: "Nombre de fournisseurs distincts", valeur: new Set(filtrees.map((l) => l.fournisseur_nom)).size },
-      { label: "", valeur: "" },
-      { label: "Top fournisseurs (montant HT)", valeur: "" },
-      ...topFournisseurs.map(([nom, montant]) => ({ label: nom, valeur: montant })),
+      { label: "Nombre de lignes affichées", valeur: filtrees.length },
     ];
 
     const parts = [];
@@ -120,14 +144,16 @@ export default function HistoriquePage() {
         {
           name: "Historique",
           columns: [
-            { header: "Article", key: "article", width: 34 }, { header: "Catégorie", key: "categorie", width: 20 },
-            { header: "Fournisseur", key: "fournisseur", width: 20 }, { header: "N° BC", key: "bc", width: 16 },
-            { header: "Date BC", key: "dateBc", width: 12 }, { header: "Demandeur", key: "demandeur", width: 16 },
-            { header: "Usage / Projet", key: "usage", width: 24 }, { header: "État livraison", key: "etat", width: 16 },
+            { header: "Date DA", key: "dateDa", width: 12 }, { header: "Article", key: "article", width: 34 },
             { header: "Qté", key: "qte", width: 8 }, { header: "Unité", key: "unite", width: 10 },
-            { header: "PU HT", key: "pu", width: 12 }, { header: "Remise %", key: "remise", width: 9 },
-            { header: "Montant HT", key: "montantHt", width: 14 }, { header: "Montant TTC", key: "montantTtc", width: 14 },
-            { header: "Total BC (TTC)", key: "totalBc", width: 14 },
+            { header: "Fournisseur", key: "fournisseur", width: 20 }, { header: "N° BC", key: "bc", width: 16 },
+            { header: "Date BC", key: "dateBc", width: 12 }, { header: "Date signature BC", key: "dateSignature", width: 14 },
+            { header: "Date réception", key: "dateReception", width: 13 }, { header: "Catégorie", key: "categorie", width: 20 },
+            { header: "Demandeur", key: "demandeur", width: 16 }, { header: "Usage / Projet", key: "usage", width: 22 },
+            { header: "Demande clôturée", key: "demandeCloturee", width: 13 }, { header: "PU HT", key: "pu", width: 12 },
+            { header: "Remise %", key: "remise", width: 9 }, { header: "Montant HT", key: "montantHt", width: 14 },
+            { header: "Montant TTC", key: "montantTtc", width: 14 }, { header: "Total BC (TTC)", key: "totalBc", width: 14 },
+            { header: "Statut", key: "statut", width: 16 }, { header: "Observation", key: "observation", width: 26 },
           ],
           rows,
           currencyKeys: ["pu", "montantHt", "montantTtc", "totalBc"],
@@ -174,6 +200,10 @@ export default function HistoriquePage() {
             <option value="">Toutes les catégories</option>
             {categoriesDistinctes.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+          <label style={{ fontSize: 12, color: "#666" }}>Du</label>
+          <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
+          <label style={{ fontSize: 12, color: "#666" }}>au</label>
+          <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
           <button onClick={exporter} disabled={exporting} style={buttonStyle}>
             {exporting ? "Génération..." : "Exporter en Excel"}
           </button>
@@ -187,55 +217,69 @@ export default function HistoriquePage() {
         )}
 
         {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-        {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucun achat enregistré pour le moment — l'historique se remplit automatiquement à chaque bon de commande créé.</p>}
+        {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucun achat enregistré pour le moment.</p>}
 
         {filtrees.length > 0 && (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
+                  <th style={thStyle}>Date DA</th>
                   <th style={thStyle}>Article</th>
-                  <th style={thStyle}>Catégorie</th>
+                  <th style={thStyle}>Qté</th>
+                  <th style={thStyle}>Unité</th>
                   <th style={thStyle}>Fournisseur</th>
                   <th style={thStyle}>N° BC</th>
                   <th style={thStyle}>Date BC</th>
+                  <th style={thStyle}>Date signature</th>
+                  <th style={thStyle}>Date réception</th>
+                  <th style={thStyle}>Catégorie</th>
                   <th style={thStyle}>Demandeur</th>
                   <th style={thStyle}>Usage / Projet</th>
-                  <th style={thStyle}>État</th>
-                  <th style={thStyle}>Qté</th>
+                  <th style={thStyle}>Demande clôturée</th>
                   <th style={thStyle}>PU HT</th>
                   <th style={thStyle}>Remise</th>
                   <th style={thStyle}>Montant HT</th>
                   <th style={thStyle}>Montant TTC</th>
                   <th style={thStyle}>Total BC (TTC)</th>
+                  <th style={thStyle}>Livraison</th>
+                  <th style={thStyle}>Statut</th>
+                  <th style={thStyle}>Observation</th>
                 </tr>
               </thead>
               <tbody>
                 {filtrees.map((l) => (
                   <tr key={l.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                    <td style={tdStyle}>{l.date_da}</td>
                     <td style={tdStyle}>{l.designation}</td>
-                    <td style={tdStyle}>{l.categorie || "-"}</td>
+                    <td style={tdStyle}>{l.quantite} {l.unite}</td>
+                    <td style={tdStyle}>{l.unite}</td>
                     <td style={tdStyle}>{l.fournisseur_nom}</td>
                     <td style={tdStyle}>{l.bc_numero}</td>
                     <td style={tdStyle}>{l.bc_date}</td>
+                    <td style={tdStyle}>{l.date_signature}</td>
+                    <td style={tdStyle}>{l.date_reception}</td>
+                    <td style={tdStyle}>{l.categorie || "-"}</td>
                     <td style={tdStyle}>{l.demandeur || "-"}</td>
                     <td style={tdStyle}>{l.usage_projet || "-"}</td>
-                    <td style={tdStyle}><span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span></td>
-                    <td style={tdStyle}>{l.quantite} {l.unite}</td>
-                    <td style={tdStyle}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar</td>
-                    <td style={tdStyle}>{l.remise_pct || 0}%</td>
+                    <td style={tdStyle}>{l.demande_cloturee}</td>
+                    <td style={tdStyle}>{l.prix_unitaire_ht != null ? `${Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : "-"}</td>
+                    <td style={tdStyle}>{l.remise_pct != null ? `${l.remise_pct}%` : "-"}</td>
                     <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
                     <td style={tdStyle}>{Number(l.montant_ttc).toLocaleString("fr-FR")} Ar</td>
-                    <td style={{ ...tdStyle, fontWeight: 600 }}>{Number(l.bc_total_ttc).toLocaleString("fr-FR")} Ar</td>
+                    <td style={{ ...tdStyle, fontWeight: 600 }}>{l.bc_total_ttc ? `${Number(l.bc_total_ttc).toLocaleString("fr-FR")} Ar` : "-"}</td>
+                    <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
+                    <td style={tdStyle}>{l.statut}</td>
+                    <td style={tdStyle}>{l.observation}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: "2px solid #ddd" }}>
-                  <td colSpan={11} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length} ligne{filtrees.length > 1 ? "s" : ""} affichée{filtrees.length > 1 ? "s" : ""})</td>
+                  <td colSpan={15} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length} ligne{filtrees.length > 1 ? "s" : ""} affichée{filtrees.length > 1 ? "s" : ""})</td>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
-                  <td style={tdStyle}></td>
+                  <td colSpan={4} style={tdStyle}></td>
                 </tr>
               </tfoot>
             </table>
