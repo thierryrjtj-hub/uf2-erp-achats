@@ -20,6 +20,8 @@ export default function CommandeDetailPage() {
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
   const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", echeance_jours: 30, statut_paiement: "Impayé", date_paiement: "" });
+  const [dateSignature, setDateSignature] = useState("");
+  const [observation, setObservation] = useState("");
   const [dateEstimeeReste, setDateEstimeeReste] = useState("");
   const [enregistrement, setEnregistrement] = useState(false);
   const [modeImpression, setModeImpression] = useState("bc");
@@ -57,6 +59,8 @@ export default function CommandeDetailPage() {
         statut_paiement: c.statut_paiement || "Impayé",
         date_paiement: c.date_paiement || "",
       });
+      setDateSignature(c.date_signature || "");
+      setObservation(c.observation || "");
     }
     setLoading(false);
   };
@@ -118,6 +122,11 @@ export default function CommandeDetailPage() {
 
   const enregistrerDateEstimee = async () => {
     await supabase.from("commandes").update({ date_estimee_reste: dateEstimeeReste || null }).eq("id", id);
+    charger();
+  };
+
+  const enregistrerSignatureObservation = async () => {
+    await supabase.from("commandes").update({ date_signature: dateSignature || null, observation }).eq("id", id);
     charger();
   };
 
@@ -188,6 +197,13 @@ export default function CommandeDetailPage() {
         </div>
 
         <p style={{ fontSize: 14, marginBottom: 16 }}><strong>Fournisseur :</strong> {bc.fournisseur_nom}</p>
+
+        <div className="no-print" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 12, color: "#666" }}>Date de signature du BC :</label>
+          <input type="date" value={dateSignature} onChange={(e) => setDateSignature(e.target.value)} style={inputStyle} />
+          <input placeholder="Observation" value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
+          <button onClick={enregistrerSignatureObservation} style={{ ...buttonStyle, background: "#888" }}>Enregistrer</button>
+        </div>
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 20 }}>
           <thead>
