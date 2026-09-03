@@ -5,6 +5,22 @@ import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 
 const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
+const CATEGORIES_BASE = [
+  "Produits Chimiques",
+  "Produits de Nettoyage / Hygiène",
+  "Équipements de Protection (EPI)",
+  "Consommables de Production",
+  "Emballages & Conditionnement",
+  "Pièces Détachées / Maintenance",
+  "Équipements Électriques",
+  "Matériaux de Construction",
+  "Carburants & Lubrifiants",
+  "Fournitures de Bureau",
+  "Bois de Chauffage",
+  "Matériel Informatique",
+  "Services & Prestations",
+  "Autre",
+];
 const empty = { designation: "", unite_defaut: "pcs", categorie: "", dernier_prix_ht: "" };
 
 function matchRecherche(a, q) {
@@ -21,10 +37,16 @@ export default function ArticlesPage() {
   const [exporting, setExporting] = useState(false);
   const [recherche, setRecherche] = useState("");
   const [modeUniteLibre, setModeUniteLibre] = useState(false);
+  const [modeCategorieLibre, setModeCategorieLibre] = useState(false);
 
   const uniteOptions = useMemo(() => {
     const depuisArticles = liste.map((a) => a.unite_defaut).filter(Boolean);
     return [...new Set([...UNITES_BASE, ...depuisArticles])].sort((a, b) => a.localeCompare(b));
+  }, [liste]);
+
+  const categorieOptions = useMemo(() => {
+    const depuisArticles = liste.map((a) => a.categorie).filter(Boolean);
+    return [...new Set([...CATEGORIES_BASE, ...depuisArticles])].sort((a, b) => a.localeCompare(b));
   }, [liste]);
 
   const charger = async () => {
@@ -66,6 +88,7 @@ export default function ArticlesPage() {
     setForm(empty);
     setEditId(null);
     setModeUniteLibre(false);
+    setModeCategorieLibre(false);
     charger();
   };
 
@@ -76,6 +99,7 @@ export default function ArticlesPage() {
     });
     setEditId(a.id);
     setModeUniteLibre(false);
+    setModeCategorieLibre(false);
   };
 
   const supprimer = async (id) => {
@@ -151,12 +175,34 @@ export default function ArticlesPage() {
               <option value="__nouvelle__">+ Nouvelle unité...</option>
             </select>
           )}
-          <input placeholder="Catégorie" value={form.categorie} onChange={(e) => setForm({ ...form, categorie: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          {modeCategorieLibre ? (
+            <input
+              placeholder="Nouvelle catégorie"
+              value={form.categorie}
+              autoFocus
+              onChange={(e) => setForm({ ...form, categorie: e.target.value })}
+              onBlur={() => { if (!form.categorie.trim()) setModeCategorieLibre(false); }}
+              style={{ ...inputStyle, flex: 1 }}
+            />
+          ) : (
+            <select
+              value={form.categorie || "__aucune__"}
+              onChange={(e) => {
+                if (e.target.value === "__nouvelle__") { setModeCategorieLibre(true); setForm({ ...form, categorie: "" }); }
+                else setForm({ ...form, categorie: e.target.value === "__aucune__" ? "" : e.target.value });
+              }}
+              style={{ ...inputStyle, flex: 1 }}
+            >
+              <option value="__aucune__">Catégorie...</option>
+              {categorieOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+              <option value="__nouvelle__">+ Nouvelle catégorie...</option>
+            </select>
+          )}
           <input type="number" placeholder="Dernier prix HT" value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
           <button onClick={enregistrer} style={buttonStyle}>{editId ? "Enregistrer" : "Ajouter"}</button>
-          {editId && <button onClick={() => { setForm(empty); setEditId(null); setModeUniteLibre(false); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
+          {editId && <button onClick={() => { setForm(empty); setEditId(null); setModeUniteLibre(false); setModeCategorieLibre(false); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
         </div>
       </div>
 
