@@ -313,15 +313,29 @@ export default function TCODetailPage() {
               <th style={thStyle}>Article</th>
               <th style={thStyle}>Qté</th>
               <th style={thStyle}>Unité</th>
+              <th style={thStyle} className="no-print">Non dispo. localement</th>
             </tr>
           </thead>
           <tbody>
             {lignesDemande.map((l, i) => (
               <tr key={l.id}>
                 <td style={tdStyle}>{i + 1}</td>
-                <td style={tdStyle}>{l.designation}</td>
+                <td style={tdStyle}>
+                  {l.designation}
+                  {l.non_disponible_localement && <span style={{ marginLeft: 8, fontSize: 11, color: "#B3261E" }}>— à rechercher à l'import</span>}
+                </td>
                 <td style={tdStyle}>{l.quantite.toLocaleString("fr-FR")}</td>
                 <td style={tdStyle}>{l.unite}</td>
+                <td style={tdStyle} className="no-print">
+                  <input
+                    type="checkbox"
+                    checked={!!l.non_disponible_localement}
+                    onChange={async (e) => {
+                      await supabase.from("lignes_demande").update({ non_disponible_localement: e.target.checked }).eq("id", l.id);
+                      charger();
+                    }}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
