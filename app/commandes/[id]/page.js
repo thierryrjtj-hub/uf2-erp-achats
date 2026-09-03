@@ -20,6 +20,9 @@ export default function CommandeDetailPage() {
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
   const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", echeance_jours: 30, statut_paiement: "Impayé", date_paiement: "" });
+  const [transmission, setTransmission] = useState({ dateEnvoiSignature: "", dateRetourSignature: "", destinataireSignature: "", dateEnvoiPaiement: "", dateDisponibilitePaiement: "", destinatairePaiement: "" });
+  const [accuses, setAccuses] = useState([]);
+  const [nouvelAccuse, setNouvelAccuse] = useState({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", demandeur: "", observation: "" });
   const [dateSignature, setDateSignature] = useState("");
   const [observation, setObservation] = useState("");
   const [dateEstimeeReste, setDateEstimeeReste] = useState("");
@@ -61,7 +64,14 @@ export default function CommandeDetailPage() {
       });
       setDateSignature(c.date_signature || "");
       setObservation(c.observation || "");
+      setTransmission({
+        dateEnvoiSignature: c.date_envoi_signature || "", dateRetourSignature: c.date_retour_signature || "",
+        destinataireSignature: c.destinataire_signature || "", dateEnvoiPaiement: c.date_envoi_paiement || "",
+        dateDisponibilitePaiement: c.date_disponibilite_paiement || "", destinatairePaiement: c.destinataire_paiement || "",
+      });
     }
+    const { data: acc } = await supabase.from("accuses_reception_facture").select("*").eq("bc_id", id).order("date_accuse", { ascending: false });
+    setAccuses(acc || []);
     setLoading(false);
   };
 
@@ -127,6 +137,38 @@ export default function CommandeDetailPage() {
 
   const enregistrerSignatureObservation = async () => {
     await supabase.from("commandes").update({ date_signature: dateSignature || null, observation }).eq("id", id);
+    charger();
+  };
+
+  const enregistrerTransmission = async () => {
+    await supabase.from("commandes").update({
+      date_envoi_signature: transmission.dateEnvoiSignature || null,
+      date_retour_signature: transmission.dateRetourSignature || null,
+      destinataire_signature: transmission.destinataireSignature,
+      date_envoi_paiement: transmission.dateEnvoiPaiement || null,
+      date_disponibilite_paiement: transmission.dateDisponibilitePaiement || null,
+      destinataire_paiement: transmission.destinatairePaiement,
+    }).eq("id", id);
+    charger();
+  };
+
+  const ajouterAccuse = async () => {
+    if (!nouvelAccuse.numero_facture.trim()) return;
+    await supabase.from("accuses_reception_facture").insert({
+      bc_id: id,
+      date_accuse: nouvelAccuse.date_accuse || null,
+      date_facture: nouvelAccuse.date_facture || null,
+      numero_facture: nouvelAccuse.numero_facture,
+      montant: nouvelAccuse.montant === "" ? null : Number(nouvelAccuse.montant),
+      demandeur: nouvelAccuse.demandeur,
+      observation: nouvelAccuse.observation,
+    });
+    setNouvelAccuse({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", demandeur: "", observation: "" });
+    charger();
+  };
+
+  const supprimerAccuse = async (accId) => {
+    await supabase.from("accuses_reception_facture").delete().eq("id", accId);
     charger();
   };
 
@@ -331,6 +373,85 @@ export default function CommandeDetailPage() {
         )}
       </div>
 
+      {/* ---- Suivi transmission signature / paiement ---- */}
+      <div className="no-print" style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Suivi de transmission</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div>
+            <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Pour signature</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div>
+                <label style={miniLabel}>Date d'envoi</label>
+                <input type="date" value={transmission.dateEnvoiSignature} onChange={(e) => setTransmission({ ...transmission, dateEnvoiSignature: e.target.value })} style={inputStyle} />
+              </div>
+              <div>
+                <label style={miniLabel}>Date de retour signé</label>
+                <input type="date" value={transmission.dateRetourSignature} onChange={(e) => setTransmission({ ...transmission, dateRetourSignature: e.target.value })} style={inputStyle} />
+              </div>
+              <div>
+                <label style={miniLabel}>Destinataire</label>
+                <input placeholder="ex: Mayuri" value={transmission.destinataireSignature} onChange={(e) => setTransmission({ ...transmission, destinataireSignature: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+              </div>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Pour paiement</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <div>
+                <label style={miniLabel}>Date d'envoi compta</label>
+                <input type="date" value={transmission.dateEnvoiPaiement} onChange={(e) => setTransmission({ ...transmission, dateEnvoiPaiement: e.target.value })} style={inputStyle} />
+              </div>
+              <div>
+                <label style={miniLabel}>Date disponibilité paiement</label>
+                <input type="date" value={transmission.dateDisponibilitePaiement} onChange={(e) => setTransmission({ ...transmission, dateDisponibilitePaiement: e.target.value })} style={inputStyle} />
+              </div>
+              <div>
+                <label style={miniLabel}>Destinataire</label>
+                <input placeholder="ex: Compta" value={transmission.destinatairePaiement} onChange={(e) => setTransmission({ ...transmission, destinatairePaiement: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+              </div>
+            </div>
+          </div>
+        </div>
+        <button onClick={enregistrerTransmission} style={{ ...buttonStyle, marginTop: 12 }}>Enregistrer</button>
+      </div>
+
+      {/* ---- Accusés de réception facture ---- */}
+      <div className="no-print" style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Accusés de réception facture</h2>
+        {accuses.length > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 12 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Date accusé</th><th style={thStyle}>Date facture</th><th style={thStyle}>N° facture</th>
+                <th style={thStyle}>Montant</th><th style={thStyle}>Demandeur</th><th style={thStyle}>Observation</th><th style={thStyle}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {accuses.map((a) => (
+                <tr key={a.id}>
+                  <td style={tdStyle}>{a.date_accuse || "-"}</td>
+                  <td style={tdStyle}>{a.date_facture || "-"}</td>
+                  <td style={tdStyle}>{a.numero_facture}</td>
+                  <td style={tdStyle}>{a.montant ? `${Number(a.montant).toLocaleString("fr-FR")} Ar` : "-"}</td>
+                  <td style={tdStyle}>{a.demandeur || "-"}</td>
+                  <td style={tdStyle}>{a.observation || "-"}</td>
+                  <td style={tdStyle}><button onClick={() => supprimerAccuse(a.id)} style={linkBtn}>Supprimer</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input type="date" placeholder="Date accusé" value={nouvelAccuse.date_accuse} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, date_accuse: e.target.value })} style={inputStyle} />
+          <input type="date" placeholder="Date facture" value={nouvelAccuse.date_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, date_facture: e.target.value })} style={inputStyle} />
+          <input placeholder="N° facture" value={nouvelAccuse.numero_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, numero_facture: e.target.value })} style={{ ...inputStyle, width: 140 }} />
+          <input type="number" placeholder="Montant" value={nouvelAccuse.montant} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, montant: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+          <input placeholder="Demandeur" value={nouvelAccuse.demandeur} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, demandeur: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+          <input placeholder="Observation" value={nouvelAccuse.observation} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, observation: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <button onClick={ajouterAccuse} style={buttonStyle}>+ Ajouter</button>
+        </div>
+      </div>
+
       {/* ---- Facture / paiement ---- */}
       <div className="no-print" style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Facture et paiement</h2>
@@ -414,6 +535,7 @@ const linkBtn = { border: "none", background: "none", color: "#1B2430", fontSize
 const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
 const rowTotal = { display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 };
 const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
+const miniLabel = { display: "block", fontSize: 11, color: "#999", marginBottom: 2 };
 const pvLabel = { padding: "4px 6px", color: "#666", fontWeight: 600, border: "1px solid #eee", width: "15%" };
 const pvVal = { padding: "4px 6px", border: "1px solid #eee", width: "35%" };
 const pvTh = { border: "1px solid #ccc", padding: "6px 4px", background: "#F0F7F2" };
