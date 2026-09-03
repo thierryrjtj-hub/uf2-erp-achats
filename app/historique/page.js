@@ -19,7 +19,7 @@ export default function HistoriquePage() {
     (async () => {
       const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, statut, date_signature, observation");
       const { data: lignesBc } = await supabase.from("lignes_bc").select("*");
-      const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle");
+      const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle, receptionnaire");
       const { data: lignesReceptionList } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree");
       const { data: demandesList } = await supabase.from("demandes").select("id, service, demandeur, motif_projet, statut, created_at");
       const { data: lignesDemandeList } = await supabase.from("lignes_demande").select("id, demande_id, designation, quantite, unite");
@@ -50,6 +50,7 @@ export default function HistoriquePage() {
           bc_numero: bc?.numero || "-", bc_date: bc?.date || "-",
           date_signature: bc?.date_signature || "-",
           date_reception: derniereReception?.date_reception_reelle ? derniereReception.date_reception_reelle.slice(0, 10) : "-",
+          receptionnaire: derniereReception?.receptionnaire || "-",
           categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
           demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
           prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct, montant_ht: montantHt, montant_ttc: montantTtc,
@@ -70,7 +71,7 @@ export default function HistoriquePage() {
             id: `pending-${ld.id}`,
             date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
             designation: ld.designation, quantite: ld.quantite, unite: ld.unite,
-            fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-",
+            fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-", receptionnaire: "-",
             categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
             demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
             prix_unitaire_ht: null, remise_pct: null, montant_ht: 0, montant_ttc: 0, bc_total_ttc: 0, etat_livraison: "-",
@@ -121,7 +122,7 @@ export default function HistoriquePage() {
     const rows = filtrees.map((l) => ({
       dateDa: l.date_da, article: l.designation, qte: Number(l.quantite), unite: l.unite,
       fournisseur: l.fournisseur_nom, bc: l.bc_numero, dateBc: l.bc_date, dateSignature: l.date_signature, dateReception: l.date_reception,
-      categorie: l.categorie, demandeur: l.demandeur, usage: l.usage_projet, demandeCloturee: l.demande_cloturee,
+      receptionnaire: l.receptionnaire, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
       pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: l.remise_pct != null ? Number(l.remise_pct) : "",
       montantHt: Number(l.montant_ht) || 0, montantTtc: Number(l.montant_ttc) || 0, totalBc: Number(l.bc_total_ttc) || 0,
       statut: l.statut, observation: l.observation,
@@ -147,13 +148,14 @@ export default function HistoriquePage() {
             { header: "Date DA", key: "dateDa", width: 12 }, { header: "Article", key: "article", width: 34 },
             { header: "Qté", key: "qte", width: 8 }, { header: "Unité", key: "unite", width: 10 },
             { header: "Fournisseur", key: "fournisseur", width: 20 }, { header: "N° BC", key: "bc", width: 16 },
-            { header: "Date BC", key: "dateBc", width: 12 }, { header: "Date signature BC", key: "dateSignature", width: 14 },
-            { header: "Date réception", key: "dateReception", width: 13 }, { header: "Catégorie", key: "categorie", width: 20 },
+            { header: "Date BC (création)", key: "dateBc", width: 14 }, { header: "Date signature (envoi commande)", key: "dateSignature", width: 16 },
+            { header: "Date réception livraison", key: "dateReception", width: 15 }, { header: "Réceptionnaire", key: "receptionnaire", width: 15 },
+            { header: "Catégorie", key: "categorie", width: 20 }, { header: "Service demandeur", key: "service", width: 16 },
             { header: "Demandeur", key: "demandeur", width: 16 }, { header: "Usage / Projet", key: "usage", width: 22 },
-            { header: "Demande clôturée", key: "demandeCloturee", width: 13 }, { header: "PU HT", key: "pu", width: 12 },
-            { header: "Remise %", key: "remise", width: 9 }, { header: "Montant HT", key: "montantHt", width: 14 },
-            { header: "Montant TTC", key: "montantTtc", width: 14 }, { header: "Total BC (TTC)", key: "totalBc", width: 14 },
-            { header: "Statut", key: "statut", width: 16 }, { header: "Observation", key: "observation", width: 26 },
+            { header: "PU HT", key: "pu", width: 12 }, { header: "Remise %", key: "remise", width: 9 },
+            { header: "Montant HT", key: "montantHt", width: 14 }, { header: "Montant TTC", key: "montantTtc", width: 14 },
+            { header: "Total BC (TTC)", key: "totalBc", width: 14 }, { header: "Statut", key: "statut", width: 16 },
+            { header: "Observation", key: "observation", width: 26 },
           ],
           rows,
           currencyKeys: ["pu", "montantHt", "montantTtc", "totalBc"],
@@ -230,13 +232,14 @@ export default function HistoriquePage() {
                   <th style={thStyle}>Unité</th>
                   <th style={thStyle}>Fournisseur</th>
                   <th style={thStyle}>N° BC</th>
-                  <th style={thStyle}>Date BC</th>
-                  <th style={thStyle}>Date signature</th>
-                  <th style={thStyle}>Date réception</th>
+                  <th style={thStyle}>Date BC (création)</th>
+                  <th style={thStyle}>Date signature (envoi commande)</th>
+                  <th style={thStyle}>Date réception livraison</th>
+                  <th style={thStyle}>Réceptionnaire</th>
                   <th style={thStyle}>Catégorie</th>
+                  <th style={thStyle}>Service demandeur</th>
                   <th style={thStyle}>Demandeur</th>
                   <th style={thStyle}>Usage / Projet</th>
-                  <th style={thStyle}>Demande clôturée</th>
                   <th style={thStyle}>PU HT</th>
                   <th style={thStyle}>Remise</th>
                   <th style={thStyle}>Montant HT</th>
@@ -259,10 +262,11 @@ export default function HistoriquePage() {
                     <td style={tdStyle}>{l.bc_date}</td>
                     <td style={tdStyle}>{l.date_signature}</td>
                     <td style={tdStyle}>{l.date_reception}</td>
+                    <td style={tdStyle}>{l.receptionnaire}</td>
                     <td style={tdStyle}>{l.categorie || "-"}</td>
+                    <td style={tdStyle}>{l.service || "-"}</td>
                     <td style={tdStyle}>{l.demandeur || "-"}</td>
                     <td style={tdStyle}>{l.usage_projet || "-"}</td>
-                    <td style={tdStyle}>{l.demande_cloturee}</td>
                     <td style={tdStyle}>{l.prix_unitaire_ht != null ? `${Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : "-"}</td>
                     <td style={tdStyle}>{l.remise_pct != null ? `${l.remise_pct}%` : "-"}</td>
                     <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
@@ -276,7 +280,7 @@ export default function HistoriquePage() {
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: "2px solid #ddd" }}>
-                  <td colSpan={15} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length} ligne{filtrees.length > 1 ? "s" : ""} affichée{filtrees.length > 1 ? "s" : ""})</td>
+                  <td colSpan={16} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length} ligne{filtrees.length > 1 ? "s" : ""} affichée{filtrees.length > 1 ? "s" : ""})</td>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
                   <td colSpan={4} style={tdStyle}></td>
