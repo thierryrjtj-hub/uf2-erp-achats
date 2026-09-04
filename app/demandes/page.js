@@ -14,6 +14,7 @@ export default function DemandesPage() {
   const [service, setService] = useState("");
   const [demandeur, setDemandeur] = useState("");
   const [motif, setMotif] = useState("");
+  const [priorite, setPriorite] = useState("Moyenne");
   const [lignes, setLignes] = useState([ligneVide()]);
   const [envoi, setEnvoi] = useState(false);
 
@@ -46,7 +47,7 @@ export default function DemandesPage() {
 
     const { data: demande, error } = await supabase
       .from("demandes")
-      .insert({ service, demandeur, motif_projet: motif })
+      .insert({ service, demandeur, motif_projet: motif, priorite })
       .select()
       .single();
 
@@ -77,10 +78,23 @@ export default function DemandesPage() {
     }
     await supabase.from("lignes_demande").insert(payload);
 
-    setService(""); setDemandeur(""); setMotif("");
+    setService(""); setDemandeur(""); setMotif(""); setPriorite("Moyenne");
     setLignes([ligneVide()]);
     setEnvoi(false);
     charger();
+  };
+
+  const copierPourDevis = async (d) => {
+    const { data: lignesDeLaDemande } = await supabase.from("lignes_demande").select("*").eq("demande_id", d.id).order("created_at");
+    const texte = [
+      `Demande de devis — ${d.numero}`,
+      `Service : ${d.service || "-"}  |  Demandeur : ${d.demandeur || "-"}`,
+      d.motif_projet ? `Motif / projet : ${d.motif_projet}` : "",
+      "",
+      "Articles souhaités :",
+      ...(lignesDeLaDemande || []).map((l, i) => `${i + 1}. ${l.designation} — ${l.quantite} ${l.unite}`),
+    ].filter(Boolean).join("\n");
+    navigator.clipboard.writeText(texte).then(() => alert("Copié — colle-le dans un e-mail pour demander les devis aux fournisseurs."));
   };
 
   return (
@@ -93,6 +107,9 @@ export default function DemandesPage() {
           <input placeholder="Service demandeur" value={service} onChange={(e) => setService(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
           <input placeholder="Nom du demandeur" value={demandeur} onChange={(e) => setDemandeur(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
           <input placeholder="Motif / projet" value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
+          <select value={priorite} onChange={(e) => setPriorite(e.target.value)} style={inputStyle}>
+            <option>Haute</option><option>Moyenne</option><option>Basse</option>
+          </select>
         </div>
 
         {lignes.map((l) => (
@@ -122,27 +139,36 @@ export default function DemandesPage() {
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Liste des demandes ({liste.length})</h2>
         {liste.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour le moment.</p>}
         {liste.map((d) => (
-          <Link key={d.id} href={`/demandes/${d.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-            <div style={rowStyle}>
+          <div key={d.id} style={rowStyle}>
+            <Link href={`/demandes/${d.id}`} style={{ textDecoration: "none", color: "inherit", flex: 1, display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{d.numero}</div>
                 <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
               </div>
               <div style={{ fontSize: 13, color: "#666", width: 150 }}>{d.service || "-"}</div>
               <div style={{ fontSize: 13, color: "#666", width: 110 }}>{d.date}</div>
+              <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, ...prioriteStyle(d.priorite) }}>{d.priorite || "Moyenne"}</span>
               {demandesAvecNonDispo.has(d.id) && (
                 <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
               )}
               <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{d.statut}</span>
-            </div>
-          </Link>
+            </Link>
+            <button onClick={() => copierPourDevis(d)} style={linkBtnBleu}>Copier pour devis</button>
+          </div>
         ))}
       </div>
     </AuthGuard>
   );
 }
 
+function prioriteStyle(p) {
+  if (p === "Haute") return { background: "#FDECEA", color: "#B3261E" };
+  if (p === "Basse") return { background: "#F0EFEA", color: "#888" };
+  return { background: "#E8F0FA", color: "#1B4C7A" };
+}
+
 const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
 const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
 const linkBtn = { border: "none", background: "none", color: "#B3261E", fontSize: 12, cursor: "pointer" };
+const linkBtnBleu = { border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer", padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" };
 const rowStyle = { display: "flex", alignItems: "center", gap: 12, padding: "10px 4px", borderBottom: "1px solid #f0f0f0" };
