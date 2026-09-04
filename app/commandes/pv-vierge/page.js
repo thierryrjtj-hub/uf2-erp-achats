@@ -29,7 +29,9 @@ export default function PVViergePage() {
       </p>
 
       <div style={{ background: "#fff", padding: 20 }} className="print-area">
-        <h1 style={{ fontSize: 18 }}>UNIFOODS — PV de Réception</h1>
+        <h1 style={{ fontSize: 18, display: "flex", alignItems: "center", gap: 10 }}>
+          <img src="/logo.png" alt="UNIFOODS" style={{ height: 28 }} /> — PV de Réception
+        </h1>
         <p style={{ fontSize: 13 }}>N° : ______________________ — Date : ______________________</p>
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 16 }}>
@@ -77,4 +79,3 @@ const pvLabel = { padding: "4px 6px", color: "#666", fontWeight: 600, border: "1
 const pvVal = { padding: "4px 6px", border: "1px solid #eee", width: "35%" };
 const pvTh = { border: "1px solid #ccc", padding: "6px 4px", background: "#F0F7F2" };
 const pvTd = { border: "1px solid #ddd", padding: "6px 4px" };
-
