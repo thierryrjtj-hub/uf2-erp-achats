@@ -25,7 +25,7 @@ export default function Nav() {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 24px", background: "#fff", borderBottom: "1px solid #eee" }}>
       <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-        <strong style={{ fontSize: 15 }}>UF2 - ERP Achats</strong>
+        <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 28 }} />
         {LINKS.map((l) => (
           <Link
             key={l.href}
