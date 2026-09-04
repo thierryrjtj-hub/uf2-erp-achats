@@ -230,7 +230,9 @@ export default function CommandeDetailPage() {
       <div style={{ background: "#fff", borderRadius: 12, padding: 24, marginBottom: 20 }} className={modeImpression === "bc" ? "print-area" : "no-print"}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 20, marginBottom: 4 }}>UNIFOODS — Bon de commande</h1>
+            <h1 style={{ fontSize: 20, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
+              <img src="/logo.png" alt="UNIFOODS" style={{ height: 32 }} /> — Bon de commande
+            </h1>
             <p style={{ fontSize: 14, color: "#666" }}>{bc.numero} — {bc.date}</p>
           </div>
           <div style={{ display: "flex", gap: 8 }} className="no-print">
@@ -469,7 +471,9 @@ export default function CommandeDetailPage() {
 
       {/* ---- PV de réception (imprimable) ---- */}
       <div className={`pv-template ${modeImpression === "pv" ? "print-area" : ""}`} style={{ padding: 20 }}>
-        <h1 style={{ fontSize: 18 }}>UNIFOODS — PV de Réception</h1>
+        <h1 style={{ fontSize: 18, display: "flex", alignItems: "center", gap: 10 }}>
+          <img src="/logo.png" alt="UNIFOODS" style={{ height: 28 }} /> — PV de Réception
+        </h1>
         <p style={{ fontSize: 13 }}>N° {bc.numero.replace("BC-", "PVR-")} — Date : {new Date().toLocaleDateString("fr-FR")}</p>
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 16 }}>
