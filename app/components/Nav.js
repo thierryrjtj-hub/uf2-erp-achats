@@ -8,7 +8,6 @@ const LINKS = [
   { href: "/demandes", label: "Demandes & TCO" },
   { href: "/commandes", label: "Bons de commande" },
   { href: "/historique", label: "Historique" },
-  { href: "/bois-chauffage", label: "Bois de chauffage" },
   { href: "/kpi", label: "KPI" },
   { href: "/fournisseurs", label: "Fournisseurs" },
   { href: "/articles", label: "Articles" },
