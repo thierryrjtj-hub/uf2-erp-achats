@@ -1,245 +1,299 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { supabase } from "../../../lib/supabaseClient";
-import AuthGuard from "../../components/AuthGuard";
-import { exportExcel } from "../../../lib/exportExcel";
-import { inputStyle, buttonStyle } from "../../components/ui";
+import { supabase } from "../../lib/supabaseClient";
+import AuthGuard from "../components/AuthGuard";
+import { exportExcel, slugify } from "../../lib/exportExcel";
+import Autocomplete from "../components/Autocomplete";
+import { inputStyle, buttonStyle } from "../components/ui";
 
-const MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
-
-function todayISO() { return new Date().toISOString().slice(0, 10); }
-function premierJourMois() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`; }
-function premierJourAnnee() { return `${new Date().getFullYear()}-01-01`; }
-
-export default function BoisChauffagePage() {
-  const [evenements, setEvenements] = useState([]); // { date, fournisseur, m3, montant }
+export default function HistoriquePage() {
+  const [lignes, setLignes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dateDebut, setDateDebut] = useState(premierJourMois());
-  const [dateFin, setDateFin] = useState(todayISO());
-  const [annee, setAnnee] = useState(new Date().getFullYear());
+  const [recherche, setRecherche] = useState("");
+  const [dateDebut, setDateDebut] = useState("");
+  const [dateFin, setDateFin] = useState("");
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, prix_unitaire_ht, remise_pct");
-      const boisLignes = (lignesBc || []).filter((l) => l.designation.toLowerCase().includes("bois de chauffage") || l.designation.toLowerCase().includes("bois chauffage"));
-      if (boisLignes.length === 0) { setEvenements([]); setLoading(false); return; }
+      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, statut, date_signature, observation");
+      const { data: lignesBc } = await supabase.from("lignes_bc").select("*");
+      const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle, receptionnaire");
+      const { data: lignesReceptionList } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree");
+      const { data: demandesList } = await supabase.from("demandes").select("id, service, demandeur, motif_projet, statut, created_at");
+      const { data: lignesDemandeList } = await supabase.from("lignes_demande").select("id, demande_id, designation, quantite, unite");
+      const { data: articlesList } = await supabase.from("articles").select("designation, categorie");
 
-      const bcIds = [...new Set(boisLignes.map((l) => l.bc_id))];
-      const { data: commandesList } = await supabase.from("commandes").select("id, fournisseur_nom").in("id", bcIds);
-      const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle").in("bc_id", bcIds);
-      const receptionIds = (receptionsList || []).map((r) => r.id);
-      let lignesReceptionList = [];
-      if (receptionIds.length) {
-        const { data } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").in("reception_id", receptionIds).in("ligne_bc_id", boisLignes.map((l) => l.id));
-        lignesReceptionList = data || [];
-      }
+      // ---- Lignes déjà passées en BC ----
+      const rowsBc = (lignesBc || []).map((l) => {
+        const bc = (bcList || []).find((b) => b.id === l.bc_id);
+        const receptionsDeCeBc = (receptionsList || []).filter((r) => r.bc_id === l.bc_id).map((r) => r.id);
+        const cumulLivre = (lignesReceptionList || [])
+          .filter((lr) => receptionsDeCeBc.includes(lr.reception_id) && lr.ligne_bc_id === l.id)
+          .reduce((s, lr) => s + (Number(lr.quantite_livree) || 0), 0);
+        const derniereReception = (receptionsList || []).filter((r) => r.bc_id === l.bc_id).sort((a, b) => new Date(b.date_reception_reelle) - new Date(a.date_reception_reelle))[0];
+        const dmd = bc?.demande_id ? (demandesList || []).find((d) => d.id === bc.demande_id) : null;
+        const art = (articlesList || []).find((a) => a.designation.toLowerCase() === l.designation.toLowerCase());
+        const assujetti = bc?.assujetti_tva !== false;
+        const montantHt = Number(l.montant_ht) || 0;
+        const montantTtc = assujetti ? montantHt * 1.2 : montantHt;
+        let etatLivraison = "Non livré";
+        if (cumulLivre >= Number(l.quantite) && cumulLivre > 0) etatLivraison = "Livré";
+        else if (cumulLivre > 0) etatLivraison = "Livré partiellement";
 
-      const evts = lignesReceptionList.map((lr) => {
-        const reception = (receptionsList || []).find((r) => r.id === lr.reception_id);
-        const commande = reception ? (commandesList || []).find((c) => c.id === reception.bc_id) : null;
-        const ligneBc = boisLignes.find((l) => l.id === lr.ligne_bc_id);
-        const qte = Number(lr.quantite_livree) || 0;
-        const pu = ligneBc ? Number(ligneBc.prix_unitaire_ht) || 0 : 0;
-        const remise = ligneBc ? Number(ligneBc.remise_pct) || 0 : 0;
         return {
-          date: reception?.date_reception_reelle ? reception.date_reception_reelle.slice(0, 10) : null,
-          fournisseur: commande?.fournisseur_nom || "Inconnu",
-          m3: qte,
-          montant: qte * pu * (1 - remise / 100),
+          id: `bc-${l.id}`,
+          date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
+          designation: l.designation, quantite: l.quantite, unite: l.unite,
+          fournisseur_nom: bc?.fournisseur_nom || "-",
+          bc_numero: bc?.numero || "-", bc_date: bc?.date || "-",
+          date_signature: bc?.date_signature || "-",
+          date_reception: derniereReception?.date_reception_reelle ? derniereReception.date_reception_reelle.slice(0, 10) : "-",
+          receptionnaire: derniereReception?.receptionnaire || "-",
+          categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
+          demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
+          prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct, montant_ht: montantHt, montant_ttc: montantTtc,
+          bc_total_ttc: Number(bc?.montant_ttc) || 0, etat_livraison: etatLivraison,
+          statut: bc?.statut || "-", observation: bc?.observation || "",
+          date_tri: bc?.date || (dmd?.created_at ? dmd.created_at.slice(0, 10) : ""),
         };
-      }).filter((e) => e.date && e.m3 > 0);
+      });
 
-      setEvenements(evts);
+      // ---- Lignes de demande pas encore passées en BC (en attente) ----
+      const ligneDemandeCouvertes = new Set((lignesBc || []).map((l) => l.ligne_demande_id).filter(Boolean));
+      const rowsAttente = (lignesDemandeList || [])
+        .filter((ld) => !ligneDemandeCouvertes.has(ld.id))
+        .map((ld) => {
+          const dmd = (demandesList || []).find((d) => d.id === ld.demande_id);
+          const art = (articlesList || []).find((a) => a.designation.toLowerCase() === ld.designation.toLowerCase());
+          return {
+            id: `pending-${ld.id}`,
+            date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
+            designation: ld.designation, quantite: ld.quantite, unite: ld.unite,
+            fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-", receptionnaire: "-",
+            categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
+            demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
+            prix_unitaire_ht: null, remise_pct: null, montant_ht: 0, montant_ttc: 0, bc_total_ttc: 0, etat_livraison: "-",
+            statut: dmd?.statut === "Partiellement traitée" ? "Partiellement traitée" : "A faire",
+            observation: dmd?.statut === "Partiellement traitée" ? "Reste à traiter — devis en cours" : "En attente de devis / TCO",
+            date_tri: dmd?.created_at ? dmd.created_at.slice(0, 10) : "",
+          };
+        });
+
+      const toutes = [...rowsBc, ...rowsAttente].sort((a, b) => new Date(b.date_tri) - new Date(a.date_tri));
+      setLignes(toutes);
       setLoading(false);
     })();
   }, []);
 
-  const fournisseurs = useMemo(() => [...new Set(evenements.map((e) => e.fournisseur))].sort(), [evenements]);
-
-  // ---- Vue journalière (période choisie) ----
-  const evenementsPeriode = useMemo(() => evenements.filter((e) => e.date >= dateDebut && e.date <= dateFin), [evenements, dateDebut, dateFin]);
-  const joursDistincts = useMemo(() => [...new Set(evenementsPeriode.map((e) => e.date))].sort(), [evenementsPeriode]);
-
-  const tableauJournalier = useMemo(() => {
-    return joursDistincts.map((date) => {
-      const parFournisseur = {};
-      let total = 0;
-      fournisseurs.forEach((f) => {
-        const somme = evenementsPeriode.filter((e) => e.date === date && e.fournisseur === f).reduce((s, e) => s + e.m3, 0);
-        parFournisseur[f] = somme;
-        total += somme;
-      });
-      return { date, parFournisseur, total };
+  // Suggestions combinées de toutes les colonnes textuelles, pour la barre de recherche unique
+  const suggestionsRecherche = useMemo(() => {
+    const s = new Set();
+    lignes.forEach((l) => {
+      [l.designation, l.fournisseur_nom, l.service, l.demandeur, l.usage_projet, l.categorie, l.bc_numero, l.statut, l.receptionnaire]
+        .forEach((v) => { if (v && v !== "-") s.add(v); });
     });
-  }, [joursDistincts, evenementsPeriode, fournisseurs]);
+    return [...s].sort();
+  }, [lignes]);
 
-  const totauxParFournisseurPeriode = useMemo(() => {
+  const CHAMPS_RECHERCHABLES = ["designation", "fournisseur_nom", "service", "demandeur", "usage_projet", "categorie", "bc_numero", "statut", "observation", "receptionnaire"];
+
+  const filtrees = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
+    return lignes.filter((l) => {
+      const okRecherche = !q || CHAMPS_RECHERCHABLES.some((champ) => (l[champ] || "").toString().toLowerCase().includes(q));
+      const okDebut = !dateDebut || (l.date_tri && l.date_tri >= dateDebut);
+      const okFin = !dateFin || (l.date_tri && l.date_tri <= dateFin);
+      return okRecherche && okDebut && okFin;
+    });
+  }, [lignes, recherche, dateDebut, dateFin]);
+
+  const totauxFiltres = useMemo(() => {
+    return filtrees.reduce((acc, l) => ({ ht: acc.ht + (Number(l.montant_ht) || 0), ttc: acc.ttc + (Number(l.montant_ttc) || 0) }), { ht: 0, ttc: 0 });
+  }, [filtrees]);
+
+  const dernierAchatParArticle = useMemo(() => {
     const map = {};
-    fournisseurs.forEach((f) => { map[f] = evenementsPeriode.filter((e) => e.fournisseur === f).reduce((s, e) => s + e.m3, 0); });
+    for (const l of lignes) {
+      if (l.bc_numero === "-") continue;
+      const key = l.designation;
+      if (!map[key] || new Date(l.bc_date) > new Date(map[key].bc_date)) map[key] = l;
+    }
     return map;
-  }, [fournisseurs, evenementsPeriode]);
-  const totalGeneralPeriode = useMemo(() => evenementsPeriode.reduce((s, e) => s + e.m3, 0), [evenementsPeriode]);
-
-  // ---- Récapitulatif annuel (fournisseur x mois) ----
-  const evenementsAnnee = useMemo(() => evenements.filter((e) => e.date.startsWith(String(annee))), [evenements, annee]);
-  const recapAnnuel = useMemo(() => {
-    return fournisseurs.map((f) => {
-      const parMois = MOIS.map((_, i) => {
-        const moisStr = String(i + 1).padStart(2, "0");
-        return evenementsAnnee.filter((e) => e.fournisseur === f && e.date.slice(5, 7) === moisStr).reduce((s, e) => s + e.m3, 0);
-      });
-      const totalM3 = parMois.reduce((a, b) => a + b, 0);
-      const totalMontant = evenementsAnnee.filter((e) => e.fournisseur === f).reduce((s, e) => s + e.montant, 0);
-      return { fournisseur: f, parMois, totalM3, totalMontant };
-    }).filter((r) => r.totalM3 > 0);
-  }, [fournisseurs, evenementsAnnee]);
-
-  const anneesDisponibles = useMemo(() => {
-    const ans = [...new Set(evenements.map((e) => e.date.slice(0, 4)))].sort();
-    return ans.length ? ans : [String(new Date().getFullYear())];
-  }, [evenements]);
+  }, [lignes]);
 
   const exporter = async () => {
     setExporting(true);
-    const rowsJournalier = tableauJournalier.map((j) => ({
-      date: j.date, ...Object.fromEntries(fournisseurs.map((f) => [f, j.parFournisseur[f] || 0])), total: j.total,
-    }));
-    const rowsAnnuel = recapAnnuel.map((r) => ({
-      fournisseur: r.fournisseur, ...Object.fromEntries(MOIS.map((m, i) => [m, r.parMois[i]])), total: r.totalM3, montant: r.totalMontant,
+    const rows = filtrees.map((l) => ({
+      dateDa: l.date_da, article: l.designation, qte: Number(l.quantite), unite: l.unite,
+      fournisseur: l.fournisseur_nom, bc: l.bc_numero, dateBc: l.bc_date, dateSignature: l.date_signature, dateReception: l.date_reception,
+      receptionnaire: l.receptionnaire, etat: l.etat_livraison, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
+      pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: l.remise_pct != null ? Number(l.remise_pct) : "",
+      montantHt: Number(l.montant_ht) || 0, montantTtc: Number(l.montant_ttc) || 0, totalBc: Number(l.bc_total_ttc) || 0,
+      statut: l.statut, observation: l.observation,
     }));
 
+    const kpiRows = [
+      { label: "Montant total HT (filtré)", valeur: totauxFiltres.ht },
+      { label: "Montant total TTC (filtré)", valeur: totauxFiltres.ttc },
+      { label: "Nombre de lignes affichées", valeur: filtrees.length },
+    ];
+
+    const parts = [];
+    if (recherche) parts.push(slugify(recherche));
+    const slug = parts.length ? parts.join("_") : "tous-achats";
+
     await exportExcel({
-      filename: `bois-de-chauffage_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      filename: `historique_${slug}_${new Date().toISOString().slice(0, 10)}.xlsx`,
       sheets: [
         {
-          name: "Journalier",
-          columns: [{ header: "Date", key: "date", width: 14 }, ...fournisseurs.map((f) => ({ header: f, key: f, width: 14 })), { header: "Total journalier (m3)", key: "total", width: 16 }],
-          rows: rowsJournalier,
+          name: "Historique",
+          columns: [
+            { header: "Date DA", key: "dateDa", width: 12 }, { header: "Article", key: "article", width: 34 },
+            { header: "Qté", key: "qte", width: 8 }, { header: "Unité", key: "unite", width: 10 },
+            { header: "Fournisseur", key: "fournisseur", width: 20 }, { header: "N° BC", key: "bc", width: 16 },
+            { header: "Date BC (création)", key: "dateBc", width: 14 }, { header: "Date signature (envoi commande)", key: "dateSignature", width: 16 },
+            { header: "Date réception livraison", key: "dateReception", width: 15 }, { header: "Réceptionnaire", key: "receptionnaire", width: 15 },
+            { header: "État livraison", key: "etat", width: 14 }, { header: "Catégorie", key: "categorie", width: 20 },
+            { header: "Service demandeur", key: "service", width: 16 }, { header: "Demandeur", key: "demandeur", width: 16 },
+            { header: "Usage / Projet", key: "usage", width: 22 }, { header: "PU HT", key: "pu", width: 12 },
+            { header: "Remise %", key: "remise", width: 9 }, { header: "Montant HT", key: "montantHt", width: 14 },
+            { header: "Montant TTC", key: "montantTtc", width: 14 }, { header: "Total BC (TTC)", key: "totalBc", width: 14 },
+            { header: "Statut", key: "statut", width: 16 }, { header: "Observation", key: "observation", width: 26 },
+          ],
+          rows,
+          currencyKeys: ["pu", "montantHt", "montantTtc", "totalBc"],
+          percentKeys: ["remise"],
         },
         {
-          name: "Récap annuel",
-          columns: [{ header: "Fournisseur", key: "fournisseur", width: 22 }, ...MOIS.map((m) => ({ header: m, key: m, width: 9 })), { header: "Total (m3)", key: "total", width: 12 }, { header: "Montant total", key: "montant", width: 16 }],
-          rows: rowsAnnuel,
-          currencyKeys: ["montant"],
+          name: "KPI",
+          columns: [{ header: "Indicateur", key: "label", width: 38 }, { header: "Valeur", key: "valeur", width: 26 }],
+          rows: kpiRows,
+          currencyKeys: ["valeur"],
         },
       ],
     });
     setExporting(false);
   };
 
-  if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
+  const badgeEtat = (etat) => ({
+    fontSize: 11, padding: "2px 7px", borderRadius: 5,
+    background: etat === "Livré" ? "#EAF7EE" : etat === "Livré partiellement" ? "#FFF3D6" : "#F0EFEA",
+    color: etat === "Livré" ? "#1B7A4C" : etat === "Livré partiellement" ? "#8A6100" : "#999",
+  });
 
   return (
     <AuthGuard>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 20 }}>Bois de chauffage — livraisons</h1>
-        <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
-      </div>
+      <h1 style={{ fontSize: 20, marginBottom: 16 }}>Historique des achats — situation globale</h1>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <Link href="/historique" style={sousOnglet}>Vue globale</Link>
-        <span style={sousOngletActif}>Bois de chauffage</span>
+        <span style={sousOngletActif}>Vue globale</span>
+        <Link href="/historique/bois-chauffage" style={sousOnglet}>Bois de chauffage</Link>
       </div>
 
-      {evenements.length === 0 && (
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-          <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison de bois de chauffage réceptionnée pour l'instant. Ce rapport se remplit automatiquement dès qu'une réception est enregistrée sur un article "Bois de chauffage".</p>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <Autocomplete
+            placeholder="Rechercher — article, fournisseur, service, demandeur, catégorie, usage/projet, N° BC, statut..."
+            value={recherche}
+            onChange={setRecherche}
+            suggestions={suggestionsRecherche}
+            style={{ flex: 1, minWidth: 320 }}
+          />
+          <label style={{ fontSize: 12, color: "#666" }}>Du</label>
+          <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
+          <label style={{ fontSize: 12, color: "#666" }}>au</label>
+          <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
+          <button onClick={exporter} disabled={exporting} style={buttonStyle}>
+            {exporting ? "Génération..." : "Exporter en Excel"}
+          </button>
         </div>
-      )}
 
-      {evenements.length > 0 && (
-        <>
-          <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-              <h2 style={{ fontSize: 15 }}>Détail journalier</h2>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <button onClick={() => { setDateDebut(todayISO()); setDateFin(todayISO()); }} style={smallBtn}>Aujourd'hui</button>
-                <button onClick={() => { const d = new Date(); d.setDate(d.getDate() - 7); setDateDebut(d.toISOString().slice(0, 10)); setDateFin(todayISO()); }} style={smallBtn}>Cette semaine</button>
-                <button onClick={() => { setDateDebut(premierJourMois()); setDateFin(todayISO()); }} style={smallBtn}>Ce mois</button>
-                <button onClick={() => { setDateDebut(premierJourAnnee()); setDateFin(todayISO()); }} style={smallBtn}>Cette année</button>
-                <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
-                <span style={{ alignSelf: "center", fontSize: 12 }}>au</span>
-                <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
-              </div>
-            </div>
-
-            {joursDistincts.length === 0 ? (
-              <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur cette période.</p>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Date</th>
-                      {fournisseurs.map((f) => <th key={f} style={thStyle}>{f}</th>)}
-                      <th style={thStyle}>Total journalier (m³)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tableauJournalier.map((j) => (
-                      <tr key={j.date}>
-                        <td style={tdStyle}>{j.date}</td>
-                        {fournisseurs.map((f) => <td key={f} style={tdStyle}>{j.parFournisseur[f] ? j.parFournisseur[f].toLocaleString("fr-FR") : "-"}</td>)}
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{j.total.toLocaleString("fr-FR")}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ borderTop: "2px solid #ddd" }}>
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>Total</td>
-                      {fournisseurs.map((f) => <td key={f} style={{ ...tdStyle, fontWeight: 700 }}>{(totauxParFournisseurPeriode[f] || 0).toLocaleString("fr-FR")}</td>)}
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>{totalGeneralPeriode.toLocaleString("fr-FR")}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
+        {recherche && filtrees.length > 0 && dernierAchatParArticle[filtrees[0].designation] && (
+          <div style={{ background: "#F5F4F1", borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13 }}>
+            <strong>Dernier achat de "{filtrees[0].designation}"</strong> : {Number(dernierAchatParArticle[filtrees[0].designation].prix_unitaire_ht).toLocaleString("fr-FR")} Ar
+            chez {dernierAchatParArticle[filtrees[0].designation].fournisseur_nom}, le {dernierAchatParArticle[filtrees[0].designation].bc_date}
           </div>
+        )}
 
-          <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h2 style={{ fontSize: 15 }}>Récapitulatif annuel</h2>
-              <select value={annee} onChange={(e) => setAnnee(Number(e.target.value))} style={inputStyle}>
-                {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-            {recapAnnuel.length === 0 ? (
-              <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur {annee}.</p>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Fournisseur</th>
-                      {MOIS.map((m) => <th key={m} style={thStyle}>{m}</th>)}
-                      <th style={thStyle}>Total (m³)</th>
-                      <th style={thStyle}>Montant total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recapAnnuel.map((r) => (
-                      <tr key={r.fournisseur}>
-                        <td style={tdStyle}>{r.fournisseur}</td>
-                        {r.parMois.map((v, i) => <td key={i} style={tdStyle}>{v ? v.toLocaleString("fr-FR") : "-"}</td>)}
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalM3.toLocaleString("fr-FR")}</td>
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalMontant.toLocaleString("fr-FR")} Ar</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+        {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
+        {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucun achat enregistré pour le moment.</p>}
+
+        {filtrees.length > 0 && (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Date DA</th>
+                  <th style={thStyle}>Article</th>
+                  <th style={thStyle}>Qté</th>
+                  <th style={thStyle}>Unité</th>
+                  <th style={thStyle}>Fournisseur</th>
+                  <th style={thStyle}>N° BC</th>
+                  <th style={thStyle}>Date BC (création)</th>
+                  <th style={thStyle}>Date signature (envoi commande)</th>
+                  <th style={thStyle}>Date réception livraison</th>
+                  <th style={thStyle}>Réceptionnaire</th>
+                  <th style={thStyle}>État livraison</th>
+                  <th style={thStyle}>Catégorie</th>
+                  <th style={thStyle}>Service demandeur</th>
+                  <th style={thStyle}>Demandeur</th>
+                  <th style={thStyle}>Usage / Projet</th>
+                  <th style={thStyle}>PU HT</th>
+                  <th style={thStyle}>Remise</th>
+                  <th style={thStyle}>Montant HT</th>
+                  <th style={thStyle}>Montant TTC</th>
+                  <th style={thStyle}>Total BC (TTC)</th>
+                  <th style={thStyle}>Statut</th>
+                  <th style={thStyle}>Observation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtrees.map((l) => (
+                  <tr key={l.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                    <td style={tdStyle}>{l.date_da}</td>
+                    <td style={tdStyle}>{l.designation}</td>
+                    <td style={tdStyle}>{l.quantite} {l.unite}</td>
+                    <td style={tdStyle}>{l.unite}</td>
+                    <td style={tdStyle}>{l.fournisseur_nom}</td>
+                    <td style={tdStyle}>{l.bc_numero}</td>
+                    <td style={tdStyle}>{l.bc_date}</td>
+                    <td style={tdStyle}>{l.date_signature}</td>
+                    <td style={tdStyle}>{l.date_reception}</td>
+                    <td style={tdStyle}>{l.receptionnaire}</td>
+                    <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
+                    <td style={tdStyle}>{l.categorie || "-"}</td>
+                    <td style={tdStyle}>{l.service || "-"}</td>
+                    <td style={tdStyle}>{l.demandeur || "-"}</td>
+                    <td style={tdStyle}>{l.usage_projet || "-"}</td>
+                    <td style={tdStyle}>{l.prix_unitaire_ht != null ? `${Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : "-"}</td>
+                    <td style={tdStyle}>{l.remise_pct != null ? `${l.remise_pct}%` : "-"}</td>
+                    <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
+                    <td style={tdStyle}>{Number(l.montant_ttc).toLocaleString("fr-FR")} Ar</td>
+                    <td style={{ ...tdStyle, fontWeight: 600 }}>{l.bc_total_ttc ? `${Number(l.bc_total_ttc).toLocaleString("fr-FR")} Ar` : "-"}</td>
+                    <td style={tdStyle}>{l.statut}</td>
+                    <td style={tdStyle}>{l.observation}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ borderTop: "2px solid #ddd" }}>
+                  <td colSpan={17} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length} ligne{filtrees.length > 1 ? "s" : ""} affichée{filtrees.length > 1 ? "s" : ""})</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
+                  <td colSpan={3} style={tdStyle}></td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </AuthGuard>
   );
 }
 
-const smallBtn = { padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer" };
-const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1 };
-const tdStyle = { padding: "8px 6px", whiteSpace: "nowrap" };
 const sousOnglet = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#888", textDecoration: "none", background: "transparent" };
 const sousOngletActif = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#1B2430", fontWeight: 600, background: "#fff" };
+const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1 };
+const tdStyle = { padding: "8px 6px", whiteSpace: "nowrap" };
