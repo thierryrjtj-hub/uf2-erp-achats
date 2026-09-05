@@ -167,7 +167,7 @@ export default function FournisseursPage() {
               <div>
                 <button onClick={() => copierFiche(f)} style={linkBtn}>Copier tout</button>
                 <button onClick={() => modifier(f)} style={linkBtn}>Modifier</button>
-                {role !== "invite" && (
+                {role === "acheteur" && (
                   <button onClick={() => supprimer(f.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
                 )}
               </div>
