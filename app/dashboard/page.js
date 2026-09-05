@@ -85,7 +85,7 @@ export default function DashboardPage() {
       <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>À traiter aujourd'hui</p>
 
       {total === 0 && (
-        <div style={{ background: "#fff", borderRadius: 12, padding: 24, textAlign: "center" }}>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, textAlign: "center" }}>
           <p style={{ fontSize: 14, color: "#1B7A4C" }}>✓ Rien à signaler pour l'instant — tout est à jour.</p>
         </div>
       )}
@@ -135,7 +135,7 @@ export default function DashboardPage() {
 
 function Section({ titre, couleur, fond, children }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 16 }}>
+    <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
       <h2 style={{ fontSize: 14, marginBottom: 10, color: couleur }}>{titre}</h2>
       {children}
     </div>
