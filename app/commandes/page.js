@@ -160,7 +160,7 @@ export default function CommandesPage() {
                   </td>
                   <td style={tdStyle}>
                     <Link href={`/commandes/${c.id}`} style={linkBtn}>Voir / Facture</Link>
-                    <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", marginLeft: 10, display: role === "invite" ? "none" : "inline" }}>Supprimer</button>
+                    <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", marginLeft: 10, display: role === "acheteur" ? "inline" : "none" }}>Supprimer</button>
                   </td>
                 </tr>
               );
