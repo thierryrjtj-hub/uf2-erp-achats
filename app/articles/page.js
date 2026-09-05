@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import Autocomplete from "../components/Autocomplete";
+import { useRole } from "../../lib/useRole";
 
 const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
 const CATEGORIES_BASE = [
@@ -31,6 +32,7 @@ function matchRecherche(a, q) {
 }
 
 export default function ArticlesPage() {
+  const role = useRole();
   const [liste, setListe] = useState([]);
   const [lignesBc, setLignesBc] = useState([]);
   const [form, setForm] = useState(empty);
@@ -188,7 +190,9 @@ export default function ArticlesPage() {
           {categorieOptions.map((c) => (
             <span key={c} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, background: "#F5F4F1", borderRadius: 6, padding: "4px 8px" }}>
               {c}
-              <button onClick={() => supprimerCategorie(c)} style={{ border: "none", background: "none", color: "#B3261E", cursor: "pointer", fontSize: 13, padding: 0 }} title="Supprimer cette catégorie">×</button>
+              {role !== "invite" && (
+                <button onClick={() => supprimerCategorie(c)} style={{ border: "none", background: "none", color: "#B3261E", cursor: "pointer", fontSize: 13, padding: 0 }} title="Supprimer cette catégorie">×</button>
+              )}
             </span>
           ))}
         </div>
@@ -215,7 +219,9 @@ export default function ArticlesPage() {
                 <div>
                   <button onClick={() => copierFiche(a, dernier)} style={linkBtn}>Copier tout</button>
                   <button onClick={() => modifier(a)} style={linkBtn}>Modifier</button>
-                  <button onClick={() => supprimer(a.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
+                  {role !== "invite" && (
+                    <button onClick={() => supprimer(a.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
+                  )}
                 </div>
               </div>
               <div style={grid}>
