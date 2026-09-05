@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
+import { inputStyle, buttonStyle, linkBtn } from "../../components/ui";
 
 const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs", prix_unitaire_ht: "", remise_pct: 0 });
 
@@ -101,7 +102,7 @@ export default function NouveauBCDirectPage() {
         Sans passer par une demande/TCO — pour les articles disponibles chez un seul fournisseur ou un fournisseur déjà recommandé/imposé.
       </p>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Fournisseur</h2>
         {fournisseurChoisi ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -127,7 +128,7 @@ export default function NouveauBCDirectPage() {
         )}
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Articles</h2>
         {lignes.map((l) => (
           <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -163,6 +164,3 @@ export default function NouveauBCDirectPage() {
   );
 }
 
-const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
-const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
-const linkBtn = { border: "none", background: "none", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "underline", padding: 0 };
