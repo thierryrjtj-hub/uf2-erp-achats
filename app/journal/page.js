@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
+import { inputStyle, thStyle, tdStyle } from "../components/ui";
 
 const ACTIONS_LABEL = { INSERT: "Création", UPDATE: "Modification", DELETE: "Suppression" };
 const ENTITES_LABEL = {
@@ -64,7 +65,7 @@ export default function JournalAuditPage() {
       <h1 style={{ fontSize: 20, marginBottom: 4 }}>Journal d'audit</h1>
       <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>Historique chronologique de toutes les actions effectuées dans l'application (500 dernières).</p>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           <input
             placeholder="Rechercher (référence, utilisateur...)"
@@ -114,8 +115,4 @@ export default function JournalAuditPage() {
     </AuthGuard>
   );
 }
-
-const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
-const thStyle = { textAlign: "left", padding: "8px 6px", color: "#888", borderBottom: "1px solid #eee" };
-const tdStyle = { padding: "8px 6px" };
 
