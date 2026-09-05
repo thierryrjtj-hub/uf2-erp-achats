@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
+import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../../components/ui";
 
 function computeTotal(lignesOffre, lignesDemande, assujettiTva) {
   let totalHT = 0;
@@ -298,7 +299,7 @@ export default function TCODetailPage() {
 
       <button onClick={() => router.push("/demandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux demandes</button>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }} className="print-area">
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }} className="print-area">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <h1 style={{ fontSize: 18, marginBottom: 4 }}>{demande.numero}</h1>
@@ -343,7 +344,7 @@ export default function TCODetailPage() {
         </table>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20 }} className="print-area">
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }} className="print-area">
         <h2 style={{ fontSize: 15, marginBottom: 12 }} className="no-print">Tableau comparatif (TCO)</h2>
 
         <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -572,8 +573,3 @@ export default function TCODetailPage() {
   );
 }
 
-const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
-const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
-const thStyle = { textAlign: "left", padding: "8px 6px", color: "#888", borderBottom: "1px solid #eee", whiteSpace: "nowrap" };
-const tdStyle = { padding: "8px 6px" };
-const linkBtn = { border: "none", background: "none", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "underline", padding: 0 };
