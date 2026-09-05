@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import Autocomplete from "../components/Autocomplete";
+import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
 
 const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs" });
 
@@ -101,7 +102,7 @@ export default function DemandesPage() {
     <AuthGuard>
       <h1 style={{ fontSize: 20, marginBottom: 16 }}>Demandes d'achat</h1>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Nouvelle demande</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
           <input placeholder="Service demandeur" value={service} onChange={(e) => setService(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
@@ -135,7 +136,7 @@ export default function DemandesPage() {
         </div>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Liste des demandes ({liste.length})</h2>
         {liste.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour le moment.</p>}
         {liste.map((d) => (
@@ -167,8 +168,5 @@ function prioriteStyle(p) {
   return { background: "#E8F0FA", color: "#1B4C7A" };
 }
 
-const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
-const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
-const linkBtn = { border: "none", background: "none", color: "#B3261E", fontSize: 12, cursor: "pointer" };
 const linkBtnBleu = { border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer", padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" };
 const rowStyle = { display: "flex", alignItems: "center", gap: 12, padding: "10px 4px", borderBottom: "1px solid #f0f0f0" };
