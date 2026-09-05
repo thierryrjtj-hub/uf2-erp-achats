@@ -64,6 +64,9 @@ export default function Nav() {
         >
           Déconnexion
         </button>
+        <p style={{ fontSize: 10.5, color: "#5C6672", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
+          Créé par Judicaël Randrianaivo
+        </p>
       </div>
     </div>
   );
