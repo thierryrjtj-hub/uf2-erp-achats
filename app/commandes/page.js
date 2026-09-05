@@ -4,8 +4,10 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
+import { useRole } from "../../lib/useRole";
 
 export default function CommandesPage() {
+  const role = useRole();
   const [liste, setListe] = useState([]);
   const [receptions, setReceptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -158,7 +160,7 @@ export default function CommandesPage() {
                   </td>
                   <td style={tdStyle}>
                     <Link href={`/commandes/${c.id}`} style={linkBtn}>Voir / Facture</Link>
-                    <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", marginLeft: 10 }}>Supprimer</button>
+                    <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", marginLeft: 10, display: role === "invite" ? "none" : "inline" }}>Supprimer</button>
                   </td>
                 </tr>
               );
