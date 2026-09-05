@@ -78,7 +78,19 @@ export default function KpiPage() {
     });
     const delaiMoyenReception = delaisReception.length ? Math.round(delaisReception.reduce((a, b) => a + b, 0) / delaisReception.length) : null;
 
-    return { totalTTC, totalMois, nbCommandesMois: commandesMois.length, topFournisseurs, topArticles, impayesCount: impayes.length, totalImpaye, demandesEnAttente, bcNonRecus, delaiMoyenBc, delaiMoyenReception };
+    // ---- Achats par mois, 12 derniers mois (point 7) ----
+    const parMois = [];
+    const MOIS_LABEL = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      const cle = d.toISOString().slice(0, 7);
+      const montant = commandes.filter((c) => (c.date || "").slice(0, 7) === cle).reduce((s, c) => s + Number(c.montant_ttc || 0), 0);
+      parMois.push({ mois: cle, label: MOIS_LABEL[d.getMonth()], montant });
+    }
+
+    return { totalTTC, totalMois, nbCommandesMois: commandesMois.length, topFournisseurs, topArticles, impayesCount: impayes.length, totalImpaye, demandesEnAttente, bcNonRecus, delaiMoyenBc, delaiMoyenReception, parMois };
   }, [commandes, lignesBc, demandes, receptions, lignesReception]);
 
   const exporter = async () => {
@@ -136,7 +148,7 @@ export default function KpiPage() {
         <Card label="Délai moyen jusqu'à réception" value={stats.delaiMoyenReception != null ? `${stats.delaiMoyenReception} j` : "-"} sub="depuis réception de la DA" />
       </div>
 
-      <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
         <div style={{ background: "#fff", borderRadius: 12, padding: 20, flex: 1, minWidth: 320 }}>
           <h2 style={{ fontSize: 15, marginBottom: 12 }}>Top fournisseurs (montant TTC)</h2>
           {stats.topFournisseurs.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>}
@@ -152,6 +164,26 @@ export default function KpiPage() {
             <BarRow key={nom} label={nom} value={montant} max={maxArticle} />
           ))}
         </div>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Achats par mois (12 derniers mois, TTC)</h2>
+        {stats.parMois.every((m) => m.montant === 0) ? (
+          <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>
+        ) : (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 160, paddingTop: 10 }}>
+            {stats.parMois.map((m) => {
+              const maxMois = Math.max(...stats.parMois.map((x) => x.montant), 1);
+              return (
+                <div key={m.mois} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                  <div style={{ fontSize: 10, color: "#888" }}>{m.montant ? `${Math.round(m.montant / 1000).toLocaleString("fr-FR")}k` : ""}</div>
+                  <div style={{ width: "100%", maxWidth: 34, height: `${(m.montant / maxMois) * 110 || 1}px`, background: "#1B2430", borderRadius: 4 }} />
+                  <div style={{ fontSize: 11, color: "#666" }}>{m.label}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </AuthGuard>
   );
@@ -180,4 +212,3 @@ function BarRow({ label, value, max }) {
 }
 
 const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
-
