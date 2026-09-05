@@ -5,6 +5,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import { useRole } from "../../../lib/useRole";
+import { thStyle, tdStyle, linkBtn, buttonStyle, inputStyle } from "../../components/ui";
 
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
 const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins"];
@@ -285,7 +286,7 @@ export default function CommandeDetailPage() {
       <button onClick={() => router.push("/commandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux commandes</button>
 
       {/* ---- Bon de commande ---- */}
-      <div style={{ background: "#fff", borderRadius: 12, padding: 24, marginBottom: 20 }} className={modeImpression === "bc" ? "print-area" : "no-print"}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, marginBottom: 20 }} className={modeImpression === "bc" ? "print-area" : "no-print"}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
           <div>
             <h1 style={{ fontSize: 20, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
@@ -374,7 +375,7 @@ export default function CommandeDetailPage() {
       </div>
 
       {/* ---- Réception ---- */}
-      <div className="no-print" style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <h2 style={{ fontSize: 15 }}>Réception</h2>
           <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: etatLivraison() === "Livré" ? "#EAF7EE" : etatLivraison().startsWith("Livré partiellement") ? "#FFF3D6" : etatLivraison().startsWith("Clôturé") ? "#F0EFEA" : "#F0EFEA", color: etatLivraison() === "Livré" ? "#1B7A4C" : etatLivraison().startsWith("Livré partiellement") ? "#8A6100" : "#888" }}>
@@ -465,7 +466,7 @@ export default function CommandeDetailPage() {
       </div>
 
       {/* ---- Suivi transmission signature / paiement ---- */}
-      <div className="no-print" style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Suivi de transmission</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
           <div>
@@ -507,7 +508,7 @@ export default function CommandeDetailPage() {
       </div>
 
       {/* ---- Accusés de réception facture ---- */}
-      <div className="no-print" style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Accusés de réception facture</h2>
         {accuses.length > 0 && (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 12 }}>
@@ -544,7 +545,7 @@ export default function CommandeDetailPage() {
       </div>
 
       {/* ---- Facture / paiement ---- */}
-      <div className="no-print" style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
+      <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Facture et paiement</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
           <input placeholder="N° de facture" value={facture.numero_facture} onChange={(e) => setFacture({ ...facture, numero_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
@@ -622,12 +623,7 @@ export default function CommandeDetailPage() {
   );
 }
 
-const thStyle = { textAlign: "left", padding: "8px 6px", color: "#888", borderBottom: "1px solid #eee" };
-const tdStyle = { padding: "8px 6px", borderBottom: "1px solid #f5f5f5" };
-const linkBtn = { border: "none", background: "none", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "underline", padding: 0 };
-const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
 const rowTotal = { display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 };
-const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
 const miniLabel = { display: "block", fontSize: 11, color: "#999", marginBottom: 2 };
 const pvLabel = { padding: "4px 6px", color: "#666", fontWeight: 600, border: "1px solid #eee", width: "15%" };
 const pvVal = { padding: "4px 6px", border: "1px solid #eee", width: "35%" };
