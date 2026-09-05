@@ -5,6 +5,7 @@ import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
+import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
 
 const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
 const CATEGORIES_BASE = [
@@ -158,7 +159,7 @@ export default function ArticlesPage() {
         <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>{editId ? "Modifier l'article" : "Ajouter un article"}</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input placeholder="Désignation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
@@ -184,7 +185,7 @@ export default function ArticlesPage() {
         </div>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Catégories existantes</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {categorieOptions.map((c) => (
@@ -198,7 +199,7 @@ export default function ArticlesPage() {
         </div>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
           <h2 style={{ fontSize: 15 }}>Liste ({liste.filter(a => matchRecherche(a, recherche)).length} / {liste.length})</h2>
           <div style={{ position: "relative", width: 340 }}>
@@ -264,9 +265,6 @@ function Champ({ label, value }) {
   );
 }
 
-const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
-const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
-const linkBtn = { border: "none", background: "none", color: "#1B2430", fontSize: 12, cursor: "pointer", marginRight: 10, textDecoration: "underline", padding: 0 };
 const cardStyle = { border: "1px solid #eee", borderRadius: 10, padding: 16, marginBottom: 12 };
 const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginTop: 10 };
 const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3 };
