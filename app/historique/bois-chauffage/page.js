@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import { exportExcel } from "../../../lib/exportExcel";
+import { inputStyle, buttonStyle } from "../../components/ui";
 
 const MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
@@ -143,14 +144,14 @@ export default function BoisChauffagePage() {
       </div>
 
       {evenements.length === 0 && (
-        <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
           <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison de bois de chauffage réceptionnée pour l'instant. Ce rapport se remplit automatiquement dès qu'une réception est enregistrée sur un article "Bois de chauffage".</p>
         </div>
       )}
 
       {evenements.length > 0 && (
         <>
-          <div style={{ background: "#fff", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
               <h2 style={{ fontSize: 15 }}>Détail journalier</h2>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -197,7 +198,7 @@ export default function BoisChauffagePage() {
             )}
           </div>
 
-          <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
               <h2 style={{ fontSize: 15 }}>Récapitulatif annuel</h2>
               <select value={annee} onChange={(e) => setAnnee(Number(e.target.value))} style={inputStyle}>
@@ -237,11 +238,8 @@ export default function BoisChauffagePage() {
   );
 }
 
-const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
-const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
 const smallBtn = { padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer" };
 const thStyle = { textAlign: "left", padding: "8px 6px", color: "#888", borderBottom: "1px solid #eee", whiteSpace: "nowrap" };
 const tdStyle = { padding: "8px 6px", whiteSpace: "nowrap" };
 const sousOnglet = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#888", textDecoration: "none", background: "transparent" };
 const sousOngletActif = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#1B2430", fontWeight: 600, background: "#fff" };
-
