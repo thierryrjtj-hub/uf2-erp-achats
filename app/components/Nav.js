@@ -24,12 +24,12 @@ export default function Nav() {
   };
 
   return (
-    <div style={{ width: 220, minHeight: "100vh", background: "#1B2430", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+    <div style={{ width: 220, height: "100vh", background: "#1B2430", display: "flex", flexDirection: "column", flexShrink: 0 }}>
       <div style={{ padding: "20px 18px 16px" }}>
         <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 26, filter: "brightness(0) invert(1)" }} />
       </div>
 
-      <div style={{ flex: 1, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+      <div style={{ flex: 1, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
         {LINKS.map((l) => {
           const actif = pathname.startsWith(l.href);
           const Icon = l.icon;
