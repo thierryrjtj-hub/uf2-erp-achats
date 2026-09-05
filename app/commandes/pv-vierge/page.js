@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../components/AuthGuard";
+import { linkBtn, buttonStyle } from "../../components/ui";
 
 const LIGNES_VIDES = Array.from({ length: 8 });
 
@@ -73,8 +74,6 @@ export default function PVViergePage() {
   );
 }
 
-const linkBtn = { border: "none", background: "none", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "underline", padding: 0 };
-const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
 const pvLabel = { padding: "4px 6px", color: "#666", fontWeight: 600, border: "1px solid #eee", width: "15%" };
 const pvVal = { padding: "4px 6px", border: "1px solid #eee", width: "35%" };
 const pvTh = { border: "1px solid #ccc", padding: "6px 4px", background: "#F0F7F2" };
