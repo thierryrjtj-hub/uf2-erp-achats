@@ -303,6 +303,7 @@ export default function TCODetailPage() {
           <div>
             <h1 style={{ fontSize: 18, marginBottom: 4 }}>{demande.numero}</h1>
             <p style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>{demande.service} — {demande.motif_projet}</p>
+            {demande.numero_tco && <p style={{ fontSize: 12, color: "#1B7A4C", marginTop: -8, marginBottom: 12 }}>N° {demande.numero_tco}</p>}
           </div>
           <button onClick={() => window.print()} style={buttonStyle} className="no-print">Imprimer le comparatif</button>
         </div>
