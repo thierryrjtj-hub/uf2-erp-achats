@@ -73,6 +73,9 @@ export const thStyle = {
   borderBottom: "1px solid #ECEBE6",
   background: "#FAFAF8",
   whiteSpace: "nowrap",
+  position: "sticky",
+  top: 0,
+  zIndex: 1,
 };
 
 export const tdStyle = {
@@ -118,4 +121,3 @@ export const COLORS = {
   bleu: { bg: "#E8F0FA", text: "#1B4C7A" },
   gris: { bg: "#F0EFEA", text: "#8A8F98" },
 };
-
