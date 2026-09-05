@@ -88,6 +88,7 @@ export default function JournalAuditPage() {
         {filtrees.length === 0 ? (
           <p style={{ color: "#888", fontSize: 13 }}>Aucune entrée pour ces filtres.</p>
         ) : (
+          <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
@@ -110,6 +111,7 @@ export default function JournalAuditPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </AuthGuard>
