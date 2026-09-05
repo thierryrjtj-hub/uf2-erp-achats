@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/kpi", label: "KPI", icon: IconChart },
   { href: "/fournisseurs", label: "Fournisseurs", icon: IconTruck },
   { href: "/articles", label: "Articles", icon: IconBox },
+  { href: "/journal", label: "Journal d'audit", icon: IconList },
 ];
 
 export default function Nav() {
@@ -95,4 +96,7 @@ function IconTruck({ color }) {
 }
 function IconBox({ color }) {
   return <IconBase><path d="M3 8l9-5 9 5-9 5-9-5z" stroke={color} /><path d="M3 8v9l9 5 9-5V8" stroke={color} /><path d="M12 13v9" stroke={color} /></IconBase>;
+}
+function IconList({ color }) {
+  return <IconBase><path d="M8 6h13M8 12h13M8 18h13" stroke={color} /><circle cx="3.5" cy="6" r="1.2" fill={color} stroke="none" /><circle cx="3.5" cy="12" r="1.2" fill={color} stroke="none" /><circle cx="3.5" cy="18" r="1.2" fill={color} stroke="none" /></IconBase>;
 }
