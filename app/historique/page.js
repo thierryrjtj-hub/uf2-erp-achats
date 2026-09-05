@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel, slugify } from "../../lib/exportExcel";
 import Autocomplete from "../components/Autocomplete";
+import { inputStyle, buttonStyle } from "../components/ui";
 
 export default function HistoriquePage() {
   const [lignes, setLignes] = useState([]);
@@ -191,7 +192,7 @@ export default function HistoriquePage() {
         <Link href="/historique/bois-chauffage" style={sousOnglet}>Bois de chauffage</Link>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
           <Autocomplete
             placeholder="Rechercher — article, fournisseur, service, demandeur, catégorie, usage/projet, N° BC, statut..."
@@ -292,8 +293,6 @@ export default function HistoriquePage() {
   );
 }
 
-const inputStyle = { padding: "8px 10px", borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
-const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
 const sousOnglet = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#888", textDecoration: "none", background: "transparent" };
 const sousOngletActif = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#1B2430", fontWeight: 600, background: "#fff" };
 const thStyle = { textAlign: "left", padding: "8px 6px", color: "#888", borderBottom: "1px solid #eee", whiteSpace: "nowrap" };
