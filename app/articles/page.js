@@ -190,7 +190,7 @@ export default function ArticlesPage() {
           {categorieOptions.map((c) => (
             <span key={c} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, background: "#F5F4F1", borderRadius: 6, padding: "4px 8px" }}>
               {c}
-              {role !== "invite" && (
+              {role === "acheteur" && (
                 <button onClick={() => supprimerCategorie(c)} style={{ border: "none", background: "none", color: "#B3261E", cursor: "pointer", fontSize: 13, padding: 0 }} title="Supprimer cette catégorie">×</button>
               )}
             </span>
@@ -219,7 +219,7 @@ export default function ArticlesPage() {
                 <div>
                   <button onClick={() => copierFiche(a, dernier)} style={linkBtn}>Copier tout</button>
                   <button onClick={() => modifier(a)} style={linkBtn}>Modifier</button>
-                  {role !== "invite" && (
+                  {role === "acheteur" && (
                     <button onClick={() => supprimer(a.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
                   )}
                 </div>
