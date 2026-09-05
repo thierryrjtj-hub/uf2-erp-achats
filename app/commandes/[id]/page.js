@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
+import Autocomplete from "../../components/Autocomplete";
+import { useRole } from "../../../lib/useRole";
 
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
 const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins"];
@@ -11,6 +13,11 @@ const nouvelleSaisie = () => ({ receptionnaire: "Magasin", receptionnaireAutre: 
 export default function CommandeDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const role = useRole();
+  const [articlesBase, setArticlesBase] = useState([]);
+  const [modeEdition, setModeEdition] = useState(false);
+  const [editLignes, setEditLignes] = useState([]);
+  const [enregistrementEdition, setEnregistrementEdition] = useState(false);
   const [bc, setBc] = useState(null);
   const [lignes, setLignes] = useState([]);
   const [demande, setDemande] = useState(null);
@@ -76,6 +83,12 @@ export default function CommandeDetailPage() {
   };
 
   useEffect(() => { charger(); }, [id]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht");
+      setArticlesBase(data || []);
+    })();
+  }, []);
 
   // Cumul livré par ligne, toutes réceptions confondues
   const cumulLivre = (ligneBcId) => receptions.reduce((s, r) => s + (r.lignes.find((x) => x.ligne_bc_id === ligneBcId)?.quantite_livree ? Number(r.lignes.find((x) => x.ligne_bc_id === ligneBcId).quantite_livree) : 0), 0);
@@ -205,6 +218,51 @@ export default function CommandeDetailPage() {
     charger();
   };
 
+  const commencerEdition = () => {
+    setEditLignes(lignes.map((l) => ({
+      key: l.id, designation: l.designation, quantite: l.quantite, unite: l.unite,
+      prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct || 0,
+    })));
+    setModeEdition(true);
+  };
+
+  const majEditLigne = (key, field, val) => setEditLignes((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
+  const ajouterEditLigne = () => setEditLignes((prev) => [...prev, { key: `nouvelle-${Date.now()}`, designation: "", quantite: 1, unite: "pcs", prix_unitaire_ht: "", remise_pct: 0 }]);
+  const retirerEditLigne = (key) => setEditLignes((prev) => prev.filter((l) => l.key !== key));
+
+  const onDesignationEditChange = (key, val) => {
+    majEditLigne(key, "designation", val);
+    const match = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
+    if (match) {
+      majEditLigne(key, "unite", match.unite_defaut || "pcs");
+    }
+  };
+
+  const enregistrerEdition = async () => {
+    const valides = editLignes.filter((l) => l.designation.trim() && l.prix_unitaire_ht !== "");
+    if (valides.length === 0) return;
+    setEnregistrementEdition(true);
+
+    let montantHt = 0;
+    valides.forEach((l) => {
+      montantHt += (Number(l.quantite) || 0) * (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100);
+    });
+    const assujetti = bc.assujetti_tva !== false;
+    const tva = assujetti ? montantHt * 0.2 : 0;
+
+    await supabase.from("lignes_bc").delete().eq("bc_id", id);
+    await supabase.from("lignes_bc").insert(valides.map((l) => ({
+      bc_id: id, designation: l.designation, quantite: Number(l.quantite) || 1, unite: l.unite,
+      prix_unitaire_ht: Number(l.prix_unitaire_ht) || 0, remise_pct: Number(l.remise_pct) || 0,
+      montant_ht: (Number(l.quantite) || 0) * (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100),
+    })));
+    await supabase.from("commandes").update({ montant_ht: montantHt, montant_tva: tva, montant_ttc: montantHt + tva }).eq("id", id);
+
+    setModeEdition(false);
+    setEnregistrementEdition(false);
+    charger();
+  };
+
   if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
   if (!bc) return <AuthGuard><p>Bon de commande introuvable.</p></AuthGuard>;
 
@@ -236,6 +294,9 @@ export default function CommandeDetailPage() {
             <p style={{ fontSize: 14, color: "#666" }}>{bc.numero} — {bc.date}</p>
           </div>
           <div style={{ display: "flex", gap: 8 }} className="no-print">
+            {role === "acheteur" && !modeEdition && (
+              <button onClick={commencerEdition} style={{ ...buttonStyle, background: "#888" }}>Modifier le BC</button>
+            )}
             <button onClick={() => { setModeImpression("bc"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888" }}>Imprimer le BC</button>
           </div>
         </div>
@@ -249,26 +310,54 @@ export default function CommandeDetailPage() {
           <button onClick={enregistrerSignatureObservation} style={{ ...buttonStyle, background: "#888" }}>Enregistrer</button>
         </div>
 
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 20 }}>
-          <thead>
-            <tr>
-              <th style={thStyle}>Article</th><th style={thStyle}>Qté</th><th style={thStyle}>Unité</th>
-              <th style={thStyle}>PU HT</th><th style={thStyle}>Remise</th><th style={thStyle}>Montant HT</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lignes.map((l) => (
-              <tr key={l.id}>
-                <td style={tdStyle}>{l.designation}</td>
-                <td style={tdStyle}>{l.quantite}</td>
-                <td style={tdStyle}>{l.unite}</td>
-                <td style={tdStyle}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar</td>
-                <td style={tdStyle}>{l.remise_pct} %</td>
-                <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
-              </tr>
+        {modeEdition ? (
+          <div className="no-print">
+            {editLignes.map((l) => (
+              <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <Autocomplete
+                  placeholder="Désignation"
+                  value={l.designation}
+                  onChange={(val) => onDesignationEditChange(l.key, val)}
+                  suggestions={articlesBase.map((a) => a.designation)}
+                  style={{ flex: 2 }}
+                />
+                <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
+                <input placeholder="unité" value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, width: 90 }} />
+                <input type="number" placeholder="PU HT" value={l.prix_unitaire_ht} onChange={(e) => majEditLigne(l.key, "prix_unitaire_ht", e.target.value)} style={{ ...inputStyle, width: 110 }} />
+                <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
+                <button onClick={() => retirerEditLigne(l.key)} style={linkBtn}>Retirer</button>
+              </div>
             ))}
-          </tbody>
-        </table>
+            <div style={{ display: "flex", gap: 8, marginTop: 8, marginBottom: 20 }}>
+              <button onClick={ajouterEditLigne} style={{ ...buttonStyle, background: "#888" }}>+ Ajouter une ligne</button>
+              <button onClick={enregistrerEdition} disabled={enregistrementEdition} style={buttonStyle}>
+                {enregistrementEdition ? "Enregistrement..." : "Enregistrer les modifications"}
+              </button>
+              <button onClick={() => setModeEdition(false)} style={{ ...buttonStyle, background: "#fff", color: "#1B2430", border: "1px solid #ddd" }}>Annuler</button>
+            </div>
+          </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 20 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Article</th><th style={thStyle}>Qté</th><th style={thStyle}>Unité</th>
+                <th style={thStyle}>PU HT</th><th style={thStyle}>Remise</th><th style={thStyle}>Montant HT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lignes.map((l) => (
+                <tr key={l.id}>
+                  <td style={tdStyle}>{l.designation}</td>
+                  <td style={tdStyle}>{l.quantite}</td>
+                  <td style={tdStyle}>{l.unite}</td>
+                  <td style={tdStyle}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar</td>
+                  <td style={tdStyle}>{l.remise_pct} %</td>
+                  <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
         <div style={{ marginLeft: "auto", width: 260 }}>
           <div style={rowTotal}><span>Total HT</span><span>{Number(bc.montant_ht).toLocaleString("fr-FR")} Ar</span></div>
