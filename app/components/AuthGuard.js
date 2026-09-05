@@ -25,9 +25,11 @@ export default function AuthGuard({ children }) {
   if (!ready) return <p style={{ padding: 24 }}>Chargement...</p>;
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <Nav />
-      <div style={{ flex: 1, padding: "28px 32px", maxWidth: 1400, margin: "0 auto", width: "100%" }}>{children}</div>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+        <div style={{ padding: "28px 32px", maxWidth: 1400, margin: "0 auto", width: "100%" }}>{children}</div>
+      </div>
     </div>
   );
 }
