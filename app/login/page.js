@@ -70,6 +70,10 @@ export default function LoginPage() {
         <button type="submit" disabled={loading} style={buttonStyle}>
           {loading ? "Connexion..." : "Se connecter"}
         </button>
+
+        <p style={{ fontSize: 11, color: "#bbb", marginTop: 24, textAlign: "center" }}>
+          Créé par Judicaël Randrianaivo — UNIFOODS
+        </p>
       </form>
     </div>
   );
