@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
+import { useRole } from "../../lib/useRole";
 
 const empty = {
   nom: "", contact: "", telephone: "", email: "", adresse: "", code_postal: "",
@@ -17,6 +18,7 @@ function matchRecherche(f, q) {
 }
 
 export default function FournisseursPage() {
+  const role = useRole();
   const [liste, setListe] = useState([]);
   const [form, setForm] = useState(empty);
   const [editId, setEditId] = useState(null);
@@ -165,7 +167,9 @@ export default function FournisseursPage() {
               <div>
                 <button onClick={() => copierFiche(f)} style={linkBtn}>Copier tout</button>
                 <button onClick={() => modifier(f)} style={linkBtn}>Modifier</button>
-                <button onClick={() => supprimer(f.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
+                {role !== "invite" && (
+                  <button onClick={() => supprimer(f.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
+                )}
               </div>
             </div>
             <div style={grid}>
