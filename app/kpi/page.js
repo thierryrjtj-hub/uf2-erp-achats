@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
+import { buttonStyle } from "../components/ui";
 
 export default function KpiPage() {
   const [commandes, setCommandes] = useState([]);
@@ -149,7 +150,7 @@ export default function KpiPage() {
       </div>
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
-        <div style={{ background: "#fff", borderRadius: 12, padding: 20, flex: 1, minWidth: 320 }}>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
           <h2 style={{ fontSize: 15, marginBottom: 12 }}>Top fournisseurs (montant TTC)</h2>
           {stats.topFournisseurs.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>}
           {stats.topFournisseurs.map(([nom, montant]) => (
@@ -157,7 +158,7 @@ export default function KpiPage() {
           ))}
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 12, padding: 20, flex: 1, minWidth: 320 }}>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
           <h2 style={{ fontSize: 15, marginBottom: 12 }}>Top articles (montant HT)</h2>
           {stats.topArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
           {stats.topArticles.map(([nom, montant]) => (
@@ -166,7 +167,7 @@ export default function KpiPage() {
         </div>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, padding: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Achats par mois (12 derniers mois, TTC)</h2>
         {stats.parMois.every((m) => m.montant === 0) ? (
           <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>
@@ -191,7 +192,7 @@ export default function KpiPage() {
 
 function Card({ label, value, sub }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 12, padding: "16px 24px", minWidth: 170 }}>
+    <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: "16px 24px", minWidth: 170 }}>
       <div style={{ fontSize: 13, color: "#888" }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 600 }}>{value}</div>
       {sub && <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>{sub}</div>}
@@ -211,4 +212,3 @@ function BarRow({ label, value, max }) {
   );
 }
 
-const buttonStyle = { padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" };
