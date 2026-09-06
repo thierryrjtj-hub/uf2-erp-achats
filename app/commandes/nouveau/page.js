@@ -20,8 +20,8 @@ export default function NouveauBCDirectPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: f } = await supabase.from("fournisseurs").select("*").order("nom");
-      const { data: a } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht");
+      const { data: f } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
+      const { data: a } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht").limit(10000);
       setFournisseurs(f || []);
       setArticlesBase(a || []);
     })();
