@@ -306,5 +306,5 @@ export default function HistoriquePage() {
 
 const sousOnglet = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#888", textDecoration: "none", background: "transparent" };
 const sousOngletActif = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#1B2430", fontWeight: 600, background: "#fff" };
-const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1, overflow: "hidden", textOverflow: "ellipsis" };
+const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "normal", lineHeight: 1.3, position: "sticky", top: 0, zIndex: 1, verticalAlign: "bottom" };
 const tdStyle = { padding: "8px 10px", whiteSpace: "normal", overflowWrap: "break-word", wordBreak: "break-word", verticalAlign: "top" };
