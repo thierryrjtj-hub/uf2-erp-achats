@@ -186,109 +186,119 @@ export default function HistoriquePage() {
 
   return (
     <AuthGuard>
-      <h1 style={{ fontSize: 20, marginBottom: 16 }}>Historique des achats — situation globale</h1>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <h1 style={{ fontSize: 18, marginBottom: 10, flexShrink: 0 }}>Historique des achats — situation globale</h1>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <span style={sousOngletActif}>Vue globale</span>
-        <Link href="/historique/bois-chauffage" style={sousOnglet}>Bois de chauffage</Link>
-      </div>
-
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <Autocomplete
-            placeholder="Rechercher — article, fournisseur, service, demandeur, catégorie, usage/projet, N° BC, statut..."
-            value={recherche}
-            onChange={setRecherche}
-            suggestions={suggestionsRecherche}
-            style={{ flex: 1, minWidth: 320 }}
-          />
-          <label style={{ fontSize: 12, color: "#666" }}>Du</label>
-          <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
-          <label style={{ fontSize: 12, color: "#666" }}>au</label>
-          <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
-          <button onClick={exporter} disabled={exporting} style={buttonStyle}>
-            {exporting ? "Génération..." : "Exporter en Excel"}
-          </button>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexShrink: 0 }}>
+          <span style={sousOngletActif}>Vue globale</span>
+          <Link href="/historique/bois-chauffage" style={sousOnglet}>Bois de chauffage</Link>
         </div>
 
-        {recherche && filtrees.length > 0 && dernierAchatParArticle[filtrees[0].designation] && (
-          <div style={{ background: "#F5F4F1", borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13 }}>
-            <strong>Dernier achat de "{filtrees[0].designation}"</strong> : {Number(dernierAchatParArticle[filtrees[0].designation].prix_unitaire_ht).toLocaleString("fr-FR")} Ar
-            chez {dernierAchatParArticle[filtrees[0].designation].fournisseur_nom}, le {dernierAchatParArticle[filtrees[0].designation].bc_date}
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center", flexShrink: 0 }}>
+            <Autocomplete
+              placeholder="Rechercher — article, fournisseur, service, demandeur, catégorie, usage/projet, N° BC, statut..."
+              value={recherche}
+              onChange={setRecherche}
+              suggestions={suggestionsRecherche}
+              style={{ flex: 1, minWidth: 320 }}
+            />
+            <label style={{ fontSize: 12, color: "#666" }}>Du</label>
+            <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
+            <label style={{ fontSize: 12, color: "#666" }}>au</label>
+            <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
+            <button onClick={exporter} disabled={exporting} style={buttonStyle}>
+              {exporting ? "Génération..." : "Exporter en Excel"}
+            </button>
           </div>
-        )}
 
-        {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-        {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucun achat enregistré pour le moment.</p>}
+          {recherche && filtrees.length > 0 && dernierAchatParArticle[filtrees[0].designation] && (
+            <div style={{ background: "#F5F4F1", borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13, flexShrink: 0 }}>
+              <strong>Dernier achat de "{filtrees[0].designation}"</strong> : {Number(dernierAchatParArticle[filtrees[0].designation].prix_unitaire_ht).toLocaleString("fr-FR")} Ar
+              chez {dernierAchatParArticle[filtrees[0].designation].fournisseur_nom}, le {formatDate(dernierAchatParArticle[filtrees[0].designation].bc_date)}
+            </div>
+          )}
 
-        {filtrees.length > 0 && (
-          <div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Date DA</th>
-                  <th style={thStyle}>Article</th>
-                  <th style={thStyle}>Qté</th>
-                  <th style={thStyle}>Unité</th>
-                  <th style={thStyle}>Fournisseur</th>
-                  <th style={thStyle}>N° BC</th>
-                  <th style={thStyle}>Date BC (création)</th>
-                  <th style={thStyle}>Date signature (envoi commande)</th>
-                  <th style={thStyle}>Date réception livraison</th>
-                  <th style={thStyle}>Réceptionnaire</th>
-                  <th style={thStyle}>État livraison</th>
-                  <th style={thStyle}>Catégorie</th>
-                  <th style={thStyle}>Service demandeur</th>
-                  <th style={thStyle}>Demandeur</th>
-                  <th style={thStyle}>Usage / Projet</th>
-                  <th style={thStyle}>PU HT</th>
-                  <th style={thStyle}>Remise</th>
-                  <th style={thStyle}>Montant HT</th>
-                  <th style={thStyle}>Montant TTC</th>
-                  <th style={thStyle}>Total BC (TTC)</th>
-                  <th style={thStyle}>Statut</th>
-                  <th style={thStyle}>Observation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtrees.map((l) => (
-                  <tr key={l.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                    <td style={tdStyle}>{formatDate(l.date_da) || "-"}</td>
-                    <td style={tdStyle}>{l.designation}</td>
-                    <td style={tdStyle}>{l.quantite} {l.unite}</td>
-                    <td style={tdStyle}>{l.unite}</td>
-                    <td style={tdStyle}>{l.fournisseur_nom}</td>
-                    <td style={tdStyle}>{l.bc_numero}</td>
-                    <td style={tdStyle}>{formatDate(l.bc_date) || "-"}</td>
-                    <td style={tdStyle}>{formatDate(l.date_signature) || "-"}</td>
-                    <td style={tdStyle}>{formatDate(l.date_reception) || "-"}</td>
-                    <td style={tdStyle}>{l.receptionnaire}</td>
-                    <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
-                    <td style={tdStyle}>{l.categorie || "-"}</td>
-                    <td style={tdStyle}>{l.service || "-"}</td>
-                    <td style={tdStyle}>{l.demandeur || "-"}</td>
-                    <td style={tdStyle}>{l.usage_projet || "-"}</td>
-                    <td style={tdStyle}>{l.prix_unitaire_ht != null ? `${Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : "-"}</td>
-                    <td style={tdStyle}>{l.remise_pct != null ? `${l.remise_pct}%` : "-"}</td>
-                    <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
-                    <td style={tdStyle}>{Number(l.montant_ttc).toLocaleString("fr-FR")} Ar</td>
-                    <td style={{ ...tdStyle, fontWeight: 600 }}>{l.bc_total_ttc ? `${Number(l.bc_total_ttc).toLocaleString("fr-FR")} Ar` : "-"}</td>
-                    <td style={tdStyle}>{l.statut}</td>
-                    <td style={tdStyle}>{l.observation}</td>
+          {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
+          {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucun achat enregistré pour le moment.</p>}
+
+          {filtrees.length > 0 && (
+            <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+                <colgroup>
+                  <col style={{ width: 80 }} /><col style={{ width: 170 }} /><col style={{ width: 80 }} /><col style={{ width: 60 }} />
+                  <col style={{ width: 130 }} /><col style={{ width: 110 }} /><col style={{ width: 80 }} /><col style={{ width: 90 }} />
+                  <col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 100 }} /><col style={{ width: 120 }} />
+                  <col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 150 }} /><col style={{ width: 90 }} />
+                  <col style={{ width: 70 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} />
+                  <col style={{ width: 100 }} /><col style={{ width: 150 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Date DA</th>
+                    <th style={thStyle}>Article</th>
+                    <th style={thStyle}>Qté</th>
+                    <th style={thStyle}>Unité</th>
+                    <th style={thStyle}>Fournisseur</th>
+                    <th style={thStyle}>N° BC</th>
+                    <th style={thStyle}>Date BC</th>
+                    <th style={thStyle}>Date signature</th>
+                    <th style={thStyle}>Date réception</th>
+                    <th style={thStyle}>Réceptionnaire</th>
+                    <th style={thStyle}>État livraison</th>
+                    <th style={thStyle}>Catégorie</th>
+                    <th style={thStyle}>Service demandeur</th>
+                    <th style={thStyle}>Demandeur</th>
+                    <th style={thStyle}>Usage / Projet</th>
+                    <th style={thStyle}>PU HT</th>
+                    <th style={thStyle}>Remise</th>
+                    <th style={thStyle}>Montant HT</th>
+                    <th style={thStyle}>Montant TTC</th>
+                    <th style={thStyle}>Total BC</th>
+                    <th style={thStyle}>Statut</th>
+                    <th style={thStyle}>Observation</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: "2px solid #ddd" }}>
-                  <td colSpan={17} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length} ligne{filtrees.length > 1 ? "s" : ""} affichée{filtrees.length > 1 ? "s" : ""})</td>
-                  <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
-                  <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
-                  <td colSpan={3} style={tdStyle}></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {filtrees.map((l) => (
+                    <tr key={l.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                      <td style={tdStyle}>{formatDate(l.date_da) || "-"}</td>
+                      <td style={tdStyle}>{l.designation}</td>
+                      <td style={tdStyle}>{l.quantite} {l.unite}</td>
+                      <td style={tdStyle}>{l.unite}</td>
+                      <td style={tdStyle}>{l.fournisseur_nom}</td>
+                      <td style={tdStyle}>{l.bc_numero}</td>
+                      <td style={tdStyle}>{formatDate(l.bc_date) || "-"}</td>
+                      <td style={tdStyle}>{formatDate(l.date_signature) || "-"}</td>
+                      <td style={tdStyle}>{formatDate(l.date_reception) || "-"}</td>
+                      <td style={tdStyle}>{l.receptionnaire}</td>
+                      <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
+                      <td style={tdStyle}>{l.categorie || "-"}</td>
+                      <td style={tdStyle}>{l.service || "-"}</td>
+                      <td style={tdStyle}>{l.demandeur || "-"}</td>
+                      <td style={tdStyle}>{l.usage_projet || "-"}</td>
+                      <td style={tdStyle}>{l.prix_unitaire_ht != null ? `${Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : "-"}</td>
+                      <td style={tdStyle}>{l.remise_pct != null ? `${l.remise_pct}%` : "-"}</td>
+                      <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
+                      <td style={tdStyle}>{Number(l.montant_ttc).toLocaleString("fr-FR")} Ar</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }}>{l.bc_total_ttc ? `${Number(l.bc_total_ttc).toLocaleString("fr-FR")} Ar` : "-"}</td>
+                      <td style={tdStyle}>{l.statut}</td>
+                      <td style={tdStyle}>{l.observation}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: "2px solid #ddd" }}>
+                    <td colSpan={15} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length})</td>
+                    <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
+                    <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
+                    <td colSpan={4} style={tdStyle}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </AuthGuard>
   );
@@ -296,5 +306,5 @@ export default function HistoriquePage() {
 
 const sousOnglet = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#888", textDecoration: "none", background: "transparent" };
 const sousOngletActif = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#1B2430", fontWeight: 600, background: "#fff" };
-const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1 };
-const tdStyle = { padding: "8px 6px", whiteSpace: "nowrap" };
+const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1, overflow: "hidden", textOverflow: "ellipsis" };
+const tdStyle = { padding: "8px 10px", whiteSpace: "normal", overflowWrap: "break-word", wordBreak: "break-word", verticalAlign: "top" };
