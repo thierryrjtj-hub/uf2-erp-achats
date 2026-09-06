@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import { exportExcel } from "../../../lib/exportExcel";
+import { formatDate } from "../../../lib/format";
 import { inputStyle, buttonStyle } from "../../components/ui";
 
 const MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
@@ -168,7 +169,7 @@ export default function BoisChauffagePage() {
             {joursDistincts.length === 0 ? (
               <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur cette période.</p>
             ) : (
-              <div style={{ overflowX: "auto" }}>
+              <div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr>
@@ -180,7 +181,7 @@ export default function BoisChauffagePage() {
                   <tbody>
                     {tableauJournalier.map((j) => (
                       <tr key={j.date}>
-                        <td style={tdStyle}>{j.date}</td>
+                        <td style={tdStyle}>{formatDate(j.date)}</td>
                         {fournisseurs.map((f) => <td key={f} style={tdStyle}>{j.parFournisseur[f] ? j.parFournisseur[f].toLocaleString("fr-FR") : "-"}</td>)}
                         <td style={{ ...tdStyle, fontWeight: 600 }}>{j.total.toLocaleString("fr-FR")}</td>
                       </tr>
@@ -208,7 +209,7 @@ export default function BoisChauffagePage() {
             {recapAnnuel.length === 0 ? (
               <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur {annee}.</p>
             ) : (
-              <div style={{ overflowX: "auto" }}>
+              <div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
                     <tr>
@@ -239,7 +240,7 @@ export default function BoisChauffagePage() {
 }
 
 const smallBtn = { padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer" };
-const thStyle = { textAlign: "left", padding: "8px 6px", color: "#888", borderBottom: "1px solid #eee", whiteSpace: "nowrap" };
+const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1 };
 const tdStyle = { padding: "8px 6px", whiteSpace: "nowrap" };
 const sousOnglet = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#888", textDecoration: "none", background: "transparent" };
 const sousOngletActif = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#1B2430", fontWeight: 600, background: "#fff" };
