@@ -374,7 +374,7 @@ export default function TCODetailPage() {
 
         {/* ---- Vue écran : tableau unique interactif ---- */}
         {offresAvecTotaux.length > 0 && (
-          <div className="ecran-seulement" style={{ overflowX: "auto" }}>
+          <div className="ecran-seulement">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
