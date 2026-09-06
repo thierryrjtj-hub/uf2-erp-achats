@@ -101,63 +101,67 @@ export default function DemandesPage() {
 
   return (
     <AuthGuard>
-      <h1 style={{ fontSize: 20, marginBottom: 16 }}>Demandes d'achat</h1>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <h1 style={{ fontSize: 18, marginBottom: 14, flexShrink: 0 }}>Demandes d'achat</h1>
 
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Nouvelle demande</h2>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-          <input placeholder="Service demandeur" value={service} onChange={(e) => setService(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-          <input placeholder="Nom du demandeur" value={demandeur} onChange={(e) => setDemandeur(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-          <input placeholder="Motif / projet" value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
-          <select value={priorite} onChange={(e) => setPriorite(e.target.value)} style={inputStyle}>
-            <option>Haute</option><option>Moyenne</option><option>Basse</option>
-          </select>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16, flexShrink: 0 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 12 }}>Nouvelle demande</h2>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <input placeholder="Service demandeur" value={service} onChange={(e) => setService(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+            <input placeholder="Nom du demandeur" value={demandeur} onChange={(e) => setDemandeur(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+            <input placeholder="Motif / projet" value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
+            <select value={priorite} onChange={(e) => setPriorite(e.target.value)} style={inputStyle}>
+              <option>Haute</option><option>Moyenne</option><option>Basse</option>
+            </select>
+          </div>
+
+          {lignes.map((l) => (
+            <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <Autocomplete
+                placeholder="Désignation de l'article (tape pour voir les suggestions)"
+                value={l.designation}
+                onChange={(val) => onDesignationChange(l.key, val)}
+                suggestions={articlesBase.map((a) => a.designation)}
+                style={{ flex: 3 }}
+              />
+              <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+              <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+              <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
+            </div>
+          ))}
+          <button onClick={addLigne} style={{ ...buttonStyle, background: "#888", marginTop: 4 }}>+ Ajouter une ligne</button>
+
+          <div style={{ marginTop: 16 }}>
+            <button onClick={creer} disabled={envoi} style={buttonStyle}>
+              {envoi ? "Création..." : "Créer la demande et ouvrir le TCO"}
+            </button>
+          </div>
         </div>
 
-        {lignes.map((l) => (
-          <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <Autocomplete
-              placeholder="Désignation de l'article (tape pour voir les suggestions)"
-              value={l.designation}
-              onChange={(val) => onDesignationChange(l.key, val)}
-              suggestions={articlesBase.map((a) => a.designation)}
-              style={{ flex: 3 }}
-            />
-            <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-            <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-            <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <h2 style={{ fontSize: 15, marginBottom: 12, flexShrink: 0 }}>Liste des demandes ({liste.length})</h2>
+          {liste.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour le moment.</p>}
+          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          {liste.map((d) => (
+            <div key={d.id} style={rowStyle}>
+              <Link href={`/demandes/${d.id}`} style={{ textDecoration: "none", color: "inherit", flex: 1, display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{d.numero}</div>
+                  <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
+                </div>
+                <div style={{ fontSize: 13, color: "#666", width: 150 }}>{d.service || "-"}</div>
+                <div style={{ fontSize: 13, color: "#666", width: 110 }}>{formatDate(d.date)}</div>
+                <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, ...prioriteStyle(d.priorite) }}>{d.priorite || "Moyenne"}</span>
+                {demandesAvecNonDispo.has(d.id) && (
+                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
+                )}
+                <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{d.statut}</span>
+              </Link>
+              <button onClick={() => copierPourDevis(d)} style={linkBtnBleu}>Copier pour devis</button>
+            </div>
+          ))}
           </div>
-        ))}
-        <button onClick={addLigne} style={{ ...buttonStyle, background: "#888", marginTop: 4 }}>+ Ajouter une ligne</button>
-
-        <div style={{ marginTop: 16 }}>
-          <button onClick={creer} disabled={envoi} style={buttonStyle}>
-            {envoi ? "Création..." : "Créer la demande et ouvrir le TCO"}
-          </button>
         </div>
-      </div>
-
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Liste des demandes ({liste.length})</h2>
-        {liste.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour le moment.</p>}
-        {liste.map((d) => (
-          <div key={d.id} style={rowStyle}>
-            <Link href={`/demandes/${d.id}`} style={{ textDecoration: "none", color: "inherit", flex: 1, display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 13 }}>{d.numero}</div>
-                <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
-              </div>
-              <div style={{ fontSize: 13, color: "#666", width: 150 }}>{d.service || "-"}</div>
-              <div style={{ fontSize: 13, color: "#666", width: 110 }}>{formatDate(d.date)}</div>
-              <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, ...prioriteStyle(d.priorite) }}>{d.priorite || "Moyenne"}</span>
-              {demandesAvecNonDispo.has(d.id) && (
-                <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
-              )}
-              <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{d.statut}</span>
-            </Link>
-            <button onClick={() => copierPourDevis(d)} style={linkBtnBleu}>Copier pour devis</button>
-          </div>
-        ))}
       </div>
     </AuthGuard>
   );
