@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+import { BRAND, ACCENT } from "./ui";
 
 const LINKS = [
   { href: "/dashboard", label: "Tableau de bord", icon: IconGrid },
@@ -24,9 +25,11 @@ export default function Nav() {
   };
 
   return (
-    <div style={{ width: 220, height: "100vh", background: "#1B2430", display: "flex", flexDirection: "column", flexShrink: 0 }}>
-      <div style={{ padding: "20px 18px 16px" }}>
-        <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 26, filter: "brightness(0) invert(1)" }} />
+    <div style={{ width: 226, height: "100vh", background: BRAND, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <div style={{ padding: "22px 18px 18px" }}>
+        <div style={{ background: "#fff", borderRadius: 10, padding: "8px 12px", display: "inline-block" }}>
+          <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 36, display: "block" }} />
+        </div>
       </div>
 
       <div style={{ flex: 1, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
@@ -41,12 +44,13 @@ export default function Nav() {
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "9px 12px", borderRadius: 8,
                 fontSize: 13.5, textDecoration: "none",
-                color: actif ? "#fff" : "#9AA4B2",
-                background: actif ? "rgba(255,255,255,0.10)" : "transparent",
+                color: actif ? "#fff" : "#A9C2BB",
+                background: actif ? "rgba(255,255,255,0.12)" : "transparent",
                 fontWeight: actif ? 600 : 400,
+                borderLeft: actif ? `3px solid ${ACCENT}` : "3px solid transparent",
               }}
             >
-              <Icon color={actif ? "#fff" : "#9AA4B2"} />
+              <Icon color={actif ? ACCENT : "#A9C2BB"} />
               {l.label}
             </Link>
           );
@@ -58,13 +62,13 @@ export default function Nav() {
           onClick={logout}
           style={{
             width: "100%", fontSize: 13, border: "1px solid rgba(255,255,255,0.15)",
-            background: "transparent", color: "#9AA4B2", padding: "9px 12px",
+            background: "transparent", color: "#A9C2BB", padding: "9px 12px",
             borderRadius: 8, cursor: "pointer",
           }}
         >
           Déconnexion
         </button>
-        <p style={{ fontSize: 10.5, color: "#5C6672", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
+        <p style={{ fontSize: 10.5, color: "#7A9C93", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
           Créé par Judicaël Randrianaivo
         </p>
       </div>
