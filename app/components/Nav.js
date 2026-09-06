@@ -6,7 +6,13 @@ import { BRAND, ACCENT } from "./ui";
 
 const LINKS = [
   { href: "/dashboard", label: "Tableau de bord", icon: IconGrid },
-  { href: "/demandes", label: "Demandes & TCO", icon: IconFile },
+  {
+    href: "/demandes", label: "Demandes", icon: IconFile,
+    children: [
+      { href: "/demandes", label: "Liste des demandes" },
+      { href: "/demandes/nouvelle", label: "Nouvelle demande" },
+    ],
+  },
   { href: "/commandes", label: "Bons de commande", icon: IconCart },
   {
     href: "/historique", label: "Historique", icon: IconClock,
@@ -17,7 +23,13 @@ const LINKS = [
   },
   { href: "/kpi", label: "KPI", icon: IconChart },
   { href: "/fournisseurs", label: "Fournisseurs", icon: IconTruck },
-  { href: "/articles", label: "Articles", icon: IconBox },
+  {
+    href: "/articles", label: "Articles", icon: IconBox,
+    children: [
+      { href: "/articles", label: "Liste des articles" },
+      { href: "/articles/nouveau", label: "Ajouter un article" },
+    ],
+  },
   { href: "/journal", label: "Journal d'audit", icon: IconList },
 ];
 
