@@ -14,8 +14,8 @@ export default function CommandesPage() {
   const [loading, setLoading] = useState(true);
 
   const charger = async () => {
-    const { data: c } = await supabase.from("commandes").select("*").order("created_at", { ascending: false });
-    const { data: r } = await supabase.from("receptions").select("*");
+    const { data: c } = await supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000);
+    const { data: r } = await supabase.from("receptions").select("*").limit(10000);
     setListe(c || []);
     setReceptions(r || []);
     setLoading(false);
