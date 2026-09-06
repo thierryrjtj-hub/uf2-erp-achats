@@ -151,7 +151,7 @@ export default function DemandesPage() {
                 </div>
                 <div style={{ fontSize: 13, color: "#666", width: 150 }}>{d.service || "-"}</div>
                 <div style={{ fontSize: 13, color: "#666", width: 110 }}>{formatDate(d.date)}</div>
-                <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, ...prioriteStyle(d.priorite) }}>{d.priorite || "Moyenne"}</span>
+                <span title={`Priorité : ${d.priorite || "Moyenne"}`} style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: prioriteCouleur(d.priorite), flexShrink: 0, cursor: "help" }} />
                 {demandesAvecNonDispo.has(d.id) && (
                   <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
                 )}
@@ -167,10 +167,10 @@ export default function DemandesPage() {
   );
 }
 
-function prioriteStyle(p) {
-  if (p === "Haute") return { background: "#FDECEA", color: "#B3261E" };
-  if (p === "Basse") return { background: "#F0EFEA", color: "#888" };
-  return { background: "#E8F0FA", color: "#1B4C7A" };
+function prioriteCouleur(p) {
+  if (p === "Haute") return "#E4572E";
+  if (p === "Basse") return "#B9B7AE";
+  return "#F5A623";
 }
 
 const linkBtnBleu = { border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer", padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" };
