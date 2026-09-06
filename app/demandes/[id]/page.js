@@ -274,6 +274,27 @@ export default function TCODetailPage() {
     router.push("/commandes");
   };
 
+  const marquerNonDisponible = async (ligne) => {
+    const observation = `À rechercher à l'import — ${ligne.designation}`;
+    if (lignesDemande.length <= 1) {
+      // Seul article de la demande : on clôture directement cette demande
+      await supabase.from("lignes_demande").update({ non_disponible_localement: true }).eq("id", ligne.id);
+      await supabase.from("demandes").update({ statut: "Clôturée", observation }).eq("id", id);
+    } else {
+      // D'autres articles restent à traiter : on détache celui-ci dans une nouvelle demande clôturée
+      const { data: nouvelleDemande } = await supabase.from("demandes").insert({
+        service: demande.service, demandeur: demande.demandeur, priorite: demande.priorite,
+        statut: "Clôturée", observation,
+      }).select().single();
+      if (nouvelleDemande) {
+        await supabase.from("lignes_demande").update({
+          demande_id: nouvelleDemande.id, non_disponible_localement: true,
+        }).eq("id", ligne.id);
+      }
+    }
+    charger();
+  };
+
   if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
   if (!demande) return <AuthGuard><p>Demande introuvable.</p></AuthGuard>;
 
@@ -320,6 +341,20 @@ export default function TCODetailPage() {
                 ))}
               </p>
             )}
+            {demande.observation && (
+              <div className="no-print" style={{ background: "#FDECEA", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13 }}>
+                <strong>Observation :</strong> {demande.observation}
+                {!demande.demandeur_avise && (
+                  <button
+                    onClick={async () => { await supabase.from("demandes").update({ demandeur_avise: true }).eq("id", id); charger(); }}
+                    style={{ ...linkBtn, marginLeft: 12, color: "#B3261E" }}
+                  >
+                    Marquer le demandeur avisé
+                  </button>
+                )}
+                {demande.demandeur_avise && <span style={{ marginLeft: 12, color: "#1B7A4C" }}>✓ Demandeur avisé</span>}
+              </div>
+            )}
           </div>
           <button onClick={() => window.print()} style={buttonStyle} className="no-print">Imprimer le comparatif</button>
         </div>
@@ -347,10 +382,7 @@ export default function TCODetailPage() {
                   <input
                     type="checkbox"
                     checked={!!l.non_disponible_localement}
-                    onChange={async (e) => {
-                      await supabase.from("lignes_demande").update({ non_disponible_localement: e.target.checked }).eq("id", l.id);
-                      charger();
-                    }}
+                    onChange={(e) => { if (e.target.checked) marquerNonDisponible(l); }}
                   />
                 </td>
               </tr>
