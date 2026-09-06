@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import { useRole } from "../../lib/useRole";
+import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
 
 const empty = {
@@ -168,10 +169,16 @@ export default function FournisseursPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{f.nom}</div>
               <div>
-                <button onClick={() => copierFiche(f)} style={linkBtn}>Copier tout</button>
-                <button onClick={() => modifier(f)} style={linkBtn}>Modifier</button>
+                <button onClick={() => copierFiche(f)} style={iconBtn} title="Copier toutes les infos">
+                  <IconCopy />
+                </button>
+                <button onClick={() => modifier(f)} style={iconBtn} title="Modifier">
+                  <IconEdit />
+                </button>
                 {role === "acheteur" && (
-                  <button onClick={() => supprimer(f.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
+                  <button onClick={() => supprimer(f.id)} style={{ ...iconBtn, color: "#B3261E" }} title="Supprimer">
+                    <IconTrash />
+                  </button>
                 )}
               </div>
             </div>
@@ -233,3 +240,4 @@ const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", le
 const champValue = { fontSize: 13, marginTop: 2, display: "flex", alignItems: "center", gap: 6 };
 const copyBtn = { fontSize: 11, border: "1px solid #ddd", background: "#fff", borderRadius: 4, padding: "1px 6px", cursor: "pointer", color: "#1B2430" };
 const clearBtn = { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, lineHeight: 1, color: "#999", cursor: "pointer", padding: "2px 6px" };
+const iconBtn = { border: "none", background: "none", color: "#1B2430", cursor: "pointer", padding: 4, marginLeft: 4, display: "inline-flex", alignItems: "center", borderRadius: 6 };
