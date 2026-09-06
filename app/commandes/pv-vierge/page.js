@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import AuthGuard from "../../components/AuthGuard";
 import { linkBtn, buttonStyle } from "../../components/ui";
+import { IconPrint } from "../../components/Icons";
 
 const LIGNES_VIDES = Array.from({ length: 8 });
 
@@ -23,7 +24,7 @@ export default function PVViergePage() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }} className="no-print">
         <h1 style={{ fontSize: 20 }}>PV de réception vierge</h1>
-        <button onClick={() => window.print()} style={buttonStyle}>Imprimer</button>
+        <button onClick={() => window.print()} style={{ ...buttonStyle, display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> Imprimer</button>
       </div>
       <p style={{ fontSize: 13, color: "#888", marginBottom: 20 }} className="no-print">
         Pour les livraisons qui ne passent pas par une demande créée dans l'appli — à remplir entièrement à la main.
