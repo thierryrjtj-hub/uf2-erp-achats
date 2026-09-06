@@ -27,8 +27,10 @@ export default function AuthGuard({ children }) {
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <Nav />
-      <div style={{ flex: 1, overflow: "auto" }}>
-        <div style={{ padding: "28px 32px", maxWidth: 1400, margin: "0 auto", width: "100%" }}>{children}</div>
+      <div style={{ flex: 1, height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={{ flex: 1, minHeight: 0, padding: "20px 32px 24px", maxWidth: 1400, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column" }}>
+          {children}
+        </div>
       </div>
     </div>
   );
