@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import { exportExcel } from "../../../lib/exportExcel";
@@ -135,14 +134,9 @@ export default function BoisChauffagePage() {
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexShrink: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
           <h1 style={{ fontSize: 18 }}>Bois de chauffage — livraisons</h1>
           <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexShrink: 0 }}>
-          <Link href="/historique" style={sousOnglet}>Vue globale</Link>
-          <span style={sousOngletActif}>Bois de chauffage</span>
         </div>
 
         {evenements.length === 0 && (
