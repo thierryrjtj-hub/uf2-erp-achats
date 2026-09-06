@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
@@ -303,6 +304,14 @@ export default function CommandeDetailPage() {
         </div>
 
         <p style={{ fontSize: 14, marginBottom: 16 }}><strong>Fournisseur :</strong> {bc.fournisseur_nom}</p>
+
+        {demande && (
+          <p className="no-print" style={{ fontSize: 13, marginBottom: 16 }}>
+            <strong>Demande d'origine :</strong>{" "}
+            <Link href={`/demandes/${demande.id}`} style={{ color: "#1E3A34", textDecoration: "underline" }}>{demande.numero}</Link>
+            {demande.numero_tco && <> — TCO {demande.numero_tco}</>}
+          </p>
+        )}
 
         <div className="no-print" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
           <label style={{ fontSize: 12, color: "#666" }}>Date de signature du BC :</label>
