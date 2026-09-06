@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
@@ -31,6 +32,7 @@ export default function TCODetailPage() {
   const [offres, setOffres] = useState([]);
   const [lignesOffre, setLignesOffre] = useState([]);
   const [dejaCouvertes, setDejaCouvertes] = useState(new Set());
+  const [bcGeneres, setBcGeneres] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
@@ -57,6 +59,8 @@ export default function TCODetailPage() {
     } else {
       setDejaCouvertes(new Set());
     }
+    const { data: bcs } = await supabase.from("commandes").select("id, numero, fournisseur_nom, statut").eq("demande_id", id);
+    setBcGeneres(bcs || []);
     setLoading(false);
   };
 
@@ -305,6 +309,17 @@ export default function TCODetailPage() {
             <h1 style={{ fontSize: 18, marginBottom: 4 }}>{demande.numero}</h1>
             <p style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>{demande.service} — {demande.motif_projet}</p>
             {demande.numero_tco && <p style={{ fontSize: 12, color: "#1B7A4C", marginTop: -8, marginBottom: 12 }}>N° {demande.numero_tco}</p>}
+            {bcGeneres.length > 0 && (
+              <p className="no-print" style={{ fontSize: 13, marginBottom: 12 }}>
+                <strong>Bon(s) de commande généré(s) :</strong>{" "}
+                {bcGeneres.map((bc, i) => (
+                  <span key={bc.id}>
+                    {i > 0 && ", "}
+                    <Link href={`/commandes/${bc.id}`} style={{ color: "#1E3A34", textDecoration: "underline" }}>{bc.numero}</Link> ({bc.fournisseur_nom})
+                  </span>
+                ))}
+              </p>
+            )}
           </div>
           <button onClick={() => window.print()} style={buttonStyle} className="no-print">Imprimer le comparatif</button>
         </div>
@@ -370,6 +385,17 @@ export default function TCODetailPage() {
           </button>
         </div>
 
+        {offresAvecTotaux.length === 0 && (
+          <div className="no-print" style={{ background: "#F5F4F1", borderRadius: 8, padding: 16, marginBottom: 16 }}>
+            <p style={{ fontSize: 13, marginBottom: 10 }}>Comment veux-tu traiter cette demande ?</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <span style={{ ...buttonStyle, opacity: 0.6, cursor: "default" }}>↓ Comparer des fournisseurs (TCO) — ajoute-en un ci-dessous</span>
+              <button onClick={() => router.push(`/commandes/nouveau?demande_id=${id}`)} style={{ ...buttonStyle, background: "#888" }}>
+                Créer le BC directement (sans comparatif)
+              </button>
+            </div>
+          </div>
+        )}
         {offresAvecTotaux.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Ajoute au moins un fournisseur pour saisir ses prix.</p>}
 
         {/* ---- Vue écran : tableau unique interactif ---- */}
