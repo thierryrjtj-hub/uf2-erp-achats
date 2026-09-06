@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
+import { formatDate } from "../../lib/format";
 
 function joursDepuis(dateStr) {
   if (!dateStr) return null;
@@ -114,7 +115,7 @@ export default function DashboardPage() {
         <Section titre="Reste à livrer — date estimée atteinte" couleur="#1B4C7A" fond="#E8F0FA">
           {alertesEstimation.map((c) => (
             <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
-              <strong>{c.numero}</strong> — {c.fournisseur_nom} — reste attendu pour le {c.date_estimee_reste}
+              <strong>{c.numero}</strong> — {c.fournisseur_nom} — reste attendu pour le {formatDate(c.date_estimee_reste)}
             </LigneAlerte>
           ))}
         </Section>
