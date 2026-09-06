@@ -16,11 +16,11 @@ export default function KpiPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: c } = await supabase.from("commandes").select("*");
-      const { data: l } = await supabase.from("lignes_bc").select("*");
-      const { data: d } = await supabase.from("demandes").select("*");
-      const { data: r } = await supabase.from("receptions").select("*");
-      const { data: lr } = await supabase.from("lignes_reception").select("*");
+      const { data: c } = await supabase.from("commandes").select("*").limit(10000);
+      const { data: l } = await supabase.from("lignes_bc").select("*").limit(10000);
+      const { data: d } = await supabase.from("demandes").select("*").limit(10000);
+      const { data: r } = await supabase.from("receptions").select("*").limit(10000);
+      const { data: lr } = await supabase.from("lignes_reception").select("*").limit(10000);
       setCommandes(c || []);
       setLignesBc(l || []);
       setDemandes(d || []);
