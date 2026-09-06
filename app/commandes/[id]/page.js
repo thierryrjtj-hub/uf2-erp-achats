@@ -7,6 +7,7 @@ import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import { useRole } from "../../../lib/useRole";
 import { thStyle, tdStyle, linkBtn, buttonStyle, inputStyle } from "../../components/ui";
+import { IconPrint, IconTrash } from "../../components/Icons";
 
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
 const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins"];
@@ -299,7 +300,7 @@ export default function CommandeDetailPage() {
             {role === "acheteur" && !modeEdition && (
               <button onClick={commencerEdition} style={{ ...buttonStyle, background: "#888" }}>Modifier le BC</button>
             )}
-            <button onClick={() => { setModeImpression("bc"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888" }}>Imprimer le BC</button>
+            <button onClick={() => { setModeImpression("bc"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888", display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> Imprimer le BC</button>
           </div>
         </div>
 
@@ -452,7 +453,7 @@ export default function CommandeDetailPage() {
             </table>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-              <button onClick={() => { setModeImpression("pv"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888" }}>Imprimer le PV de réception</button>
+              <button onClick={() => { setModeImpression("pv"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888", display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> Imprimer le PV de réception</button>
               <button onClick={enregistrerReception} disabled={enregistrement} style={buttonStyle}>
                 {enregistrement ? "Enregistrement..." : "Enregistrer cette réception"}
               </button>
@@ -536,7 +537,7 @@ export default function CommandeDetailPage() {
                   <td style={tdStyle}>{a.montant ? `${Number(a.montant).toLocaleString("fr-FR")} Ar` : "-"}</td>
                   <td style={tdStyle}>{a.demandeur || "-"}</td>
                   <td style={tdStyle}>{a.observation || "-"}</td>
-                  <td style={tdStyle}><button onClick={() => supprimerAccuse(a.id)} style={linkBtn}>Supprimer</button></td>
+                  <td style={tdStyle}><button onClick={() => supprimerAccuse(a.id)} style={{ ...linkBtn, display: "inline-flex", alignItems: "center" }} title="Supprimer"><IconTrash /></button></td>
                 </tr>
               ))}
             </tbody>
