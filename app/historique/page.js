@@ -226,10 +226,10 @@ export default function HistoriquePage() {
             <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
                 <colgroup>
-                  <col style={{ width: 80 }} /><col style={{ width: 170 }} /><col style={{ width: 80 }} /><col style={{ width: 60 }} />
-                  <col style={{ width: 130 }} /><col style={{ width: 110 }} /><col style={{ width: 80 }} /><col style={{ width: 90 }} />
+                  <col style={{ width: 80 }} /><col style={{ width: 230 }} /><col style={{ width: 80 }} /><col style={{ width: 60 }} />
+                  <col style={{ width: 170 }} /><col style={{ width: 140 }} /><col style={{ width: 80 }} /><col style={{ width: 90 }} />
                   <col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 100 }} /><col style={{ width: 120 }} />
-                  <col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 150 }} /><col style={{ width: 90 }} />
+                  <col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 210 }} /><col style={{ width: 90 }} />
                   <col style={{ width: 70 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} />
                   <col style={{ width: 100 }} /><col style={{ width: 150 }} />
                 </colgroup>
