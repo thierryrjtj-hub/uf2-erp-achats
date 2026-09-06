@@ -109,7 +109,7 @@ export default function CommandesPage() {
         {!loading && liste.length === 0 && (
           <p style={{ color: "#888", fontSize: 13 }}>Aucun bon de commande pour le moment — génère-en un depuis une demande (onglet Demandes &amp; TCO).</p>
         )}
-        <div style={{ overflowX: "auto" }}>
+        <div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
