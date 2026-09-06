@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "UF2 - ERP Achats",
-  description: "Gestion des achats UNIFOODS UF2",
+  title: "Achats Locaux",
+  description: "Gestion des achats UNIFOODS",
 };
 
 export default function RootLayout({ children }) {
@@ -12,7 +12,7 @@ export default function RootLayout({ children }) {
           body {
             margin: 0;
             font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #F4F5F7;
+            background: #F1F6F3;
             color: #1B2430;
             -webkit-font-smoothing: antialiased;
           }
