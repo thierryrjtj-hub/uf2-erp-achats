@@ -154,75 +154,77 @@ export default function ArticlesPage() {
 
   return (
     <AuthGuard>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 20 }}>Articles</h1>
-        <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
-      </div>
-
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>{editId ? "Modifier l'article" : "Ajouter un article"}</h2>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input placeholder="Désignation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-          <Autocomplete
-            placeholder="Unité (tape pour voir les suggestions)"
-            value={form.unite_defaut}
-            onChange={(val) => setForm({ ...form, unite_defaut: val })}
-            suggestions={uniteOptions}
-            style={{ width: 190 }}
-          />
-          <Autocomplete
-            placeholder="Catégorie (tape pour voir les suggestions)"
-            value={form.categorie}
-            onChange={(val) => setForm({ ...form, categorie: val })}
-            suggestions={categorieOptions}
-            style={{ flex: 1 }}
-          />
-          <input type="number" placeholder="Dernier prix HT" value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
+          <h1 style={{ fontSize: 18 }}>Articles</h1>
+          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
         </div>
-        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-          <button onClick={enregistrer} style={buttonStyle}>{editId ? "Enregistrer" : "Ajouter"}</button>
-          {editId && <button onClick={() => { setForm(empty); setEditId(null); setModeUniteLibre(false); setModeCategorieLibre(false); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
-        </div>
-      </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Catégories existantes</h2>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {categorieOptions.map((c) => (
-            <span key={c} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, background: "#F5F4F1", borderRadius: 6, padding: "4px 8px" }}>
-              {c}
-              {role === "acheteur" && (
-                <button onClick={() => supprimerCategorie(c)} style={{ border: "none", background: "none", color: "#B3261E", cursor: "pointer", fontSize: 13, padding: 0 }} title="Supprimer cette catégorie">×</button>
-              )}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-          <h2 style={{ fontSize: 15 }}>Liste ({liste.filter(a => matchRecherche(a, recherche)).length} / {liste.length})</h2>
-          <div style={{ position: "relative", width: 340 }}>
-            <input placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
-            {recherche && (
-              <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
-            )}
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16, flexShrink: 0 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 12 }}>{editId ? "Modifier l'article" : "Ajouter un article"}</h2>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input placeholder="Désignation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+            <Autocomplete
+              placeholder="Unité (tape pour voir les suggestions)"
+              value={form.unite_defaut}
+              onChange={(val) => setForm({ ...form, unite_defaut: val })}
+              suggestions={uniteOptions}
+              style={{ width: 190 }}
+            />
+            <Autocomplete
+              placeholder="Catégorie (tape pour voir les suggestions)"
+              value={form.categorie}
+              onChange={(val) => setForm({ ...form, categorie: val })}
+              suggestions={categorieOptions}
+              style={{ flex: 1 }}
+            />
+            <input type="number" placeholder="Dernier prix HT" value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
+          </div>
+          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+            <button onClick={enregistrer} style={buttonStyle}>{editId ? "Enregistrer" : "Ajouter"}</button>
+            {editId && <button onClick={() => { setForm(empty); setEditId(null); setModeUniteLibre(false); setModeCategorieLibre(false); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
           </div>
         </div>
-        {liste.filter((a) => matchRecherche(a, recherche)).map((a) => {
-          const hist = historiqueParArticle[a.id] || [];
-          const dernier = hist[0];
-          const autres = [...new Map(hist.slice(1).map((h) => [h.fournisseur, h])).values()].slice(0, 4);
-          return (
-            <div key={a.id} style={cardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{a.designation}</div>
-                <div>
-                  <button onClick={() => copierFiche(a, dernier)} style={linkBtn}>Copier tout</button>
-                  <button onClick={() => modifier(a)} style={linkBtn}>Modifier</button>
-                  {role === "acheteur" && (
-                    <button onClick={() => supprimer(a.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
-                  )}
+
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16, flexShrink: 0 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 12 }}>Catégories existantes</h2>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", maxHeight: 90, overflow: "auto" }}>
+            {categorieOptions.map((c) => (
+              <span key={c} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, background: "#F5F4F1", borderRadius: 6, padding: "4px 8px" }}>
+                {c}
+                {role === "acheteur" && (
+                  <button onClick={() => supprimerCategorie(c)} style={{ border: "none", background: "none", color: "#B3261E", cursor: "pointer", fontSize: 13, padding: 0 }} title="Supprimer cette catégorie">×</button>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
+            <h2 style={{ fontSize: 15 }}>Liste ({liste.filter(a => matchRecherche(a, recherche)).length} / {liste.length})</h2>
+            <div style={{ position: "relative", width: 340 }}>
+              <input placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+              {recherche && (
+                <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
+              )}
+            </div>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          {liste.filter((a) => matchRecherche(a, recherche)).map((a) => {
+            const hist = historiqueParArticle[a.id] || [];
+            const dernier = hist[0];
+            const autres = [...new Map(hist.slice(1).map((h) => [h.fournisseur, h])).values()].slice(0, 4);
+            return (
+              <div key={a.id} style={cardStyle}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{a.designation}</div>
+                  <div>
+                    <button onClick={() => copierFiche(a, dernier)} style={linkBtn}>Copier tout</button>
+                    <button onClick={() => modifier(a)} style={linkBtn}>Modifier</button>
+                    {role === "acheteur" && (
+                      <button onClick={() => supprimer(a.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
+                    )}
                 </div>
               </div>
               <div style={grid}>
@@ -248,8 +250,10 @@ export default function ArticlesPage() {
                 <div style={{ fontSize: 12, color: "#999", marginTop: 10 }}>Aucun achat enregistré pour l'instant sur cet article.</div>
               )}
             </div>
-          );
-        })}
+            );
+          })}
+          </div>
+        </div>
       </div>
     </AuthGuard>
   );
