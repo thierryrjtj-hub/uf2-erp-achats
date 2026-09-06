@@ -21,9 +21,9 @@ export default function DemandesPage() {
   const [envoi, setEnvoi] = useState(false);
 
   const charger = async () => {
-    const { data } = await supabase.from("demandes").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from("demandes").select("*").order("created_at", { ascending: false }).limit(10000);
     setListe(data || []);
-    const { data: arts } = await supabase.from("articles").select("id, designation, unite_defaut");
+    const { data: arts } = await supabase.from("articles").select("id, designation, unite_defaut").limit(10000);
     setArticlesBase(arts || []);
     const { data: nonDispo } = await supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true);
     setDemandesAvecNonDispo(new Set((nonDispo || []).map((x) => x.demande_id)));
