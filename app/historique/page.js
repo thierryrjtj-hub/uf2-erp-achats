@@ -17,13 +17,13 @@ export default function HistoriquePage() {
 
   useEffect(() => {
     (async () => {
-      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, statut, date_signature, observation");
-      const { data: lignesBc } = await supabase.from("lignes_bc").select("*");
-      const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle, receptionnaire");
-      const { data: lignesReceptionList } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree");
-      const { data: demandesList } = await supabase.from("demandes").select("id, service, demandeur, motif_projet, statut, created_at");
-      const { data: lignesDemandeList } = await supabase.from("lignes_demande").select("id, demande_id, designation, quantite, unite");
-      const { data: articlesList } = await supabase.from("articles").select("designation, categorie");
+      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, statut, date_signature, observation").limit(10000);
+      const { data: lignesBc } = await supabase.from("lignes_bc").select("*").limit(10000);
+      const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle, receptionnaire").limit(10000);
+      const { data: lignesReceptionList } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
+      const { data: demandesList } = await supabase.from("demandes").select("id, service, demandeur, motif_projet, statut, created_at").limit(10000);
+      const { data: lignesDemandeList } = await supabase.from("lignes_demande").select("id, demande_id, designation, quantite, unite").limit(10000);
+      const { data: articlesList } = await supabase.from("articles").select("designation, categorie").limit(10000);
 
       // ---- Lignes déjà passées en BC ----
       const rowsBc = (lignesBc || []).map((l) => {
