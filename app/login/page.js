@@ -43,9 +43,11 @@ export default function LoginPage() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
       <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 32, borderRadius: 12, width: 340, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
-        <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 32, marginBottom: 12 }} />
-        <h1 style={{ fontSize: 20, marginBottom: 4 }}>UF2 - ERP Achats</h1>
-        <p style={{ fontSize: 13, color: "#666", marginBottom: 20 }}>Connexion</p>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 64 }} />
+        </div>
+        <h1 style={{ fontSize: 20, marginBottom: 4, textAlign: "center" }}>UF2 - ERP Achats</h1>
+        <p style={{ fontSize: 13, color: "#666", marginBottom: 20, textAlign: "center" }}>Connexion</p>
 
         <label style={{ fontSize: 13, display: "block", marginBottom: 4 }}>Nom d'utilisateur</label>
         <input
