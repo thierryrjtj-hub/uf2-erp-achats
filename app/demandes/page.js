@@ -3,88 +3,23 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
-import Autocomplete from "../components/Autocomplete";
 import { formatDate } from "../../lib/format";
-import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
+import { linkBtn } from "../components/ui";
 
-const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs" });
-
-export default function DemandesPage() {
+export default function DemandesListePage() {
   const [liste, setListe] = useState([]);
-  const [articlesBase, setArticlesBase] = useState([]);
   const [demandesAvecNonDispo, setDemandesAvecNonDispo] = useState(new Set());
-  const [service, setService] = useState("");
-  const [demandeur, setDemandeur] = useState("");
-  const [motif, setMotif] = useState("");
-  const [priorite, setPriorite] = useState("Moyenne");
-  const [lignes, setLignes] = useState([ligneVide()]);
-  const [envoi, setEnvoi] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const charger = async () => {
     const { data } = await supabase.from("demandes").select("*").order("created_at", { ascending: false }).limit(10000);
     setListe(data || []);
-    const { data: arts } = await supabase.from("articles").select("id, designation, unite_defaut").limit(10000);
-    setArticlesBase(arts || []);
     const { data: nonDispo } = await supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true);
     setDemandesAvecNonDispo(new Set((nonDispo || []).map((x) => x.demande_id)));
+    setLoading(false);
   };
 
   useEffect(() => { charger(); }, []);
-
-  // Si la désignation tapée correspond à un article existant, pré-remplit son unité automatiquement
-  const onDesignationChange = (key, val) => {
-    updateLigne(key, "designation", val);
-    const match = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
-    if (match && match.unite_defaut) updateLigne(key, "unite", match.unite_defaut);
-  };
-
-  const addLigne = () => setLignes([...lignes, ligneVide()]);
-  const updateLigne = (key, field, val) => setLignes((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
-  const removeLigne = (key) => setLignes(lignes.filter((l) => l.key !== key));
-
-  const creer = async () => {
-    const lignesValides = lignes.filter((l) => l.designation.trim());
-    if (lignesValides.length === 0) return;
-    setEnvoi(true);
-
-    const { data: demande, error } = await supabase
-      .from("demandes")
-      .insert({ service, demandeur, motif_projet: motif, priorite })
-      .select()
-      .single();
-
-    if (error || !demande) {
-      setEnvoi(false);
-      return;
-    }
-
-    // Lie chaque ligne à un article existant, ou crée l'article automatiquement s'il n'existe pas encore
-    const payload = [];
-    for (const l of lignesValides) {
-      let article = articlesBase.find((a) => a.designation.toLowerCase() === l.designation.toLowerCase());
-      if (!article) {
-        const { data: nouvel } = await supabase
-          .from("articles")
-          .insert({ designation: l.designation, unite_defaut: l.unite || "pcs" })
-          .select()
-          .single();
-        article = nouvel;
-      }
-      payload.push({
-        demande_id: demande.id,
-        article_id: article ? article.id : null,
-        designation: l.designation,
-        quantite: Number(l.quantite) || 1,
-        unite: l.unite,
-      });
-    }
-    await supabase.from("lignes_demande").insert(payload);
-
-    setService(""); setDemandeur(""); setMotif(""); setPriorite("Moyenne");
-    setLignes([ligneVide()]);
-    setEnvoi(false);
-    charger();
-  };
 
   const copierPourDevis = async (d) => {
     const { data: lignesDeLaDemande } = await supabase.from("lignes_demande").select("*").eq("demande_id", d.id).order("created_at");
@@ -102,51 +37,16 @@ export default function DemandesPage() {
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <h1 style={{ fontSize: 18, marginBottom: 14, flexShrink: 0 }}>Demandes d'achat</h1>
-
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16, flexShrink: 0 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12 }}>Nouvelle demande</h2>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-            <input placeholder="Service demandeur" value={service} onChange={(e) => setService(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-            <input placeholder="Nom du demandeur" value={demandeur} onChange={(e) => setDemandeur(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-            <input placeholder="Motif / projet" value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
-            <select value={priorite} onChange={(e) => setPriorite(e.target.value)} style={inputStyle}>
-              <option>Haute</option><option>Moyenne</option><option>Basse</option>
-            </select>
-          </div>
-
-          {lignes.map((l) => (
-            <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-              <Autocomplete
-                placeholder="Désignation de l'article (tape pour voir les suggestions)"
-                value={l.designation}
-                onChange={(val) => onDesignationChange(l.key, val)}
-                suggestions={articlesBase.map((a) => a.designation)}
-                style={{ flex: 3 }}
-              />
-              <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-              <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-              <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
-            </div>
-          ))}
-          <button onClick={addLigne} style={{ ...buttonStyle, background: "#888", marginTop: 4 }}>+ Ajouter une ligne</button>
-
-          <div style={{ marginTop: 16 }}>
-            <button onClick={creer} disabled={envoi} style={buttonStyle}>
-              {envoi ? "Création..." : "Créer la demande et ouvrir le TCO"}
-            </button>
-          </div>
-        </div>
+        <h1 style={{ fontSize: 18, marginBottom: 14, flexShrink: 0 }}>Liste des demandes ({liste.length})</h1>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12, flexShrink: 0 }}>Liste des demandes ({liste.length})</h2>
-          {liste.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour le moment.</p>}
+          {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
+          {!loading && liste.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour le moment.</p>}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-          {liste.map((d) => (
-            <div key={d.id} style={rowStyle}>
-              <Link href={`/demandes/${d.id}`} style={{ textDecoration: "none", color: "inherit", flex: 1, display: "flex", alignItems: "center", gap: 12 }}>
+            {liste.map((d) => (
+              <div key={d.id} style={rowStyle}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{d.numero}</div>
+                  <Link href={`/demandes/${d.id}`} style={{ fontWeight: 600, fontSize: 13, color: "#1E3A34", textDecoration: "underline" }}>{d.numero}</Link>
                   <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
                 </div>
                 <div style={{ fontSize: 13, color: "#666", width: 150 }}>{d.service || "-"}</div>
@@ -156,10 +56,9 @@ export default function DemandesPage() {
                   <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
                 )}
                 <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{d.statut}</span>
-              </Link>
-              <button onClick={() => copierPourDevis(d)} style={linkBtnBleu}>Copier pour devis</button>
-            </div>
-          ))}
+                <button onClick={() => copierPourDevis(d)} style={linkBtnBleu}>Copier pour devis</button>
+              </div>
+            ))}
           </div>
         </div>
       </div>
