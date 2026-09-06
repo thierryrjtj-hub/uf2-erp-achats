@@ -62,33 +62,34 @@ export default function JournalAuditPage() {
 
   return (
     <AuthGuard>
-      <h1 style={{ fontSize: 20, marginBottom: 4 }}>Journal d'audit</h1>
-      <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>Historique chronologique de toutes les actions effectuées dans l'application (500 dernières).</p>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <h1 style={{ fontSize: 18, marginBottom: 4, flexShrink: 0 }}>Journal d'audit</h1>
+        <p style={{ fontSize: 13, color: "#888", marginBottom: 14, flexShrink: 0 }}>Historique chronologique de toutes les actions effectuées dans l'application (500 dernières).</p>
 
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          <input
-            placeholder="Rechercher (référence, utilisateur...)"
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            style={{ ...inputStyle, flex: 1, minWidth: 220 }}
-          />
-          <select value={filtreEntite} onChange={(e) => setFiltreEntite(e.target.value)} style={inputStyle}>
-            <option value="">Toutes les entités</option>
-            {entitesDistinctes.map((e) => <option key={e} value={e}>{ENTITES_LABEL[e] || e}</option>)}
-          </select>
-          <select value={filtreAction} onChange={(e) => setFiltreAction(e.target.value)} style={inputStyle}>
-            <option value="">Toutes les actions</option>
-            <option value="INSERT">Création</option>
-            <option value="UPDATE">Modification</option>
-            <option value="DELETE">Suppression</option>
-          </select>
-        </div>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", flexShrink: 0 }}>
+            <input
+              placeholder="Rechercher (référence, utilisateur...)"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              style={{ ...inputStyle, flex: 1, minWidth: 220 }}
+            />
+            <select value={filtreEntite} onChange={(e) => setFiltreEntite(e.target.value)} style={inputStyle}>
+              <option value="">Toutes les entités</option>
+              {entitesDistinctes.map((e) => <option key={e} value={e}>{ENTITES_LABEL[e] || e}</option>)}
+            </select>
+            <select value={filtreAction} onChange={(e) => setFiltreAction(e.target.value)} style={inputStyle}>
+              <option value="">Toutes les actions</option>
+              <option value="INSERT">Création</option>
+              <option value="UPDATE">Modification</option>
+              <option value="DELETE">Suppression</option>
+            </select>
+          </div>
 
-        {filtrees.length === 0 ? (
-          <p style={{ color: "#888", fontSize: 13 }}>Aucune entrée pour ces filtres.</p>
-        ) : (
-          <div>
+          {filtrees.length === 0 ? (
+            <p style={{ color: "#888", fontSize: 13 }}>Aucune entrée pour ces filtres.</p>
+          ) : (
+            <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
@@ -112,7 +113,8 @@ export default function JournalAuditPage() {
             </tbody>
           </table>
           </div>
-        )}
+          )}
+        </div>
       </div>
     </AuthGuard>
   );
