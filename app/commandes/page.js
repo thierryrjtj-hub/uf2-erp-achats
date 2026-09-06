@@ -6,6 +6,7 @@ import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
+import { IconFileText, IconTrash } from "../components/Icons";
 
 export default function CommandesPage() {
   const role = useRole();
@@ -162,8 +163,8 @@ export default function CommandesPage() {
                     </span>
                   </td>
                   <td style={tdStyle}>
-                    <Link href={`/commandes/${c.id}`} style={linkBtn}>Facture</Link>
-                    <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", marginLeft: 10, display: role === "acheteur" ? "inline" : "none" }}>Supprimer</button>
+                    <Link href={`/commandes/${c.id}`} style={{ ...linkBtn, display: "inline-flex", alignItems: "center", gap: 5 }} title="Facture et paiement"><IconFileText /> Facture</Link>
+                    <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", marginLeft: 10, display: role === "acheteur" ? "inline-flex" : "none", alignItems: "center", gap: 5 }} title="Supprimer"><IconTrash /></button>
                   </td>
                 </tr>
               );
