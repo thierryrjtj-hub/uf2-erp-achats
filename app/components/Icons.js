@@ -21,4 +21,3 @@ export function IconPrint(props) {
 export function IconDownload(props) {
   return <Base {...props}><path d="M12 3v12" stroke="currentColor" /><path d="M7 11l5 5 5-5" stroke="currentColor" /><path d="M4 19h16" stroke="currentColor" /></Base>;
 }
-
