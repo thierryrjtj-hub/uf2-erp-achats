@@ -38,6 +38,7 @@ export default function CommandeDetailPage() {
   const [dateEstimeeReste, setDateEstimeeReste] = useState("");
   const [enregistrement, setEnregistrement] = useState(false);
   const [modeImpression, setModeImpression] = useState("bc");
+  const [onglet, setOnglet] = useState("bc");
 
   const charger = async () => {
     const { data: c } = await supabase.from("commandes").select("*").eq("id", id).single();
@@ -287,7 +288,31 @@ export default function CommandeDetailPage() {
 
       <button onClick={() => router.push("/commandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux commandes</button>
 
+      <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {[
+          { id: "bc", label: "Bon de commande" },
+          { id: "reception", label: `Réception${resteGlobal ? "" : " ✓"}` },
+          { id: "facture", label: "Facture & Paiement" },
+        ].map((o) => (
+          <button
+            key={o.id}
+            onClick={() => setOnglet(o.id)}
+            style={{
+              padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13,
+              background: onglet === o.id ? "#1E3A34" : "#fff",
+              color: onglet === o.id ? "#fff" : "#1B2430",
+              fontWeight: onglet === o.id ? 600 : 400,
+              boxShadow: onglet === o.id ? "none" : "0 1px 3px rgba(16,24,40,0.05)",
+              border: "1px solid #ECEBE6",
+            }}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+
       {/* ---- Bon de commande ---- */}
+      {onglet === "bc" && (
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, marginBottom: 20 }} className={modeImpression === "bc" ? "print-area" : "no-print"}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
           <div>
@@ -383,8 +408,10 @@ export default function CommandeDetailPage() {
           <div>Signature Direction : ____________________</div>
         </div>
       </div>
+      )}
 
       {/* ---- Réception ---- */}
+      {onglet === "reception" && (
       <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <h2 style={{ fontSize: 15 }}>Réception</h2>
@@ -474,8 +501,10 @@ export default function CommandeDetailPage() {
           <p style={{ fontSize: 13, color: "#1B7A4C" }}>✓ Commande entièrement livrée.</p>
         )}
       </div>
+      )}
 
       {/* ---- Suivi transmission signature / paiement ---- */}
+      {onglet === "facture" && (
       <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Suivi de transmission</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
@@ -568,6 +597,7 @@ export default function CommandeDetailPage() {
         </div>
         <button onClick={enregistrerFacture} style={buttonStyle}>Enregistrer</button>
       </div>
+      )}
 
       {/* ---- PV de réception (imprimable) ---- */}
       <div className={`pv-template ${modeImpression === "pv" ? "print-area" : ""}`} style={{ padding: 20 }}>
