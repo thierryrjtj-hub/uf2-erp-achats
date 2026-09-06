@@ -17,12 +17,13 @@ export default function DashboardPage() {
   const [alertesLivraison, setAlertesLivraison] = useState([]);
   const [alertesPaiement, setAlertesPaiement] = useState([]);
   const [alertesEstimation, setAlertesEstimation] = useState([]);
+  const [alertesImport, setAlertesImport] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       // ---- Demandes en attente de devis ----
-      const { data: demandes } = await supabase.from("demandes").select("id, numero, service, statut, created_at").neq("statut", "Basculée en commande");
+      const { data: demandes } = await supabase.from("demandes").select("id, numero, service, statut, created_at").not("statut", "in", '("Basculée en commande","Clôturée")');
       const { data: offres } = await supabase.from("offres").select("id, demande_id");
       const { data: lignesOffre } = await supabase.from("lignes_offre").select("offre_id, prix_unitaire_ht");
 
@@ -72,11 +73,15 @@ export default function DashboardPage() {
       const estimation = (commandes || []).filter((c) => resteABcId[c.id] && c.date_estimee_reste && c.date_estimee_reste <= todayISO());
       setAlertesEstimation(estimation);
 
+      // ---- Demandeurs à aviser (articles non disponibles localement) ----
+      const { data: aAviser } = await supabase.from("demandes").select("id, numero, service, demandeur, observation").eq("demandeur_avise", false).not("observation", "is", null);
+      setAlertesImport(aAviser || []);
+
       setLoading(false);
     })();
   }, []);
 
-  const total = alertesDevis.length + alertesLivraison.length + alertesPaiement.length + alertesEstimation.length;
+  const total = alertesDevis.length + alertesLivraison.length + alertesPaiement.length + alertesEstimation.length + alertesImport.length;
 
   if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
 
@@ -128,6 +133,16 @@ export default function DashboardPage() {
               {alertesPaiement.map((c) => (
                 <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
                   <strong>{c.numero}</strong> — {c.fournisseur_nom} — échéance dépassée
+                </LigneAlerte>
+              ))}
+            </Section>
+          )}
+
+          {alertesImport.length > 0 && (
+            <Section titre="Demandeurs à aviser par mail (article non disponible localement)" couleur="#B3261E" fond="#FDECEA">
+              {alertesImport.map((d) => (
+                <LigneAlerte key={d.id} href={`/demandes/${d.id}`}>
+                  <strong>{d.numero}</strong> ({d.service || d.demandeur || "-"}) — {d.observation}
                 </LigneAlerte>
               ))}
             </Section>
