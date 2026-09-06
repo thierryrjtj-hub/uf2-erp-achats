@@ -1,23 +1,47 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+
+const MAX_TENTATIVES = 3;
 
 export default function LoginPage() {
   const [identifiant, setIdentifiant] = useState("");
   const [password, setPassword] = useState("");
+  const [voirMotDePasse, setVoirMotDePasse] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [bloque, setBloque] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const memorise = localStorage.getItem("uf2_username");
+    if (memorise) setIdentifiant(memorise);
+  }, []);
+
+  useEffect(() => {
+    if (!identifiant.trim()) { setBloque(false); return; }
+    const tentatives = Number(localStorage.getItem(cleTentatives(identifiant.trim())) || 0);
+    setBloque(tentatives >= MAX_TENTATIVES);
+  }, [identifiant]);
+
+  const cleTentatives = (u) => `uf2_tentatives_${u.toLowerCase()}`;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
+    const cle = cleTentatives(identifiant.trim());
+    const tentativesActuelles = Number(localStorage.getItem(cle) || 0);
+    if (tentativesActuelles >= MAX_TENTATIVES) {
+      setBloque(true);
+      setError("Trop de tentatives échouées. Contacte l'administrateur (Judicaël) pour réinitialiser ton mot de passe.");
+      return;
+    }
+
+    setLoading(true);
     let email = identifiant.trim();
     if (!email.includes("@")) {
-      // Ce n'est pas une adresse e-mail : on cherche l'e-mail correspondant au nom d'utilisateur
       const { data, error: lookupError } = await supabase
         .from("app_usernames")
         .select("email")
@@ -34,9 +58,19 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      setError("Identifiant ou mot de passe incorrect.");
+      const nouveauTotal = tentativesActuelles + 1;
+      localStorage.setItem(cle, String(nouveauTotal));
+      if (nouveauTotal >= MAX_TENTATIVES) {
+        setBloque(true);
+        setError("Trop de tentatives échouées. Contacte l'administrateur (Judicaël) pour réinitialiser ton mot de passe.");
+      } else {
+        setError(`Identifiant ou mot de passe incorrect (${nouveauTotal}/${MAX_TENTATIVES} tentatives).`);
+      }
       return;
     }
+
+    localStorage.removeItem(cle);
+    localStorage.setItem("uf2_username", identifiant.trim());
     router.push("/dashboard");
   };
 
@@ -59,17 +93,28 @@ export default function LoginPage() {
         />
 
         <label style={{ fontSize: 13, display: "block", margin: "12px 0 4px" }}>Mot de passe</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          style={inputStyle}
-        />
+        <div style={{ position: "relative" }}>
+          <input
+            type={voirMotDePasse ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={{ ...inputStyle, paddingRight: 38 }}
+          />
+          <button
+            type="button"
+            onClick={() => setVoirMotDePasse((v) => !v)}
+            style={oeilBtn}
+            aria-label={voirMotDePasse ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            title={voirMotDePasse ? "Masquer" : "Afficher"}
+          >
+            {voirMotDePasse ? <IconEyeOff /> : <IconEye />}
+          </button>
+        </div>
 
         {error && <p style={{ color: "#B3261E", fontSize: 13, marginTop: 12 }}>{error}</p>}
 
-        <button type="submit" disabled={loading} style={buttonStyle}>
+        <button type="submit" disabled={loading || bloque} style={{ ...buttonStyle, opacity: bloque ? 0.5 : 1, cursor: bloque ? "not-allowed" : "pointer" }}>
           {loading ? "Connexion..." : "Se connecter"}
         </button>
 
@@ -78,6 +123,22 @@ export default function LoginPage() {
         </p>
       </form>
     </div>
+  );
+}
+
+function IconEye() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" /><circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+function IconEyeOff() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.6 18.6 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <path d="M1 1l22 22" />
+    </svg>
   );
 }
 
@@ -90,13 +151,18 @@ const inputStyle = {
   boxSizing: "border-box",
 };
 
+const oeilBtn = {
+  position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+  border: "none", background: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center",
+};
+
 const buttonStyle = {
   width: "100%",
   marginTop: 20,
   padding: "10px",
   borderRadius: 6,
   border: "none",
-  background: "#1B2430",
+  background: "#1E3A34",
   color: "#fff",
   fontSize: 14,
   cursor: "pointer",
