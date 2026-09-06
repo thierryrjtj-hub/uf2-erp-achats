@@ -46,7 +46,7 @@ export default function LoginPage() {
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 64 }} />
         </div>
-        <h1 style={{ fontSize: 20, marginBottom: 4, textAlign: "center" }}>UF2 - ERP Achats</h1>
+        <h1 style={{ fontSize: 20, marginBottom: 4, textAlign: "center" }}>Achats Locaux</h1>
         <p style={{ fontSize: 13, color: "#666", marginBottom: 20, textAlign: "center" }}>Connexion</p>
 
         <label style={{ fontSize: 13, display: "block", marginBottom: 4 }}>Nom d'utilisateur</label>
