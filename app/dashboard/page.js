@@ -82,54 +82,58 @@ export default function DashboardPage() {
 
   return (
     <AuthGuard>
-      <h1 style={{ fontSize: 20, marginBottom: 4 }}>Tableau de bord</h1>
-      <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>À traiter aujourd'hui</p>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <h1 style={{ fontSize: 18, marginBottom: 4, flexShrink: 0 }}>Tableau de bord</h1>
+        <p style={{ fontSize: 13, color: "#888", marginBottom: 14, flexShrink: 0 }}>À traiter aujourd'hui</p>
 
-      {total === 0 && (
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, textAlign: "center" }}>
-          <p style={{ fontSize: 14, color: "#1B7A4C" }}>✓ Rien à signaler pour l'instant — tout est à jour.</p>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          {total === 0 && (
+            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, textAlign: "center" }}>
+              <p style={{ fontSize: 14, color: "#1B7A4C" }}>✓ Rien à signaler pour l'instant — tout est à jour.</p>
+            </div>
+          )}
+
+          {alertesDevis.length > 0 && (
+            <Section titre="Relances devis fournisseurs" couleur="#8A6100" fond="#FFF3D6">
+              {alertesDevis.map((d) => (
+                <LigneAlerte key={d.id} href={`/demandes/${d.id}`}>
+                  <strong>{d.numero}</strong> ({d.service || "-"}) — créée il y a {joursDepuis(d.created_at)} jour(s), toujours sans prix saisi
+                </LigneAlerte>
+              ))}
+            </Section>
+          )}
+
+          {alertesLivraison.length > 0 && (
+            <Section titre="Relances livraison fournisseurs" couleur="#8A6100" fond="#FFF3D6">
+              {alertesLivraison.map((c) => (
+                <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
+                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — signé il y a {joursDepuis(c.date_signature)} jour(s), toujours pas reçu
+                </LigneAlerte>
+              ))}
+            </Section>
+          )}
+
+          {alertesEstimation.length > 0 && (
+            <Section titre="Reste à livrer — date estimée atteinte" couleur="#1B4C7A" fond="#E8F0FA">
+              {alertesEstimation.map((c) => (
+                <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
+                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — reste attendu pour le {formatDate(c.date_estimee_reste)}
+                </LigneAlerte>
+              ))}
+            </Section>
+          )}
+
+          {alertesPaiement.length > 0 && (
+            <Section titre="Factures fournisseurs en retard de paiement" couleur="#B3261E" fond="#FDECEA">
+              {alertesPaiement.map((c) => (
+                <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
+                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — échéance dépassée
+                </LigneAlerte>
+              ))}
+            </Section>
+          )}
         </div>
-      )}
-
-      {alertesDevis.length > 0 && (
-        <Section titre="Relances devis fournisseurs" couleur="#8A6100" fond="#FFF3D6">
-          {alertesDevis.map((d) => (
-            <LigneAlerte key={d.id} href={`/demandes/${d.id}`}>
-              <strong>{d.numero}</strong> ({d.service || "-"}) — créée il y a {joursDepuis(d.created_at)} jour(s), toujours sans prix saisi
-            </LigneAlerte>
-          ))}
-        </Section>
-      )}
-
-      {alertesLivraison.length > 0 && (
-        <Section titre="Relances livraison fournisseurs" couleur="#8A6100" fond="#FFF3D6">
-          {alertesLivraison.map((c) => (
-            <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
-              <strong>{c.numero}</strong> — {c.fournisseur_nom} — signé il y a {joursDepuis(c.date_signature)} jour(s), toujours pas reçu
-            </LigneAlerte>
-          ))}
-        </Section>
-      )}
-
-      {alertesEstimation.length > 0 && (
-        <Section titre="Reste à livrer — date estimée atteinte" couleur="#1B4C7A" fond="#E8F0FA">
-          {alertesEstimation.map((c) => (
-            <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
-              <strong>{c.numero}</strong> — {c.fournisseur_nom} — reste attendu pour le {formatDate(c.date_estimee_reste)}
-            </LigneAlerte>
-          ))}
-        </Section>
-      )}
-
-      {alertesPaiement.length > 0 && (
-        <Section titre="Factures fournisseurs en retard de paiement" couleur="#B3261E" fond="#FDECEA">
-          {alertesPaiement.map((c) => (
-            <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
-              <strong>{c.numero}</strong> — {c.fournisseur_nom} — échéance dépassée
-            </LigneAlerte>
-          ))}
-        </Section>
-      )}
+      </div>
     </AuthGuard>
   );
 }
