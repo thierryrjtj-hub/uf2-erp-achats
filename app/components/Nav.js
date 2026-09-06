@@ -8,7 +8,13 @@ const LINKS = [
   { href: "/dashboard", label: "Tableau de bord", icon: IconGrid },
   { href: "/demandes", label: "Demandes & TCO", icon: IconFile },
   { href: "/commandes", label: "Bons de commande", icon: IconCart },
-  { href: "/historique", label: "Historique", icon: IconClock },
+  {
+    href: "/historique", label: "Historique", icon: IconClock,
+    children: [
+      { href: "/historique", label: "Vue globale" },
+      { href: "/historique/bois-chauffage", label: "Bois de chauffage" },
+    ],
+  },
   { href: "/kpi", label: "KPI", icon: IconChart },
   { href: "/fournisseurs", label: "Fournisseurs", icon: IconTruck },
   { href: "/articles", label: "Articles", icon: IconBox },
@@ -37,22 +43,46 @@ export default function Nav() {
           const actif = pathname.startsWith(l.href);
           const Icon = l.icon;
           return (
-            <Link
-              key={l.href}
-              href={l.href}
-              style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 12px", borderRadius: 8,
-                fontSize: 13.5, textDecoration: "none",
-                color: actif ? "#fff" : "#A9C2BB",
-                background: actif ? "rgba(255,255,255,0.12)" : "transparent",
-                fontWeight: actif ? 600 : 400,
-                borderLeft: actif ? `3px solid ${ACCENT}` : "3px solid transparent",
-              }}
-            >
-              <Icon color={actif ? ACCENT : "#A9C2BB"} />
-              {l.label}
-            </Link>
+            <div key={l.href}>
+              <Link
+                href={l.href}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "9px 12px", borderRadius: 8,
+                  fontSize: 13.5, textDecoration: "none",
+                  color: actif ? "#fff" : "#A9C2BB",
+                  background: actif ? "rgba(255,255,255,0.12)" : "transparent",
+                  fontWeight: actif ? 600 : 400,
+                  borderLeft: actif ? `3px solid ${ACCENT}` : "3px solid transparent",
+                }}
+              >
+                <Icon color={actif ? ACCENT : "#A9C2BB"} />
+                {l.label}
+              </Link>
+              {l.children && actif && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 2, marginBottom: 2 }}>
+                  {l.children.map((c) => {
+                    const sousActif = pathname === c.href;
+                    return (
+                      <Link
+                        key={c.href}
+                        href={c.href}
+                        style={{
+                          padding: "7px 12px 7px 42px",
+                          fontSize: 12.5, textDecoration: "none",
+                          color: sousActif ? "#fff" : "#7A9C93",
+                          background: sousActif ? "rgba(255,255,255,0.08)" : "transparent",
+                          fontWeight: sousActif ? 600 : 400,
+                          borderRadius: 6,
+                        }}
+                      >
+                        {c.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
