@@ -44,6 +44,11 @@ export default function KpiPage() {
     lignesBc.forEach((l) => { parArticle[l.designation] = (parArticle[l.designation] || 0) + Number(l.montant_ht || 0); });
     const topArticles = Object.entries(parArticle).sort((a, b) => b[1] - a[1]).slice(0, 6);
 
+    // ---- Fréquence d'achat par article (nombre de fois commandé) ----
+    const frequenceArticle = {};
+    lignesBc.forEach((l) => { frequenceArticle[l.designation] = (frequenceArticle[l.designation] || 0) + 1; });
+    const topFrequenceArticles = Object.entries(frequenceArticle).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
     const impayes = commandes.filter((c) => c.statut_paiement !== "Payé");
     const totalImpaye = impayes.reduce((s, c) => s + Number(c.montant_ttc || 0), 0);
 
@@ -91,7 +96,7 @@ export default function KpiPage() {
       parMois.push({ mois: cle, label: MOIS_LABEL[d.getMonth()], montant });
     }
 
-    return { totalTTC, totalMois, nbCommandesMois: commandesMois.length, topFournisseurs, topArticles, impayesCount: impayes.length, totalImpaye, demandesEnAttente, bcNonRecus, delaiMoyenBc, delaiMoyenReception, parMois };
+    return { totalTTC, totalMois, nbCommandesMois: commandesMois.length, topFournisseurs, topArticles, topFrequenceArticles, impayesCount: impayes.length, totalImpaye, demandesEnAttente, bcNonRecus, delaiMoyenBc, delaiMoyenReception, parMois };
   }, [commandes, lignesBc, demandes, receptions, lignesReception]);
 
   const exporter = async () => {
@@ -112,6 +117,9 @@ export default function KpiPage() {
       { label: "", valeur: "" },
       { label: "Top articles (montant HT)", valeur: "" },
       ...stats.topArticles.map(([nom, montant]) => ({ label: nom, valeur: montant })),
+      { label: "", valeur: "" },
+      { label: "Articles les plus achetés (fréquence)", valeur: "" },
+      ...stats.topFrequenceArticles.map(([nom, nb]) => ({ label: nom, valeur: nb })),
     ];
     await exportExcel({
       filename: `kpi-achats_${new Date().toISOString().slice(0, 10)}.xlsx`,
@@ -129,62 +137,75 @@ export default function KpiPage() {
 
   const maxFournisseur = stats.topFournisseurs[0]?.[1] || 1;
   const maxArticle = stats.topArticles[0]?.[1] || 1;
+  const maxFrequence = stats.topFrequenceArticles[0]?.[1] || 1;
 
   return (
     <AuthGuard>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 20 }}>KPI Achats</h1>
-        <button onClick={exporter} disabled={exporting} style={buttonStyle}>
-          {exporting ? "Génération..." : "Exporter en Excel"}
-        </button>
-      </div>
-
-      <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-        <Card label="Total des achats" value={`${stats.totalTTC.toLocaleString("fr-FR")} Ar`} />
-        <Card label="Ce mois-ci" value={`${stats.totalMois.toLocaleString("fr-FR")} Ar`} sub={`${stats.nbCommandesMois} BC`} />
-        <Card label="Demandes en attente de BC" value={stats.demandesEnAttente} />
-        <Card label="BC en attente de réception" value={stats.bcNonRecus} />
-        <Card label="Factures impayées" value={stats.impayesCount} sub={stats.totalImpaye ? `${stats.totalImpaye.toLocaleString("fr-FR")} Ar` : null} />
-        <Card label="Délai moyen jusqu'au BC" value={stats.delaiMoyenBc != null ? `${stats.delaiMoyenBc} j` : "-"} sub="depuis réception de la DA" />
-        <Card label="Délai moyen jusqu'à réception" value={stats.delaiMoyenReception != null ? `${stats.delaiMoyenReception} j` : "-"} sub="depuis réception de la DA" />
-      </div>
-
-      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12 }}>Top fournisseurs (montant TTC)</h2>
-          {stats.topFournisseurs.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>}
-          {stats.topFournisseurs.map(([nom, montant]) => (
-            <BarRow key={nom} label={nom} value={montant} max={maxFournisseur} />
-          ))}
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
+          <h1 style={{ fontSize: 18 }}>KPI Achats</h1>
+          <button onClick={exporter} disabled={exporting} style={buttonStyle}>
+            {exporting ? "Génération..." : "Exporter en Excel"}
+          </button>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12 }}>Top articles (montant HT)</h2>
-          {stats.topArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
-          {stats.topArticles.map(([nom, montant]) => (
-            <BarRow key={nom} label={nom} value={montant} max={maxArticle} />
-          ))}
-        </div>
-      </div>
-
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Achats par mois (12 derniers mois, TTC)</h2>
-        {stats.parMois.every((m) => m.montant === 0) ? (
-          <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>
-        ) : (
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 160, paddingTop: 10 }}>
-            {stats.parMois.map((m) => {
-              const maxMois = Math.max(...stats.parMois.map((x) => x.montant), 1);
-              return (
-                <div key={m.mois} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <div style={{ fontSize: 10, color: "#888" }}>{m.montant ? `${Math.round(m.montant / 1000).toLocaleString("fr-FR")}k` : ""}</div>
-                  <div style={{ width: "100%", maxWidth: 34, height: `${(m.montant / maxMois) * 110 || 1}px`, background: "#1B2430", borderRadius: 4 }} />
-                  <div style={{ fontSize: 11, color: "#666" }}>{m.label}</div>
-                </div>
-              );
-            })}
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
+            <Card label="Total des achats" value={`${stats.totalTTC.toLocaleString("fr-FR")} Ar`} />
+            <Card label="Ce mois-ci" value={`${stats.totalMois.toLocaleString("fr-FR")} Ar`} sub={`${stats.nbCommandesMois} BC`} />
+            <Card label="Demandes en attente de BC" value={stats.demandesEnAttente} />
+            <Card label="BC en attente de réception" value={stats.bcNonRecus} />
+            <Card label="Factures impayées" value={stats.impayesCount} sub={stats.totalImpaye ? `${stats.totalImpaye.toLocaleString("fr-FR")} Ar` : null} />
+            <Card label="Délai moyen jusqu'au BC" value={stats.delaiMoyenBc != null ? `${stats.delaiMoyenBc} j` : "-"} sub="depuis réception de la DA" />
+            <Card label="Délai moyen jusqu'à réception" value={stats.delaiMoyenReception != null ? `${stats.delaiMoyenReception} j` : "-"} sub="depuis réception de la DA" />
           </div>
-        )}
+
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
+            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
+              <h2 style={{ fontSize: 15, marginBottom: 12 }}>Top fournisseurs (montant TTC)</h2>
+              {stats.topFournisseurs.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>}
+              {stats.topFournisseurs.map(([nom, montant]) => (
+                <BarRow key={nom} label={nom} value={montant} max={maxFournisseur} suffix=" Ar" />
+              ))}
+            </div>
+
+            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
+              <h2 style={{ fontSize: 15, marginBottom: 12 }}>Top articles (montant HT)</h2>
+              {stats.topArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
+              {stats.topArticles.map(([nom, montant]) => (
+                <BarRow key={nom} label={nom} value={montant} max={maxArticle} suffix=" Ar" />
+              ))}
+            </div>
+
+            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
+              <h2 style={{ fontSize: 15, marginBottom: 12 }}>Articles les plus achetés (fréquence)</h2>
+              {stats.topFrequenceArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
+              {stats.topFrequenceArticles.map(([nom, nb]) => (
+                <BarRow key={nom} label={nom} value={nb} max={maxFrequence} suffix={nb > 1 ? " fois" : " fois"} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
+            <h2 style={{ fontSize: 15, marginBottom: 12 }}>Achats par mois (12 derniers mois, TTC)</h2>
+            {stats.parMois.every((m) => m.montant === 0) ? (
+              <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>
+            ) : (
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 160, paddingTop: 10 }}>
+                {stats.parMois.map((m) => {
+                  const maxMois = Math.max(...stats.parMois.map((x) => x.montant), 1);
+                  return (
+                    <div key={m.mois} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <div style={{ fontSize: 10, color: "#888" }}>{m.montant ? `${Math.round(m.montant / 1000).toLocaleString("fr-FR")}k` : ""}</div>
+                      <div style={{ width: "100%", maxWidth: 34, height: `${(m.montant / maxMois) * 110 || 1}px`, background: "#1E3A34", borderRadius: 4 }} />
+                      <div style={{ fontSize: 11, color: "#666" }}>{m.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </AuthGuard>
   );
@@ -200,14 +221,14 @@ function Card({ label, value, sub }) {
   );
 }
 
-function BarRow({ label, value, max }) {
+function BarRow({ label, value, max, suffix = "" }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
       <div style={{ width: 140, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={label}>{label}</div>
       <div style={{ flex: 1, height: 8, background: "#F0EFEA", borderRadius: 4, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${(value / max) * 100}%`, background: "#1B2430" }} />
+        <div style={{ height: "100%", width: `${(value / max) * 100}%`, background: "#1E3A34" }} />
       </div>
-      <div style={{ width: 110, textAlign: "right", fontSize: 12 }}>{value.toLocaleString("fr-FR")} Ar</div>
+      <div style={{ width: 90, textAlign: "right", fontSize: 12 }}>{typeof value === "number" && suffix === " Ar" ? value.toLocaleString("fr-FR") : value}{suffix}</div>
     </div>
   );
 }
