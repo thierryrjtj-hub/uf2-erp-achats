@@ -134,113 +134,115 @@ export default function BoisChauffagePage() {
 
   return (
     <AuthGuard>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 20 }}>Bois de chauffage — livraisons</h1>
-        <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
-      </div>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <Link href="/historique" style={sousOnglet}>Vue globale</Link>
-        <span style={sousOngletActif}>Bois de chauffage</span>
-      </div>
-
-      {evenements.length === 0 && (
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-          <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison de bois de chauffage réceptionnée pour l'instant. Ce rapport se remplit automatiquement dès qu'une réception est enregistrée sur un article "Bois de chauffage".</p>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexShrink: 0 }}>
+          <h1 style={{ fontSize: 18 }}>Bois de chauffage — livraisons</h1>
+          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
         </div>
-      )}
 
-      {evenements.length > 0 && (
-        <>
-          <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-              <h2 style={{ fontSize: 15 }}>Détail journalier</h2>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <button onClick={() => { setDateDebut(todayISO()); setDateFin(todayISO()); }} style={smallBtn}>Aujourd'hui</button>
-                <button onClick={() => { const d = new Date(); d.setDate(d.getDate() - 7); setDateDebut(d.toISOString().slice(0, 10)); setDateFin(todayISO()); }} style={smallBtn}>Cette semaine</button>
-                <button onClick={() => { setDateDebut(premierJourMois()); setDateFin(todayISO()); }} style={smallBtn}>Ce mois</button>
-                <button onClick={() => { setDateDebut(premierJourAnnee()); setDateFin(todayISO()); }} style={smallBtn}>Cette année</button>
-                <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
-                <span style={{ alignSelf: "center", fontSize: 12 }}>au</span>
-                <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
-              </div>
-            </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexShrink: 0 }}>
+          <Link href="/historique" style={sousOnglet}>Vue globale</Link>
+          <span style={sousOngletActif}>Bois de chauffage</span>
+        </div>
 
-            {joursDistincts.length === 0 ? (
-              <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur cette période.</p>
-            ) : (
-              <div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Date</th>
-                      {fournisseurs.map((f) => <th key={f} style={thStyle}>{f}</th>)}
-                      <th style={thStyle}>Total journalier (m³)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tableauJournalier.map((j) => (
-                      <tr key={j.date}>
-                        <td style={tdStyle}>{formatDate(j.date)}</td>
-                        {fournisseurs.map((f) => <td key={f} style={tdStyle}>{j.parFournisseur[f] ? j.parFournisseur[f].toLocaleString("fr-FR") : "-"}</td>)}
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{j.total.toLocaleString("fr-FR")}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr style={{ borderTop: "2px solid #ddd" }}>
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>Total</td>
-                      {fournisseurs.map((f) => <td key={f} style={{ ...tdStyle, fontWeight: 700 }}>{(totauxParFournisseurPeriode[f] || 0).toLocaleString("fr-FR")}</td>)}
-                      <td style={{ ...tdStyle, fontWeight: 700 }}>{totalGeneralPeriode.toLocaleString("fr-FR")}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </div>
-
+        {evenements.length === 0 && (
           <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h2 style={{ fontSize: 15 }}>Récapitulatif annuel</h2>
-              <select value={annee} onChange={(e) => setAnnee(Number(e.target.value))} style={inputStyle}>
-                {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
-              </select>
-            </div>
-            {recapAnnuel.length === 0 ? (
-              <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur {annee}.</p>
-            ) : (
-              <div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle}>Fournisseur</th>
-                      {MOIS.map((m) => <th key={m} style={thStyle}>{m}</th>)}
-                      <th style={thStyle}>Total (m³)</th>
-                      <th style={thStyle}>Montant total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recapAnnuel.map((r) => (
-                      <tr key={r.fournisseur}>
-                        <td style={tdStyle}>{r.fournisseur}</td>
-                        {r.parMois.map((v, i) => <td key={i} style={tdStyle}>{v ? v.toLocaleString("fr-FR") : "-"}</td>)}
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalM3.toLocaleString("fr-FR")}</td>
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalMontant.toLocaleString("fr-FR")} Ar</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison de bois de chauffage réceptionnée pour l'instant. Ce rapport se remplit automatiquement dès qu'une réception est enregistrée sur un article "Bois de chauffage".</p>
           </div>
-        </>
-      )}
+        )}
+
+        {evenements.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, flex: 1, minHeight: 0 }}>
+            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
+                <h2 style={{ fontSize: 15 }}>Détail journalier</h2>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <button onClick={() => { setDateDebut(todayISO()); setDateFin(todayISO()); }} style={smallBtn}>Aujourd'hui</button>
+                  <button onClick={() => { const d = new Date(); d.setDate(d.getDate() - 7); setDateDebut(d.toISOString().slice(0, 10)); setDateFin(todayISO()); }} style={smallBtn}>Cette semaine</button>
+                  <button onClick={() => { setDateDebut(premierJourMois()); setDateFin(todayISO()); }} style={smallBtn}>Ce mois</button>
+                  <button onClick={() => { setDateDebut(premierJourAnnee()); setDateFin(todayISO()); }} style={smallBtn}>Cette année</button>
+                  <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
+                  <span style={{ alignSelf: "center", fontSize: 12 }}>au</span>
+                  <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
+                </div>
+              </div>
+
+              {joursDistincts.length === 0 ? (
+                <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur cette période.</p>
+              ) : (
+                <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Date</th>
+                        {fournisseurs.map((f) => <th key={f} style={thStyle}>{f}</th>)}
+                        <th style={thStyle}>Total journalier (m³)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableauJournalier.map((j) => (
+                        <tr key={j.date}>
+                          <td style={tdStyle}>{formatDate(j.date)}</td>
+                          {fournisseurs.map((f) => <td key={f} style={tdStyle}>{j.parFournisseur[f] ? j.parFournisseur[f].toLocaleString("fr-FR") : "-"}</td>)}
+                          <td style={{ ...tdStyle, fontWeight: 600 }}>{j.total.toLocaleString("fr-FR")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: "2px solid #ddd" }}>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>Total</td>
+                        {fournisseurs.map((f) => <td key={f} style={{ ...tdStyle, fontWeight: 700 }}>{(totauxParFournisseurPeriode[f] || 0).toLocaleString("fr-FR")}</td>)}
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>{totalGeneralPeriode.toLocaleString("fr-FR")}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
+                <h2 style={{ fontSize: 15 }}>Récapitulatif annuel</h2>
+                <select value={annee} onChange={(e) => setAnnee(Number(e.target.value))} style={inputStyle}>
+                  {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              {recapAnnuel.length === 0 ? (
+                <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur {annee}.</p>
+              ) : (
+                <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Fournisseur</th>
+                        {MOIS.map((m) => <th key={m} style={thStyle}>{m}</th>)}
+                        <th style={thStyle}>Total (m³)</th>
+                        <th style={thStyle}>Montant total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recapAnnuel.map((r) => (
+                        <tr key={r.fournisseur}>
+                          <td style={tdStyle}>{r.fournisseur}</td>
+                          {r.parMois.map((v, i) => <td key={i} style={tdStyle}>{v ? v.toLocaleString("fr-FR") : "-"}</td>)}
+                          <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalM3.toLocaleString("fr-FR")}</td>
+                          <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalMontant.toLocaleString("fr-FR")} Ar</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </AuthGuard>
   );
 }
 
 const smallBtn = { padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer" };
 const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1 };
-const tdStyle = { padding: "8px 6px", whiteSpace: "nowrap" };
+const tdStyle = { padding: "8px 10px", whiteSpace: "nowrap" };
 const sousOnglet = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#888", textDecoration: "none", background: "transparent" };
 const sousOngletActif = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#1B2430", fontWeight: 600, background: "#fff" };
