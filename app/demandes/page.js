@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import Autocomplete from "../components/Autocomplete";
+import { formatDate } from "../../lib/format";
 import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
 
 const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs" });
@@ -147,7 +148,7 @@ export default function DemandesPage() {
                 <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
               </div>
               <div style={{ fontSize: 13, color: "#666", width: 150 }}>{d.service || "-"}</div>
-              <div style={{ fontSize: 13, color: "#666", width: 110 }}>{d.date}</div>
+              <div style={{ fontSize: 13, color: "#666", width: 110 }}>{formatDate(d.date)}</div>
               <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, ...prioriteStyle(d.priorite) }}>{d.priorite || "Moyenne"}</span>
               {demandesAvecNonDispo.has(d.id) && (
                 <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
