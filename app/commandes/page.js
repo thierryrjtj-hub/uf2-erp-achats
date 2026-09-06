@@ -130,7 +130,7 @@ export default function CommandesPage() {
               const enRetard = echeance && c.statut_paiement !== "Payé" && new Date() > echeance;
               return (
                 <tr key={c.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}>{c.numero}</td>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}><Link href={`/commandes/${c.id}`} style={{ color: "#1E3A34", textDecoration: "underline" }}>{c.numero}</Link></td>
                   <td style={tdStyle}>{c.fournisseur_nom}</td>
                   <td style={tdStyle}>{Number(c.montant_ttc).toLocaleString("fr-FR")} Ar</td>
                   <td style={tdStyle}>
@@ -162,7 +162,7 @@ export default function CommandesPage() {
                     </span>
                   </td>
                   <td style={tdStyle}>
-                    <Link href={`/commandes/${c.id}`} style={linkBtn}>Voir / Facture</Link>
+                    <Link href={`/commandes/${c.id}`} style={linkBtn}>Facture</Link>
                     <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", marginLeft: 10, display: role === "acheteur" ? "inline" : "none" }}>Supprimer</button>
                   </td>
                 </tr>
