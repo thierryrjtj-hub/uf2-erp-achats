@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel, slugify } from "../../lib/exportExcel";
@@ -188,11 +187,6 @@ export default function HistoriquePage() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <h1 style={{ fontSize: 18, marginBottom: 10, flexShrink: 0 }}>Historique des achats — situation globale</h1>
-
-        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexShrink: 0 }}>
-          <span style={sousOngletActif}>Vue globale</span>
-          <Link href="/historique/bois-chauffage" style={sousOnglet}>Bois de chauffage</Link>
-        </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center", flexShrink: 0 }}>
