@@ -6,26 +6,7 @@ import { exportExcel } from "../../lib/exportExcel";
 import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
-import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
-
-const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
-const CATEGORIES_BASE = [
-  "Produits Chimiques",
-  "Produits de Nettoyage / Hygiène",
-  "Équipements de Protection (EPI)",
-  "Consommables de Production",
-  "Emballages & Conditionnement",
-  "Pièces Détachées / Maintenance",
-  "Équipements Électriques",
-  "Matériaux de Construction",
-  "Carburants & Lubrifiants",
-  "Fournitures de Bureau",
-  "Bois de Chauffage",
-  "Matériel Informatique",
-  "Services & Prestations",
-  "Autre",
-];
-const empty = { designation: "", unite_defaut: "pcs", categorie: "", dernier_prix_ht: "" };
+import { inputStyle, buttonStyle } from "../components/ui";
 
 function matchRecherche(a, q) {
   if (!q.trim()) return true;
@@ -33,34 +14,25 @@ function matchRecherche(a, q) {
   return [a.designation, a.categorie].some((v) => (v || "").toLowerCase().includes(s));
 }
 
-export default function ArticlesPage() {
+export default function ArticlesListePage() {
   const role = useRole();
   const [liste, setListe] = useState([]);
   const [lignesBc, setLignesBc] = useState([]);
-  const [form, setForm] = useState(empty);
-  const [editId, setEditId] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [recherche, setRecherche] = useState("");
-  const [modeUniteLibre, setModeUniteLibre] = useState(false);
-  const [modeCategorieLibre, setModeCategorieLibre] = useState(false);
-
-  const uniteOptions = useMemo(() => {
-    const depuisArticles = liste.map((a) => a.unite_defaut).filter(Boolean);
-    return [...new Set([...UNITES_BASE, ...depuisArticles])].sort((a, b) => a.localeCompare(b));
-  }, [liste]);
-
-  const categorieOptions = useMemo(() => {
-    const depuisArticles = liste.map((a) => a.categorie).filter(Boolean);
-    return [...new Set([...CATEGORIES_BASE, ...depuisArticles])].sort((a, b) => a.localeCompare(b));
-  }, [liste]);
+  const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState(null);
 
   const charger = async () => {
     const { data } = await supabase.from("articles").select("*").order("designation").limit(10000);
     setListe(data || []);
     const { data: lignes } = await supabase
       .from("lignes_bc")
-      .select("*, commandes:bc_id(numero, date, fournisseur_nom, assujetti_tva)");
+      .select("*, commandes:bc_id(numero, date, fournisseur_nom, assujetti_tva)")
+      .limit(10000);
     setLignesBc((lignes || []).filter((l) => l.commandes));
+    setLoading(false);
   };
 
   useEffect(() => { charger(); }, []);
@@ -82,39 +54,24 @@ export default function ArticlesPage() {
     return map;
   }, [liste, lignesBc]);
 
-  const enregistrer = async () => {
-    if (!form.designation.trim()) return;
-    const payload = { ...form, dernier_prix_ht: form.dernier_prix_ht === "" ? null : Number(form.dernier_prix_ht) };
-    if (editId) {
-      await supabase.from("articles").update(payload).eq("id", editId);
-    } else {
-      await supabase.from("articles").insert(payload);
-    }
-    setForm(empty);
-    setEditId(null);
-    setModeUniteLibre(false);
-    setModeCategorieLibre(false);
-    charger();
-  };
+  const uniteOptions = useMemo(() => [...new Set(liste.map((a) => a.unite_defaut).filter(Boolean))].sort(), [liste]);
+  const categorieOptions = useMemo(() => [...new Set(liste.map((a) => a.categorie).filter(Boolean))].sort(), [liste]);
 
   const modifier = (a) => {
-    setForm({
-      designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie: a.categorie || "",
-      dernier_prix_ht: a.dernier_prix_ht ?? "",
-    });
     setEditId(a.id);
-    setModeUniteLibre(false);
-    setModeCategorieLibre(false);
+    setEditForm({ designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie: a.categorie || "", dernier_prix_ht: a.dernier_prix_ht ?? "" });
+  };
+
+  const enregistrerEdition = async () => {
+    const payload = { ...editForm, dernier_prix_ht: editForm.dernier_prix_ht === "" ? null : Number(editForm.dernier_prix_ht) };
+    await supabase.from("articles").update(payload).eq("id", editId);
+    setEditId(null);
+    setEditForm(null);
+    charger();
   };
 
   const supprimer = async (id) => {
     await supabase.from("articles").delete().eq("id", id);
-    charger();
-  };
-
-  const supprimerCategorie = async (cat) => {
-    if (!confirm(`Supprimer la catégorie "${cat}" ? Elle sera retirée de tous les articles qui l'utilisent (ils redeviendront sans catégorie).`)) return;
-    await supabase.from("articles").update({ categorie: null }).eq("categorie", cat);
     charger();
   };
 
@@ -157,108 +114,77 @@ export default function ArticlesPage() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 18 }}>Articles</h1>
+          <h1 style={{ fontSize: 18 }}>Liste des articles ({loading ? "…" : liste.filter(a => matchRecherche(a, recherche)).length} / {liste.length})</h1>
           <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16, flexShrink: 0 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12 }}>{editId ? "Modifier l'article" : "Ajouter un article"}</h2>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input placeholder="Désignation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-            <Autocomplete
-              placeholder="Unité (tape pour voir les suggestions)"
-              value={form.unite_defaut}
-              onChange={(val) => setForm({ ...form, unite_defaut: val })}
-              suggestions={uniteOptions}
-              style={{ width: 190 }}
-            />
-            <Autocomplete
-              placeholder="Catégorie (tape pour voir les suggestions)"
-              value={form.categorie}
-              onChange={(val) => setForm({ ...form, categorie: val })}
-              suggestions={categorieOptions}
-              style={{ flex: 1 }}
-            />
-            <input type="number" placeholder="Dernier prix HT" value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
-          </div>
-          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-            <button onClick={enregistrer} style={buttonStyle}>{editId ? "Enregistrer" : "Ajouter"}</button>
-            {editId && <button onClick={() => { setForm(empty); setEditId(null); setModeUniteLibre(false); setModeCategorieLibre(false); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
-          </div>
-        </div>
-
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16, flexShrink: 0 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12 }}>Catégories existantes</h2>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", maxHeight: 90, overflow: "auto" }}>
-            {categorieOptions.map((c) => (
-              <span key={c} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, background: "#F5F4F1", borderRadius: 6, padding: "4px 8px" }}>
-                {c}
-                {role === "acheteur" && (
-                  <button onClick={() => supprimerCategorie(c)} style={{ border: "none", background: "none", color: "#B3261E", cursor: "pointer", fontSize: 13, padding: 0 }} title="Supprimer cette catégorie">×</button>
-                )}
-              </span>
-            ))}
-          </div>
-        </div>
-
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
-            <h2 style={{ fontSize: 15 }}>Liste ({liste.filter(a => matchRecherche(a, recherche)).length} / {liste.length})</h2>
-            <div style={{ position: "relative", width: 340 }}>
-              <input placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
-              {recherche && (
-                <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
-              )}
-            </div>
+          <div style={{ position: "relative", width: 340, marginBottom: 12, flexShrink: 0 }}>
+            <input placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+            {recherche && (
+              <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
+            )}
           </div>
-          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-          {liste.filter((a) => matchRecherche(a, recherche)).map((a) => {
-            const hist = historiqueParArticle[a.id] || [];
-            const dernier = hist[0];
-            const autres = [...new Map(hist.slice(1).map((h) => [h.fournisseur, h])).values()].slice(0, 4);
-            return (
-              <div key={a.id} style={cardStyle}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{a.designation}</div>
-                  <div>
-                    <button onClick={() => copierFiche(a, dernier)} style={iconBtn} title="Copier toutes les infos">
-                      <IconCopy />
-                    </button>
-                    <button onClick={() => modifier(a)} style={iconBtn} title="Modifier">
-                      <IconEdit />
-                    </button>
-                    {role === "acheteur" && (
-                      <button onClick={() => supprimer(a.id)} style={{ ...iconBtn, color: "#B3261E" }} title="Supprimer">
-                        <IconTrash />
-                      </button>
-                    )}
-                </div>
-              </div>
-              <div style={grid}>
-                <Champ label="Unité d'achat" value={a.unite_defaut} />
-                <Champ label="Catégorie" value={a.categorie} />
-                <Champ label="Dernier prix HT (référence)" value={a.dernier_prix_ht ? `${Number(a.dernier_prix_ht).toLocaleString("fr-FR")} Ar` : ""} />
-              </div>
 
-              {dernier ? (
-                <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #f0f0f0" }}>
-                  <div style={champLabel}>Dernier achat réel</div>
-                  <div style={{ fontSize: 13, marginTop: 2 }}>
-                    <strong>{dernier.fournisseur}</strong> — {dernier.pu.toLocaleString("fr-FR")} Ar HT
-                    ({dernier.puTtc.toLocaleString("fr-FR")} Ar TTC) — qté {dernier.qte} — le {dernier.date} — BC {dernier.bc}
-                  </div>
-                  {autres.length > 0 && (
-                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
-                      Autres fournisseurs consultés : {autres.map((h) => `${h.fournisseur} (${h.pu.toLocaleString("fr-FR")} Ar)`).join(", ")}
+          {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
+
+          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+            {liste.filter((a) => matchRecherche(a, recherche)).map((a) => {
+              const hist = historiqueParArticle[a.id] || [];
+              const dernier = hist[0];
+              const autres = [...new Map(hist.slice(1).map((h) => [h.fournisseur, h])).values()].slice(0, 4);
+              const enEdition = editId === a.id;
+              return (
+                <div key={a.id} style={cardStyle}>
+                  {enEdition ? (
+                    <div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                        <input placeholder="Désignation" value={editForm.designation} onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+                        <Autocomplete placeholder="Unité" value={editForm.unite_defaut} onChange={(val) => setEditForm({ ...editForm, unite_defaut: val })} suggestions={uniteOptions} style={{ width: 160 }} />
+                        <Autocomplete placeholder="Catégorie" value={editForm.categorie} onChange={(val) => setEditForm({ ...editForm, categorie: val })} suggestions={categorieOptions} style={{ flex: 1 }} />
+                        <input type="number" placeholder="Dernier prix HT" value={editForm.dernier_prix_ht} onChange={(e) => setEditForm({ ...editForm, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 140 }} />
+                      </div>
+                      <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 8 }}>Enregistrer</button>
+                      <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
                     </div>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ fontWeight: 700, fontSize: 15 }}>{a.designation}</div>
+                        <div>
+                          <button onClick={() => copierFiche(a, dernier)} style={iconBtn} title="Copier toutes les infos"><IconCopy /></button>
+                          <button onClick={() => modifier(a)} style={iconBtn} title="Modifier"><IconEdit /></button>
+                          {role === "acheteur" && (
+                            <button onClick={() => supprimer(a.id)} style={{ ...iconBtn, color: "#B3261E" }} title="Supprimer"><IconTrash /></button>
+                          )}
+                        </div>
+                      </div>
+                      <div style={grid}>
+                        <Champ label="Unité d'achat" value={a.unite_defaut} />
+                        <Champ label="Catégorie" value={a.categorie} />
+                        <Champ label="Dernier prix HT (référence)" value={a.dernier_prix_ht ? `${Number(a.dernier_prix_ht).toLocaleString("fr-FR")} Ar` : ""} />
+                      </div>
+                      {dernier ? (
+                        <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #f0f0f0" }}>
+                          <div style={champLabel}>Dernier achat réel</div>
+                          <div style={{ fontSize: 13, marginTop: 2 }}>
+                            <strong>{dernier.fournisseur}</strong> — {dernier.pu.toLocaleString("fr-FR")} Ar HT
+                            ({dernier.puTtc.toLocaleString("fr-FR")} Ar TTC) — qté {dernier.qte} — le {dernier.date} — BC {dernier.bc}
+                          </div>
+                          {autres.length > 0 && (
+                            <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                              Autres fournisseurs consultés : {autres.map((h) => `${h.fournisseur} (${h.pu.toLocaleString("fr-FR")} Ar)`).join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: "#999", marginTop: 10 }}>Aucun achat enregistré pour l'instant sur cet article.</div>
+                      )}
+                    </>
                   )}
                 </div>
-              ) : (
-                <div style={{ fontSize: 12, color: "#999", marginTop: 10 }}>Aucun achat enregistré pour l'instant sur cet article.</div>
-              )}
-            </div>
-            );
-          })}
+              );
+            })}
           </div>
         </div>
       </div>
