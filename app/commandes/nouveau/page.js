@@ -1,15 +1,26 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import { inputStyle, buttonStyle, linkBtn } from "../../components/ui";
 
-const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs", prix_unitaire_ht: "", remise_pct: 0 });
+const ligneVide = () => ({ key: Math.random().toString(36).slice(2), ligne_demande_id: null, designation: "", quantite: 1, unite: "pcs", prix_unitaire_ht: "", remise_pct: 0 });
 
 export default function NouveauBCDirectPage() {
+  return (
+    <Suspense fallback={<AuthGuard><p>Chargement...</p></AuthGuard>}>
+      <NouveauBCDirectInner />
+    </Suspense>
+  );
+}
+
+function NouveauBCDirectInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const demandeId = searchParams.get("demande_id");
+  const [demande, setDemande] = useState(null);
   const [fournisseurs, setFournisseurs] = useState([]);
   const [articlesBase, setArticlesBase] = useState([]);
   const [rechercheFournisseur, setRechercheFournisseur] = useState("");
@@ -24,8 +35,23 @@ export default function NouveauBCDirectPage() {
       const { data: a } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht").limit(10000);
       setFournisseurs(f || []);
       setArticlesBase(a || []);
+
+      if (demandeId) {
+        const { data: d } = await supabase.from("demandes").select("*").eq("id", demandeId).maybeSingle();
+        setDemande(d || null);
+        const { data: ld } = await supabase.from("lignes_demande").select("*").eq("demande_id", demandeId).order("created_at");
+        if (ld && ld.length) {
+          setLignes(ld.map((l) => {
+            const art = (a || []).find((x) => x.designation.toLowerCase() === l.designation.toLowerCase());
+            return {
+              key: l.id, ligne_demande_id: l.id, designation: l.designation, quantite: l.quantite, unite: l.unite,
+              prix_unitaire_ht: art?.dernier_prix_ht || "", remise_pct: 0,
+            };
+          }));
+        }
+      }
     })();
-  }, []);
+  }, [demandeId]);
 
   const choisirFournisseur = (nom) => {
     const f = fournisseurs.find((x) => x.nom === nom);
@@ -42,6 +68,14 @@ export default function NouveauBCDirectPage() {
     if (match) {
       updateLigne(key, "unite", match.unite_defaut || "pcs");
       if (match.dernier_prix_ht) updateLigne(key, "prix_unitaire_ht", match.dernier_prix_ht);
+    }
+  };
+
+  const onUniteBlur = async (designation, unite) => {
+    const match = articlesBase.find((a) => a.designation.toLowerCase() === designation.toLowerCase());
+    if (match && unite && unite !== match.unite_defaut) {
+      await supabase.from("articles").update({ unite_defaut: unite }).eq("id", match.id);
+      setArticlesBase((prev) => prev.map((a) => (a.id === match.id ? { ...a, unite_defaut: unite } : a)));
     }
   };
 
@@ -72,7 +106,7 @@ export default function NouveauBCDirectPage() {
       const m = (Number(l.quantite) || 0) * (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100);
       montantHT += m;
       lignesBcPayload.push({
-        designation: l.designation, quantite: Number(l.quantite) || 1, unite: l.unite,
+        ligne_demande_id: l.ligne_demande_id, designation: l.designation, quantite: Number(l.quantite) || 1, unite: l.unite,
         prix_unitaire_ht: Number(l.prix_unitaire_ht) || 0, remise_pct: Number(l.remise_pct) || 0, montant_ht: m,
       });
     }
@@ -81,7 +115,7 @@ export default function NouveauBCDirectPage() {
     const { data: bc } = await supabase
       .from("commandes")
       .insert({
-        demande_id: null, fournisseur_id: fournisseurChoisi.id, fournisseur_nom: fournisseurChoisi.nom,
+        demande_id: demandeId || null, fournisseur_id: fournisseurChoisi.id, fournisseur_nom: fournisseurChoisi.nom,
         assujetti_tva: assujettiTva, montant_ht: montantHT, montant_tva: tvaFinal, montant_ttc: montantHT + tvaFinal,
       })
       .select()
@@ -89,6 +123,7 @@ export default function NouveauBCDirectPage() {
 
     if (bc) {
       await supabase.from("lignes_bc").insert(lignesBcPayload.map((l) => ({ ...l, bc_id: bc.id })));
+      if (demandeId) await supabase.from("demandes").update({ statut: "Basculée en commande" }).eq("id", demandeId);
       router.push(`/commandes/${bc.id}`);
     }
     setEnvoi(false);
@@ -96,10 +131,10 @@ export default function NouveauBCDirectPage() {
 
   return (
     <AuthGuard>
-      <button onClick={() => router.push("/commandes")} style={{ ...linkBtn, marginBottom: 16 }}>&larr; Retour aux commandes</button>
-      <h1 style={{ fontSize: 20, marginBottom: 4 }}>Créer un bon de commande directement</h1>
+      <button onClick={() => router.push(demandeId ? `/demandes/${demandeId}` : "/commandes")} style={{ ...linkBtn, marginBottom: 16 }}>&larr; Retour</button>
+      <h1 style={{ fontSize: 18, marginBottom: 4 }}>Créer un bon de commande directement</h1>
       <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>
-        Sans passer par une demande/TCO — pour les articles disponibles chez un seul fournisseur ou un fournisseur déjà recommandé/imposé.
+        {demande ? <>Depuis la demande <strong>{demande.numero}</strong> — sans passer par un comparatif TCO.</> : "Sans passer par une demande/TCO — pour les articles disponibles chez un seul fournisseur ou un fournisseur déjà recommandé/imposé."}
       </p>
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
@@ -140,7 +175,7 @@ export default function NouveauBCDirectPage() {
               style={{ flex: 2 }}
             />
             <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
-            <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
+            <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 80 }} />
             <input type="number" placeholder="PU HT" value={l.prix_unitaire_ht} onChange={(e) => updateLigne(l.key, "prix_unitaire_ht", e.target.value)} style={{ ...inputStyle, width: 110 }} />
             <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => updateLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
             <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
