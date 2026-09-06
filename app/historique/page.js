@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel, slugify } from "../../lib/exportExcel";
+import { formatDate } from "../../lib/format";
 import Autocomplete from "../components/Autocomplete";
 import { inputStyle, buttonStyle } from "../components/ui";
 
@@ -221,7 +222,7 @@ export default function HistoriquePage() {
         {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucun achat enregistré pour le moment.</p>}
 
         {filtrees.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
+          <div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
@@ -252,15 +253,15 @@ export default function HistoriquePage() {
               <tbody>
                 {filtrees.map((l) => (
                   <tr key={l.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                    <td style={tdStyle}>{l.date_da}</td>
+                    <td style={tdStyle}>{formatDate(l.date_da) || "-"}</td>
                     <td style={tdStyle}>{l.designation}</td>
                     <td style={tdStyle}>{l.quantite} {l.unite}</td>
                     <td style={tdStyle}>{l.unite}</td>
                     <td style={tdStyle}>{l.fournisseur_nom}</td>
                     <td style={tdStyle}>{l.bc_numero}</td>
-                    <td style={tdStyle}>{l.bc_date}</td>
-                    <td style={tdStyle}>{l.date_signature}</td>
-                    <td style={tdStyle}>{l.date_reception}</td>
+                    <td style={tdStyle}>{formatDate(l.bc_date) || "-"}</td>
+                    <td style={tdStyle}>{formatDate(l.date_signature) || "-"}</td>
+                    <td style={tdStyle}>{formatDate(l.date_reception) || "-"}</td>
                     <td style={tdStyle}>{l.receptionnaire}</td>
                     <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
                     <td style={tdStyle}>{l.categorie || "-"}</td>
