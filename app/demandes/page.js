@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
 import { linkBtn } from "../components/ui";
+import { IconCopy } from "../components/Icons";
 
 export default function DemandesListePage() {
   const [liste, setListe] = useState([]);
@@ -56,7 +57,9 @@ export default function DemandesListePage() {
                   <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
                 )}
                 <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{d.statut}</span>
-                <button onClick={() => copierPourDevis(d)} style={linkBtnBleu}>Copier pour devis</button>
+                <button onClick={() => copierPourDevis(d)} style={linkBtnBleu} title="Copier pour demande de devis">
+                  <IconCopy /> Devis
+                </button>
               </div>
             ))}
           </div>
@@ -72,5 +75,5 @@ function prioriteCouleur(p) {
   return "#F5A623";
 }
 
-const linkBtnBleu = { border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer", padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap" };
+const linkBtnBleu = { border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer", padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 };
 const rowStyle = { display: "flex", alignItems: "center", gap: 12, padding: "10px 4px", borderBottom: "1px solid #f0f0f0" };
