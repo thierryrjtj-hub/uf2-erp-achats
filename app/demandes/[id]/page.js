@@ -39,7 +39,7 @@ export default function TCODetailPage() {
   const charger = async () => {
     const { data: d } = await supabase.from("demandes").select("*").eq("id", id).single();
     const { data: ld } = await supabase.from("lignes_demande").select("*").eq("demande_id", id).order("created_at");
-    const { data: f } = await supabase.from("fournisseurs").select("*").order("nom");
+    const { data: f } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
     const { data: o } = await supabase.from("offres").select("*").eq("demande_id", id);
     let lo = [];
     if (o && o.length) {
