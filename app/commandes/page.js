@@ -88,28 +88,29 @@ export default function CommandesPage() {
 
   return (
     <AuthGuard>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 20 }}>Bons de commande</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/commandes/nouveau" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
-            + Créer un BC directement
-          </Link>
-          <Link href="/commandes/pv-vierge" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
-            PV vierge
-          </Link>
-          <button onClick={exporter} disabled={exporting} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" }}>
-            {exporting ? "Génération..." : "Exporter en Excel"}
-          </button>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
+          <h1 style={{ fontSize: 18 }}>Bons de commande</h1>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link href="/commandes/nouveau" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
+              + Créer un BC directement
+            </Link>
+            <Link href="/commandes/pv-vierge" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
+              PV vierge
+            </Link>
+            <button onClick={exporter} disabled={exporting} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" }}>
+              {exporting ? "Génération..." : "Exporter en Excel"}
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Liste ({liste.length})</h2>
-        {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-        {!loading && liste.length === 0 && (
-          <p style={{ color: "#888", fontSize: 13 }}>Aucun bon de commande pour le moment — génère-en un depuis une demande (onglet Demandes &amp; TCO).</p>
-        )}
-        <div>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <h2 style={{ fontSize: 15, marginBottom: 12, flexShrink: 0 }}>Liste ({liste.length})</h2>
+          {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
+          {!loading && liste.length === 0 && (
+            <p style={{ color: "#888", fontSize: 13 }}>Aucun bon de commande pour le moment — génère-en un depuis une demande (onglet Demandes &amp; TCO).</p>
+          )}
+          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
@@ -169,6 +170,7 @@ export default function CommandesPage() {
             })}
           </tbody>
         </table>
+        </div>
         </div>
       </div>
     </AuthGuard>
