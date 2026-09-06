@@ -86,7 +86,7 @@ export default function CommandeDetailPage() {
   useEffect(() => { charger(); }, [id]);
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht");
+      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht").limit(10000);
       setArticlesBase(data || []);
     })();
   }, []);
