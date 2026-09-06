@@ -5,6 +5,7 @@ import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
+import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
 import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
 
 const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
@@ -220,10 +221,16 @@ export default function ArticlesPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ fontWeight: 700, fontSize: 15 }}>{a.designation}</div>
                   <div>
-                    <button onClick={() => copierFiche(a, dernier)} style={linkBtn}>Copier tout</button>
-                    <button onClick={() => modifier(a)} style={linkBtn}>Modifier</button>
+                    <button onClick={() => copierFiche(a, dernier)} style={iconBtn} title="Copier toutes les infos">
+                      <IconCopy />
+                    </button>
+                    <button onClick={() => modifier(a)} style={iconBtn} title="Modifier">
+                      <IconEdit />
+                    </button>
                     {role === "acheteur" && (
-                      <button onClick={() => supprimer(a.id)} style={{ ...linkBtn, color: "#B3261E" }}>Supprimer</button>
+                      <button onClick={() => supprimer(a.id)} style={{ ...iconBtn, color: "#B3261E" }} title="Supprimer">
+                        <IconTrash />
+                      </button>
                     )}
                 </div>
               </div>
@@ -272,4 +279,5 @@ function Champ({ label, value }) {
 const cardStyle = { border: "1px solid #eee", borderRadius: 10, padding: 16, marginBottom: 12 };
 const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginTop: 10 };
 const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3 };
+const iconBtn = { border: "none", background: "none", color: "#1B2430", cursor: "pointer", padding: 4, marginLeft: 4, display: "inline-flex", alignItems: "center", borderRadius: 6 };
 const clearBtn = { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, lineHeight: 1, color: "#999", cursor: "pointer", padding: "2px 6px" };
