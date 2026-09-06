@@ -1,310 +1,243 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
-import { exportExcel, slugify } from "../../lib/exportExcel";
-import { formatDate } from "../../lib/format";
-import Autocomplete from "../components/Autocomplete";
-import { inputStyle, buttonStyle } from "../components/ui";
+import { exportExcel } from "../../lib/exportExcel";
+import { useRole } from "../../lib/useRole";
+import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
+import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
 
-export default function HistoriquePage() {
-  const [lignes, setLignes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [recherche, setRecherche] = useState("");
-  const [dateDebut, setDateDebut] = useState("");
-  const [dateFin, setDateFin] = useState("");
+const empty = {
+  nom: "", contact: "", telephone: "", email: "", adresse: "", code_postal: "",
+  nif: "", stat: "", rcs: "", cin: "", type_reglement: "Chèque",
+  tva_defaut_pct: 20, activite: "", conditions_paiement_jours: 30, remise_par_defaut_pct: 0,
+};
+
+function matchRecherche(f, q) {
+  if (!q.trim()) return true;
+  const s = q.toLowerCase();
+  return [f.nom, f.contact, f.activite, f.telephone, f.email, f.adresse, f.nif].some((v) => (v || "").toLowerCase().includes(s));
+}
+
+export default function FournisseursPage() {
+  const role = useRole();
+  const [liste, setListe] = useState([]);
+  const [form, setForm] = useState(empty);
+  const [editId, setEditId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [recherche, setRecherche] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, statut, date_signature, observation");
-      const { data: lignesBc } = await supabase.from("lignes_bc").select("*");
-      const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle, receptionnaire");
-      const { data: lignesReceptionList } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree");
-      const { data: demandesList } = await supabase.from("demandes").select("id, service, demandeur, motif_projet, statut, created_at");
-      const { data: lignesDemandeList } = await supabase.from("lignes_demande").select("id, demande_id, designation, quantite, unite");
-      const { data: articlesList } = await supabase.from("articles").select("designation, categorie");
+  const charger = async () => {
+    const { data } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
+    setListe(data || []);
+  };
 
-      // ---- Lignes déjà passées en BC ----
-      const rowsBc = (lignesBc || []).map((l) => {
-        const bc = (bcList || []).find((b) => b.id === l.bc_id);
-        const receptionsDeCeBc = (receptionsList || []).filter((r) => r.bc_id === l.bc_id).map((r) => r.id);
-        const cumulLivre = (lignesReceptionList || [])
-          .filter((lr) => receptionsDeCeBc.includes(lr.reception_id) && lr.ligne_bc_id === l.id)
-          .reduce((s, lr) => s + (Number(lr.quantite_livree) || 0), 0);
-        const derniereReception = (receptionsList || []).filter((r) => r.bc_id === l.bc_id).sort((a, b) => new Date(b.date_reception_reelle) - new Date(a.date_reception_reelle))[0];
-        const dmd = bc?.demande_id ? (demandesList || []).find((d) => d.id === bc.demande_id) : null;
-        const art = (articlesList || []).find((a) => a.designation.toLowerCase() === l.designation.toLowerCase());
-        const assujetti = bc?.assujetti_tva !== false;
-        const montantHt = Number(l.montant_ht) || 0;
-        const montantTtc = assujetti ? montantHt * 1.2 : montantHt;
-        let etatLivraison = "Non livré";
-        if (cumulLivre >= Number(l.quantite) && cumulLivre > 0) etatLivraison = "Livré";
-        else if (cumulLivre > 0) etatLivraison = "Livré partiellement";
+  useEffect(() => { charger(); }, []);
 
-        return {
-          id: `bc-${l.id}`,
-          date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
-          designation: l.designation, quantite: l.quantite, unite: l.unite,
-          fournisseur_nom: bc?.fournisseur_nom || "-",
-          bc_numero: bc?.numero || "-", bc_date: bc?.date || "-",
-          date_signature: bc?.date_signature || "-",
-          date_reception: derniereReception?.date_reception_reelle ? derniereReception.date_reception_reelle.slice(0, 10) : "-",
-          receptionnaire: derniereReception?.receptionnaire || "-",
-          categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
-          demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
-          prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct, montant_ht: montantHt, montant_ttc: montantTtc,
-          bc_total_ttc: Number(bc?.montant_ttc) || 0, etat_livraison: etatLivraison,
-          statut: bc?.statut || "-", observation: bc?.observation || "",
-          date_tri: bc?.date || (dmd?.created_at ? dmd.created_at.slice(0, 10) : ""),
-        };
-      });
-
-      // ---- Lignes de demande pas encore passées en BC (en attente) ----
-      const ligneDemandeCouvertes = new Set((lignesBc || []).map((l) => l.ligne_demande_id).filter(Boolean));
-      const rowsAttente = (lignesDemandeList || [])
-        .filter((ld) => !ligneDemandeCouvertes.has(ld.id))
-        .map((ld) => {
-          const dmd = (demandesList || []).find((d) => d.id === ld.demande_id);
-          const art = (articlesList || []).find((a) => a.designation.toLowerCase() === ld.designation.toLowerCase());
-          return {
-            id: `pending-${ld.id}`,
-            date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
-            designation: ld.designation, quantite: ld.quantite, unite: ld.unite,
-            fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-", receptionnaire: "-",
-            categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
-            demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
-            prix_unitaire_ht: null, remise_pct: null, montant_ht: 0, montant_ttc: 0, bc_total_ttc: 0, etat_livraison: "-",
-            statut: dmd?.statut === "Partiellement traitée" ? "Partiellement traitée" : "A faire",
-            observation: dmd?.statut === "Partiellement traitée" ? "Reste à traiter — devis en cours" : "En attente de devis / TCO",
-            date_tri: dmd?.created_at ? dmd.created_at.slice(0, 10) : "",
-          };
-        });
-
-      const toutes = [...rowsBc, ...rowsAttente].sort((a, b) => new Date(b.date_tri) - new Date(a.date_tri));
-      setLignes(toutes);
-      setLoading(false);
-    })();
-  }, []);
-
-  // Suggestions combinées de toutes les colonnes textuelles, pour la barre de recherche unique
-  const suggestionsRecherche = useMemo(() => {
-    const s = new Set();
-    lignes.forEach((l) => {
-      [l.designation, l.fournisseur_nom, l.service, l.demandeur, l.usage_projet, l.categorie, l.bc_numero, l.statut, l.receptionnaire]
-        .forEach((v) => { if (v && v !== "-") s.add(v); });
-    });
-    return [...s].sort();
-  }, [lignes]);
-
-  const CHAMPS_RECHERCHABLES = ["designation", "fournisseur_nom", "service", "demandeur", "usage_projet", "categorie", "bc_numero", "statut", "observation", "receptionnaire"];
-
-  const filtrees = useMemo(() => {
-    const q = recherche.trim().toLowerCase();
-    return lignes.filter((l) => {
-      const okRecherche = !q || CHAMPS_RECHERCHABLES.some((champ) => (l[champ] || "").toString().toLowerCase().includes(q));
-      const okDebut = !dateDebut || (l.date_tri && l.date_tri >= dateDebut);
-      const okFin = !dateFin || (l.date_tri && l.date_tri <= dateFin);
-      return okRecherche && okDebut && okFin;
-    });
-  }, [lignes, recherche, dateDebut, dateFin]);
-
-  const totauxFiltres = useMemo(() => {
-    return filtrees.reduce((acc, l) => ({ ht: acc.ht + (Number(l.montant_ht) || 0), ttc: acc.ttc + (Number(l.montant_ttc) || 0) }), { ht: 0, ttc: 0 });
-  }, [filtrees]);
-
-  const dernierAchatParArticle = useMemo(() => {
-    const map = {};
-    for (const l of lignes) {
-      if (l.bc_numero === "-") continue;
-      const key = l.designation;
-      if (!map[key] || new Date(l.bc_date) > new Date(map[key].bc_date)) map[key] = l;
+  const enregistrer = async () => {
+    if (!form.nom.trim()) return;
+    if (editId) {
+      await supabase.from("fournisseurs").update(form).eq("id", editId);
+    } else {
+      await supabase.from("fournisseurs").insert(form);
     }
-    return map;
-  }, [lignes]);
+    setForm(empty);
+    setEditId(null);
+    charger();
+  };
+
+  const modifier = (f) => {
+    setForm({
+      nom: f.nom, contact: f.contact || "", telephone: f.telephone || "", email: f.email || "",
+      adresse: f.adresse || "", code_postal: f.code_postal || "", nif: f.nif || "", stat: f.stat || "",
+      rcs: f.rcs || "", cin: f.cin || "", type_reglement: f.type_reglement || "Chèque",
+      tva_defaut_pct: f.tva_defaut_pct ?? 20, activite: f.activite || "",
+      conditions_paiement_jours: f.conditions_paiement_jours || 30, remise_par_defaut_pct: f.remise_par_defaut_pct || 0,
+    });
+    setEditId(f.id);
+  };
+
+  const supprimer = async (id) => {
+    await supabase.from("fournisseurs").delete().eq("id", id);
+    charger();
+  };
+
+  const copierFiche = async (f) => {
+    const texte = [
+      f.nom, f.contact && `Contact : ${f.contact}`, f.telephone && `Tél : ${f.telephone}`, f.email && `E-mail : ${f.email}`,
+      f.adresse && `Adresse : ${f.adresse}${f.code_postal ? " " + f.code_postal : ""}`,
+      f.nif && `NIF : ${f.nif}`, f.stat && `STAT : ${f.stat}`, f.rcs && `RCS : ${f.rcs}`, f.cin && `CIN : ${f.cin}`,
+      f.type_reglement && `Règlement : ${f.type_reglement}`, `TVA : ${f.tva_defaut_pct === 0 ? "Non assujetti" : (f.tva_defaut_pct ?? 20) + "%"}`,
+      f.activite && `Activité : ${f.activite}`,
+    ].filter(Boolean).join("\n");
+    try { await navigator.clipboard.writeText(texte); } catch (e) {}
+  };
 
   const exporter = async () => {
     setExporting(true);
-    const rows = filtrees.map((l) => ({
-      dateDa: l.date_da, article: l.designation, qte: Number(l.quantite), unite: l.unite,
-      fournisseur: l.fournisseur_nom, bc: l.bc_numero, dateBc: l.bc_date, dateSignature: l.date_signature, dateReception: l.date_reception,
-      receptionnaire: l.receptionnaire, etat: l.etat_livraison, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
-      pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: l.remise_pct != null ? Number(l.remise_pct) : "",
-      montantHt: Number(l.montant_ht) || 0, montantTtc: Number(l.montant_ttc) || 0, totalBc: Number(l.bc_total_ttc) || 0,
-      statut: l.statut, observation: l.observation,
+    const rows = liste.map((f) => ({
+      nom: f.nom, contact: f.contact || "", tel: f.telephone || "", email: f.email || "",
+      adresse: f.adresse || "", cp: f.code_postal || "", nif: f.nif || "", stat: f.stat || "",
+      rcs: f.rcs || "", cin: f.cin || "", reglement: f.type_reglement || "", tva: f.tva_defaut_pct ?? 20,
+      activite: f.activite || "", echeance: f.conditions_paiement_jours || 30, remise: f.remise_par_defaut_pct || 0,
     }));
-
-    const kpiRows = [
-      { label: "Montant total HT (filtré)", valeur: totauxFiltres.ht },
-      { label: "Montant total TTC (filtré)", valeur: totauxFiltres.ttc },
-      { label: "Nombre de lignes affichées", valeur: filtrees.length },
-    ];
-
-    const parts = [];
-    if (recherche) parts.push(slugify(recherche));
-    const slug = parts.length ? parts.join("_") : "tous-achats";
-
     await exportExcel({
-      filename: `historique_${slug}_${new Date().toISOString().slice(0, 10)}.xlsx`,
-      sheets: [
-        {
-          name: "Historique",
-          columns: [
-            { header: "Date DA", key: "dateDa", width: 12 }, { header: "Article", key: "article", width: 34 },
-            { header: "Qté", key: "qte", width: 8 }, { header: "Unité", key: "unite", width: 10 },
-            { header: "Fournisseur", key: "fournisseur", width: 20 }, { header: "N° BC", key: "bc", width: 16 },
-            { header: "Date BC (création)", key: "dateBc", width: 14 }, { header: "Date signature (envoi commande)", key: "dateSignature", width: 16 },
-            { header: "Date réception livraison", key: "dateReception", width: 15 }, { header: "Réceptionnaire", key: "receptionnaire", width: 15 },
-            { header: "État livraison", key: "etat", width: 14 }, { header: "Catégorie", key: "categorie", width: 20 },
-            { header: "Service demandeur", key: "service", width: 16 }, { header: "Demandeur", key: "demandeur", width: 16 },
-            { header: "Usage / Projet", key: "usage", width: 22 }, { header: "PU HT", key: "pu", width: 12 },
-            { header: "Remise %", key: "remise", width: 9 }, { header: "Montant HT", key: "montantHt", width: 14 },
-            { header: "Montant TTC", key: "montantTtc", width: 14 }, { header: "Total BC (TTC)", key: "totalBc", width: 14 },
-            { header: "Statut", key: "statut", width: 16 }, { header: "Observation", key: "observation", width: 26 },
-          ],
-          rows,
-          currencyKeys: ["pu", "montantHt", "montantTtc", "totalBc"],
-          percentKeys: ["remise"],
-        },
-        {
-          name: "KPI",
-          columns: [{ header: "Indicateur", key: "label", width: 38 }, { header: "Valeur", key: "valeur", width: 26 }],
-          rows: kpiRows,
-          currencyKeys: ["valeur"],
-        },
-      ],
+      filename: `fournisseurs_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      sheets: [{
+        name: "Fournisseurs",
+        columns: [
+          { header: "Nom", key: "nom", width: 28 }, { header: "Nom du contact", key: "contact", width: 20 },
+          { header: "Tél", key: "tel", width: 15 }, { header: "E-mail", key: "email", width: 22 },
+          { header: "Adresse", key: "adresse", width: 26 }, { header: "Code postal", key: "cp", width: 12 },
+          { header: "NIF", key: "nif", width: 16 }, { header: "STAT", key: "stat", width: 16 },
+          { header: "RCS", key: "rcs", width: 16 }, { header: "CIN", key: "cin", width: 16 },
+          { header: "Règlement", key: "reglement", width: 14 }, { header: "TVA %", key: "tva", width: 8 },
+          { header: "Activité", key: "activite", width: 20 }, { header: "Échéance (j)", key: "echeance", width: 12 },
+          { header: "Remise %", key: "remise", width: 10 },
+        ],
+        rows, percentKeys: ["tva", "remise"],
+      }],
     });
     setExporting(false);
   };
 
-  const badgeEtat = (etat) => ({
-    fontSize: 11, padding: "2px 7px", borderRadius: 5,
-    background: etat === "Livré" ? "#EAF7EE" : etat === "Livré partiellement" ? "#FFF3D6" : "#F0EFEA",
-    color: etat === "Livré" ? "#1B7A4C" : etat === "Livré partiellement" ? "#8A6100" : "#999",
-  });
-
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <h1 style={{ fontSize: 18, marginBottom: 10, flexShrink: 0 }}>Historique des achats — situation globale</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
+          <h1 style={{ fontSize: 18 }}>Fournisseurs</h1>
+          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
+        </div>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexShrink: 0 }}>
-          <span style={sousOngletActif}>Vue globale</span>
-          <Link href="/historique/bois-chauffage" style={sousOnglet}>Bois de chauffage</Link>
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16, flexShrink: 0 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 12 }}>{editId ? "Modifier le fournisseur" : "Ajouter un fournisseur"}</h2>
+
+          <div style={rowStyle}>
+            <input placeholder="Nom ou raison sociale" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+            <input placeholder="Nom du contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <input placeholder="Téléphone" value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          </div>
+
+          <div style={rowStyle}>
+            <input placeholder="Adresse" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+            <input placeholder="Code postal" value={form.code_postal} onChange={(e) => setForm({ ...form, code_postal: e.target.value })} style={{ ...inputStyle, width: 120 }} />
+          </div>
+
+          <div style={rowStyle}>
+            <input placeholder="NIF" value={form.nif} onChange={(e) => setForm({ ...form, nif: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <input placeholder="STAT" value={form.stat} onChange={(e) => setForm({ ...form, stat: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <input placeholder="RCS" value={form.rcs} onChange={(e) => setForm({ ...form, rcs: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <input placeholder="CIN" value={form.cin} onChange={(e) => setForm({ ...form, cin: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          </div>
+
+          <div style={rowStyle}>
+            <select value={form.type_reglement} onChange={(e) => setForm({ ...form, type_reglement: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
+              <option>Chèque</option><option>Espèces</option><option>Chèque/Espèces</option><option>Virement</option>
+            </select>
+            <select value={form.tva_defaut_pct} onChange={(e) => setForm({ ...form, tva_defaut_pct: Number(e.target.value) })} style={{ ...inputStyle, flex: 1 }}>
+              <option value={20}>TVA 20% (taxable)</option>
+              <option value={0}>Non assujetti (0%)</option>
+            </select>
+            <input placeholder="Activité / secteur" value={form.activite} onChange={(e) => setForm({ ...form, activite: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          </div>
+
+          <div style={rowStyle}>
+            <input type="number" placeholder="Délai paiement (jours)" value={form.conditions_paiement_jours} onChange={(e) => setForm({ ...form, conditions_paiement_jours: e.target.value })} style={{ ...inputStyle, width: 180 }} />
+            <input type="number" placeholder="Remise par défaut (%)" value={form.remise_par_defaut_pct} onChange={(e) => setForm({ ...form, remise_par_defaut_pct: e.target.value })} style={{ ...inputStyle, width: 180 }} />
+          </div>
+
+          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+            <button onClick={enregistrer} style={buttonStyle}>{editId ? "Enregistrer" : "Ajouter"}</button>
+            {editId && <button onClick={() => { setForm(empty); setEditId(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
+          </div>
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center", flexShrink: 0 }}>
-            <Autocomplete
-              placeholder="Rechercher — article, fournisseur, service, demandeur, catégorie, usage/projet, N° BC, statut..."
-              value={recherche}
-              onChange={setRecherche}
-              suggestions={suggestionsRecherche}
-              style={{ flex: 1, minWidth: 320 }}
-            />
-            <label style={{ fontSize: 12, color: "#666" }}>Du</label>
-            <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
-            <label style={{ fontSize: 12, color: "#666" }}>au</label>
-            <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
-            <button onClick={exporter} disabled={exporting} style={buttonStyle}>
-              {exporting ? "Génération..." : "Exporter en Excel"}
-            </button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
+            <h2 style={{ fontSize: 15 }}>Liste ({liste.filter(f => matchRecherche(f, recherche)).length} / {liste.length})</h2>
+            <div style={{ position: "relative", width: 340 }}>
+              <input placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+              {recherche && (
+                <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
+              )}
+            </div>
           </div>
-
-          {recherche && filtrees.length > 0 && dernierAchatParArticle[filtrees[0].designation] && (
-            <div style={{ background: "#F5F4F1", borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13, flexShrink: 0 }}>
-              <strong>Dernier achat de "{filtrees[0].designation}"</strong> : {Number(dernierAchatParArticle[filtrees[0].designation].prix_unitaire_ht).toLocaleString("fr-FR")} Ar
-              chez {dernierAchatParArticle[filtrees[0].designation].fournisseur_nom}, le {formatDate(dernierAchatParArticle[filtrees[0].designation].bc_date)}
+          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          {liste.filter((f) => matchRecherche(f, recherche)).map((f) => (
+            <div key={f.id} style={cardStyle}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{f.nom}</div>
+              <div>
+                <button onClick={() => copierFiche(f)} style={iconBtn} title="Copier toutes les infos">
+                  <IconCopy />
+                </button>
+                <button onClick={() => modifier(f)} style={iconBtn} title="Modifier">
+                  <IconEdit />
+                </button>
+                {role === "acheteur" && (
+                  <button onClick={() => supprimer(f.id)} style={{ ...iconBtn, color: "#B3261E" }} title="Supprimer">
+                    <IconTrash />
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-
-          {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-          {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucun achat enregistré pour le moment.</p>}
-
-          {filtrees.length > 0 && (
-            <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
-                <colgroup>
-                  <col style={{ width: 80 }} /><col style={{ width: 230 }} /><col style={{ width: 80 }} /><col style={{ width: 60 }} />
-                  <col style={{ width: 170 }} /><col style={{ width: 140 }} /><col style={{ width: 80 }} /><col style={{ width: 90 }} />
-                  <col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 100 }} /><col style={{ width: 120 }} />
-                  <col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 210 }} /><col style={{ width: 90 }} />
-                  <col style={{ width: 70 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} />
-                  <col style={{ width: 100 }} /><col style={{ width: 150 }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Date DA</th>
-                    <th style={thStyle}>Article</th>
-                    <th style={thStyle}>Qté</th>
-                    <th style={thStyle}>Unité</th>
-                    <th style={thStyle}>Fournisseur</th>
-                    <th style={thStyle}>N° BC</th>
-                    <th style={thStyle}>Date BC</th>
-                    <th style={thStyle}>Date signature</th>
-                    <th style={thStyle}>Date réception</th>
-                    <th style={thStyle}>Réceptionnaire</th>
-                    <th style={thStyle}>État livraison</th>
-                    <th style={thStyle}>Catégorie</th>
-                    <th style={thStyle}>Service demandeur</th>
-                    <th style={thStyle}>Demandeur</th>
-                    <th style={thStyle}>Usage / Projet</th>
-                    <th style={thStyle}>PU HT</th>
-                    <th style={thStyle}>Remise</th>
-                    <th style={thStyle}>Montant HT</th>
-                    <th style={thStyle}>Montant TTC</th>
-                    <th style={thStyle}>Total BC</th>
-                    <th style={thStyle}>Statut</th>
-                    <th style={thStyle}>Observation</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtrees.map((l) => (
-                    <tr key={l.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                      <td style={tdStyle}>{formatDate(l.date_da) || "-"}</td>
-                      <td style={tdStyle}>{l.designation}</td>
-                      <td style={tdStyle}>{l.quantite} {l.unite}</td>
-                      <td style={tdStyle}>{l.unite}</td>
-                      <td style={tdStyle}>{l.fournisseur_nom}</td>
-                      <td style={tdStyle}>{l.bc_numero}</td>
-                      <td style={tdStyle}>{formatDate(l.bc_date) || "-"}</td>
-                      <td style={tdStyle}>{formatDate(l.date_signature) || "-"}</td>
-                      <td style={tdStyle}>{formatDate(l.date_reception) || "-"}</td>
-                      <td style={tdStyle}>{l.receptionnaire}</td>
-                      <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
-                      <td style={tdStyle}>{l.categorie || "-"}</td>
-                      <td style={tdStyle}>{l.service || "-"}</td>
-                      <td style={tdStyle}>{l.demandeur || "-"}</td>
-                      <td style={tdStyle}>{l.usage_projet || "-"}</td>
-                      <td style={tdStyle}>{l.prix_unitaire_ht != null ? `${Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : "-"}</td>
-                      <td style={tdStyle}>{l.remise_pct != null ? `${l.remise_pct}%` : "-"}</td>
-                      <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
-                      <td style={tdStyle}>{Number(l.montant_ttc).toLocaleString("fr-FR")} Ar</td>
-                      <td style={{ ...tdStyle, fontWeight: 600 }}>{l.bc_total_ttc ? `${Number(l.bc_total_ttc).toLocaleString("fr-FR")} Ar` : "-"}</td>
-                      <td style={tdStyle}>{l.statut}</td>
-                      <td style={tdStyle}>{l.observation}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr style={{ borderTop: "2px solid #ddd" }}>
-                    <td colSpan={15} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length})</td>
-                    <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
-                    <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
-                    <td colSpan={4} style={tdStyle}></td>
-                  </tr>
-                </tfoot>
-              </table>
+            <div style={grid}>
+              <Champ label="Nom du contact" value={f.contact} />
+              <ChampCopiable label="Téléphone" value={f.telephone} />
+              <ChampCopiable label="E-mail" value={f.email} />
+              <Champ label="Adresse" value={f.adresse} />
+              <Champ label="Code postal" value={f.code_postal} />
+              <Champ label="NIF" value={f.nif} />
+              <Champ label="STAT" value={f.stat} />
+              <Champ label="RCS" value={f.rcs} />
+              <Champ label="CIN" value={f.cin} />
+              <Champ label="Type de règlement" value={f.type_reglement} />
+              <Champ label="TVA" value={f.tva_defaut_pct === 0 ? "Non assujetti" : `${f.tva_defaut_pct ?? 20}%`} />
+              <Champ label="Activité" value={f.activite} />
+              <Champ label="Délai paiement" value={f.conditions_paiement_jours ? `${f.conditions_paiement_jours} jours` : ""} />
+              <Champ label="Remise par défaut" value={f.remise_par_defaut_pct ? `${f.remise_par_defaut_pct}%` : ""} />
             </div>
-          )}
+          </div>
+          ))}
+          </div>
         </div>
       </div>
     </AuthGuard>
   );
 }
 
-const sousOnglet = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#888", textDecoration: "none", background: "transparent" };
-const sousOngletActif = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#1B2430", fontWeight: 600, background: "#fff" };
-const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "normal", lineHeight: 1.3, position: "sticky", top: 0, zIndex: 1, verticalAlign: "bottom" };
-const tdStyle = { padding: "8px 10px", whiteSpace: "normal", overflowWrap: "break-word", wordBreak: "break-word", verticalAlign: "top" };
+function Champ({ label, value }) {
+  if (!value) return null;
+  return (
+    <div>
+      <div style={champLabel}>{label}</div>
+      <div style={champValue}>{value}</div>
+    </div>
+  );
+}
+
+function ChampCopiable({ label, value }) {
+  const [copie, setCopie] = useState(false);
+  if (!value) return null;
+  const copier = async () => {
+    try { await navigator.clipboard.writeText(value); setCopie(true); setTimeout(() => setCopie(false), 1500); } catch (e) {}
+  };
+  return (
+    <div>
+      <div style={champLabel}>{label}</div>
+      <div style={{ fontSize: 13, marginTop: 2, wordBreak: "break-word" }}>{value}</div>
+      <button onClick={copier} style={{ ...copyBtn, marginTop: 4 }}>{copie ? "Copié !" : "Copier"}</button>
+    </div>
+  );
+}
+
+const rowStyle = { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 };
+const tdBold = { padding: "8px 6px", fontWeight: 600 };
+const cardStyle = { border: "1px solid #eee", borderRadius: 10, padding: 16, marginBottom: 12 };
+const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 14, marginTop: 10 };
+const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3 };
+const champValue = { fontSize: 13, marginTop: 2, display: "flex", alignItems: "center", gap: 6 };
+const copyBtn = { fontSize: 11, border: "1px solid #ddd", background: "#fff", borderRadius: 4, padding: "1px 6px", cursor: "pointer", color: "#1B2430" };
+const clearBtn = { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, lineHeight: 1, color: "#999", cursor: "pointer", padding: "2px 6px" };
+const iconBtn = { border: "none", background: "none", color: "#1B2430", cursor: "pointer", padding: 4, marginLeft: 4, display: "inline-flex", alignItems: "center", borderRadius: 6 };
