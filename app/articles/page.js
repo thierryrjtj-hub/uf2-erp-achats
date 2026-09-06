@@ -55,7 +55,7 @@ export default function ArticlesPage() {
   }, [liste]);
 
   const charger = async () => {
-    const { data } = await supabase.from("articles").select("*").order("designation");
+    const { data } = await supabase.from("articles").select("*").order("designation").limit(10000);
     setListe(data || []);
     const { data: lignes } = await supabase
       .from("lignes_bc")
