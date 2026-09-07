@@ -24,3 +24,6 @@ export function IconDownload(props) {
 export function IconFileText(props) {
   return <Base {...props}><path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" /><path d="M9 12h6M9 16h6" stroke="currentColor" /></Base>;
 }
+export function IconBan(props) {
+  return <Base {...props}><circle cx="12" cy="12" r="9" stroke="currentColor" /><path d="M5.5 5.5l13 13" stroke="currentColor" /></Base>;
+}
