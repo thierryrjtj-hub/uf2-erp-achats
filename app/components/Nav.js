@@ -31,6 +31,7 @@ const LINKS = [
     ],
   },
   { href: "/journal", label: "Journal d'audit", icon: IconList },
+  { href: "/sauvegarde", label: "Sauvegarde", icon: IconSave },
 ];
 
 export default function Nav() {
@@ -148,4 +149,7 @@ function IconBox({ color }) {
 }
 function IconList({ color }) {
   return <IconBase><path d="M8 6h13M8 12h13M8 18h13" stroke={color} /><circle cx="3.5" cy="6" r="1.2" fill={color} stroke="none" /><circle cx="3.5" cy="12" r="1.2" fill={color} stroke="none" /><circle cx="3.5" cy="18" r="1.2" fill={color} stroke="none" /></IconBase>;
+}
+function IconSave({ color }) {
+  return <IconBase><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke={color} /><path d="M17 21v-8H7v8M7 3v5h8" stroke={color} /></IconBase>;
 }
