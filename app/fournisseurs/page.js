@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
+import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 const empty = {
   nom: "", contact: "", telephone: "", email: "", adresse: "", code_postal: "",
@@ -26,6 +27,7 @@ export default function FournisseursPage() {
   const [editId, setEditId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [recherche, setRecherche] = useState("");
+  const [tri, setTri] = useState({ colonne: "nom", sens: "asc" });
 
   const charger = async () => {
     const { data } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
@@ -33,6 +35,8 @@ export default function FournisseursPage() {
   };
 
   useEffect(() => { charger(); }, []);
+
+  const filtrees = useMemo(() => appliquerTri(liste.filter((f) => matchRecherche(f, recherche)), tri), [liste, recherche, tri]);
 
   const enregistrer = async () => {
     if (!form.nom.trim()) return;
@@ -155,16 +159,27 @@ export default function FournisseursPage() {
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
-            <h2 style={{ fontSize: 15 }}>Liste ({liste.filter(f => matchRecherche(f, recherche)).length} / {liste.length})</h2>
-            <div style={{ position: "relative", width: 340 }}>
-              <input placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
-              {recherche && (
-                <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
-              )}
+            <h2 style={{ fontSize: 15 }}>Liste ({filtrees.length} / {liste.length})</h2>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ position: "relative", width: 300 }}>
+                <input placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+                {recherche && (
+                  <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
+                )}
+              </div>
+              <TriMenu
+                colonnes={[
+                  { key: "nom", label: "Nom" },
+                  { key: "activite", label: "Activité" },
+                  { key: "created_at", label: "Date de création" },
+                ]}
+                tri={tri}
+                onChange={setTri}
+              />
             </div>
           </div>
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-          {liste.filter((f) => matchRecherche(f, recherche)).map((f) => (
+          {filtrees.map((f) => (
             <div key={f.id} style={cardStyle}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{f.nom}</div>
