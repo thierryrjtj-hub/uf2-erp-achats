@@ -111,7 +111,18 @@ export default function HistoriquePage() {
   }, [lignes, recherche, dateDebut, dateFin]);
 
   const totauxFiltres = useMemo(() => {
-    return filtrees.reduce((acc, l) => ({ ht: acc.ht + (Number(l.montant_ht) || 0), ttc: acc.ttc + (Number(l.montant_ttc) || 0) }), { ht: 0, ttc: 0 });
+    const actives = filtrees.filter((l) => l.statut !== "Annulée");
+    const base = actives.reduce((acc, l) => ({ ht: acc.ht + (Number(l.montant_ht) || 0), ttc: acc.ttc + (Number(l.montant_ttc) || 0) }), { ht: 0, ttc: 0 });
+    // Le total "par BC" ne doit compter qu'une seule fois chaque BC (sinon un BC à plusieurs lignes serait compté plusieurs fois)
+    const bcVus = new Set();
+    let totalBc = 0;
+    actives.forEach((l) => {
+      if (l.bc_numero !== "-" && !bcVus.has(l.bc_numero)) {
+        bcVus.add(l.bc_numero);
+        totalBc += Number(l.bc_total_ttc) || 0;
+      }
+    });
+    return { ...base, totalBc };
   }, [filtrees]);
 
   const dernierAchatParArticle = useMemo(() => {
@@ -186,6 +197,7 @@ export default function HistoriquePage() {
 
   // Couleur de la ligne entière selon le statut, pour un repérage visuel rapide
   const couleurLigne = (l) => {
+    if (l.statut === "Annulée") return "#B0AEA6";
     if (l.statut && l.statut.startsWith("Clôturée (rupture)")) return "#B3261E";
     if (l.etat_livraison === "Livré") return "#1B7A4C";
     if (l.etat_livraison === "Livré partiellement") return "#8A6100";
@@ -270,6 +282,7 @@ export default function HistoriquePage() {
                       onClick={() => setLigneSelectionnee((prev) => (prev === l.id ? null : l.id))}
                       style={{
                         borderBottom: "1px solid #f0f0f0", color: couleurLigne(l), cursor: "pointer",
+                        textDecoration: l.statut === "Annulée" ? "line-through" : "none",
                         ...(ligneSelectionnee === l.id ? { background: "#EFEEE9" } : {}),
                       }}
                     >
@@ -303,7 +316,8 @@ export default function HistoriquePage() {
                     <td colSpan={17} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length})</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
-                    <td colSpan={3} style={tdStyle}></td>
+                    <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.totalBc.toLocaleString("fr-FR")} Ar</td>
+                    <td colSpan={2} style={tdStyle}></td>
                   </tr>
                 </tfoot>
               </table>
