@@ -300,10 +300,10 @@ export default function HistoriquePage() {
                 </tbody>
                 <tfoot>
                   <tr style={{ borderTop: "2px solid #ddd" }}>
-                    <td colSpan={15} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length})</td>
+                    <td colSpan={17} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length})</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
-                    <td colSpan={4} style={tdStyle}></td>
+                    <td colSpan={3} style={tdStyle}></td>
                   </tr>
                 </tfoot>
               </table>
