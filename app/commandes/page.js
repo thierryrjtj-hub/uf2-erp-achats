@@ -6,7 +6,7 @@ import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
-import { IconTrash } from "../components/Icons";
+import { IconTrash, IconBan } from "../components/Icons";
 
 export default function CommandesPage() {
   const role = useRole();
@@ -44,6 +44,19 @@ export default function CommandesPage() {
   const supprimerBc = async (c) => {
     if (!confirm(`Supprimer définitivement le bon de commande ${c.numero} ? Sa réception et son historique seront aussi supprimés.`)) return;
     await supabase.from("commandes").delete().eq("id", c.id);
+    charger();
+  };
+
+  const annulerBc = async (c) => {
+    if (c.statut === "Annulée") {
+      if (!confirm(`Réactiver le BC ${c.numero} (retirer le statut Annulée) ?`)) return;
+      await supabase.from("commandes").update({ statut: "Clôturée" }).eq("id", c.id);
+      charger();
+      return;
+    }
+    const motif = prompt(`Pourquoi annuler le BC ${c.numero} ? (raison obligatoire)`);
+    if (!motif || !motif.trim()) return;
+    await supabase.from("commandes").update({ statut: "Annulée", observation: motif.trim() }).eq("id", c.id);
     charger();
   };
 
@@ -192,6 +205,7 @@ export default function CommandesPage() {
                     </span>
                   </td>
                   <td style={tdStyle}>
+                    <button onClick={() => annulerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: c.statut === "Annulée" ? "#1B7A4C" : "#8A6100", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, marginRight: 8 }} title={c.statut === "Annulée" ? "Réactiver" : "Annuler"}><IconBan /></button>
                     <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", display: role === "acheteur" ? "inline-flex" : "none", alignItems: "center", gap: 5 }} title="Supprimer"><IconTrash /></button>
                   </td>
                 </tr>
