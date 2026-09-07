@@ -44,8 +44,8 @@ export default function Nav() {
   };
 
   return (
-    <div style={{ width: 226, height: "100vh", background: BRAND, display: "flex", flexDirection: "column", flexShrink: 0 }}>
-      <div style={{ padding: "22px 18px 18px" }}>
+    <div className="nav-sidebar" style={{ width: 226, height: "100vh", background: BRAND, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <div className="nav-logo-chip" style={{ padding: "22px 18px 18px" }}>
         <div style={{ background: "#fff", borderRadius: 10, padding: "8px 12px", display: "inline-block" }}>
           <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 36, display: "block" }} />
         </div>
@@ -59,6 +59,7 @@ export default function Nav() {
             <div key={l.href}>
               <Link
                 href={l.href}
+                title={l.label}
                 style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "9px 12px", borderRadius: 8,
@@ -70,10 +71,10 @@ export default function Nav() {
                 }}
               >
                 <Icon color={actif ? ACCENT : "#A9C2BB"} />
-                {l.label}
+                <span className="nav-label">{l.label}</span>
               </Link>
               {l.children && actif && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 2, marginBottom: 2 }}>
+                <div className="nav-souslabel" style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 2, marginBottom: 2 }}>
                   {l.children.map((c) => {
                     const sousActif = pathname === c.href;
                     return (
@@ -103,15 +104,17 @@ export default function Nav() {
       <div style={{ padding: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <button
           onClick={logout}
+          title="Déconnexion"
           style={{
             width: "100%", fontSize: 13, border: "1px solid rgba(255,255,255,0.15)",
             background: "transparent", color: "#A9C2BB", padding: "9px 12px",
-            borderRadius: 8, cursor: "pointer",
+            borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           }}
         >
-          Déconnexion
+          <IconLogout />
+          <span className="nav-label">Déconnexion</span>
         </button>
-        <p style={{ fontSize: 10.5, color: "#7A9C93", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
+        <p className="nav-footer" style={{ fontSize: 10.5, color: "#7A9C93", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
           Créé par Judicaël Randrianaivo
         </p>
       </div>
@@ -152,4 +155,7 @@ function IconList({ color }) {
 }
 function IconSave({ color }) {
   return <IconBase><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke={color} /><path d="M17 21v-8H7v8M7 3v5h8" stroke={color} /></IconBase>;
+}
+function IconLogout() {
+  return <IconBase><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="#A9C2BB" /><path d="M16 17l5-5-5-5M21 12H9" stroke="#A9C2BB" /></IconBase>;
 }
