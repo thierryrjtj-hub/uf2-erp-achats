@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
@@ -13,6 +13,8 @@ export default function CommandesPage() {
   const [liste, setListe] = useState([]);
   const [receptions, setReceptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [recherche, setRecherche] = useState("");
+  const [filtreStatut, setFiltreStatut] = useState("");
 
   const charger = async () => {
     const { data: c } = await supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000);
@@ -23,6 +25,16 @@ export default function CommandesPage() {
   };
 
   useEffect(() => { charger(); }, []);
+
+  const statutsDistincts = useMemo(() => [...new Set(liste.map((c) => c.statut).filter(Boolean))].sort(), [liste]);
+  const filtrees = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
+    return liste.filter((c) => {
+      const okRecherche = !q || [c.numero, c.fournisseur_nom].some((v) => (v || "").toLowerCase().includes(q));
+      const okStatut = !filtreStatut || c.statut === filtreStatut;
+      return okRecherche && okStatut;
+    });
+  }, [liste, recherche, filtreStatut]);
 
   const changerStatut = async (id, statut) => {
     setListe((prev) => prev.map((c) => (c.id === id ? { ...c, statut } : c)));
@@ -106,10 +118,22 @@ export default function CommandesPage() {
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12, flexShrink: 0 }}>Liste ({liste.length})</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
+            <h2 style={{ fontSize: 15 }}>Liste ({filtrees.length} / {liste.length})</h2>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ position: "relative", width: 260 }}>
+                <input placeholder="Rechercher (N° BC, fournisseur...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+                {recherche && <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer">×</button>}
+              </div>
+              <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)} style={inputStyle}>
+                <option value="">Tous les statuts</option>
+                {statutsDistincts.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-          {!loading && liste.length === 0 && (
-            <p style={{ color: "#888", fontSize: 13 }}>Aucun bon de commande pour le moment — génère-en un depuis une demande (onglet Demandes &amp; TCO).</p>
+          {!loading && filtrees.length === 0 && (
+            <p style={{ color: "#888", fontSize: 13 }}>Aucun bon de commande pour ces filtres.</p>
           )}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -125,7 +149,7 @@ export default function CommandesPage() {
             </tr>
           </thead>
           <tbody>
-            {liste.map((c) => {
+            {filtrees.map((c) => {
               const reception = receptions.find((r) => r.bc_id === c.id);
               const echeance = echeanceInfo(c);
               const enRetard = echeance && c.statut_paiement !== "Payé" && new Date() > echeance;
@@ -179,3 +203,4 @@ export default function CommandesPage() {
 }
 
 const smallBtn = { padding: "5px 10px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer" };
+const clearBtn = { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, lineHeight: 1, color: "#999", cursor: "pointer", padding: "2px 6px" };
