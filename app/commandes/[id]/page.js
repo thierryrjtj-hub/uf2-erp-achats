@@ -29,7 +29,7 @@ export default function CommandeDetailPage() {
   const [saisie, setSaisie] = useState(nouvelleSaisie());
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
-  const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", echeance_jours: 30, statut_paiement: "Impayé", date_paiement: "" });
+  const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", echeance_jours: 30, statut_paiement: "Impayé", date_paiement: "", mode_paiement: "" });
   const [transmission, setTransmission] = useState({ dateEnvoiSignature: "", dateRetourSignature: "", destinataireSignature: "", dateEnvoiPaiement: "", dateDisponibilitePaiement: "", destinatairePaiement: "" });
   const [accuses, setAccuses] = useState([]);
   const [nouvelAccuse, setNouvelAccuse] = useState({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", demandeur: "", observation: "" });
@@ -72,6 +72,7 @@ export default function CommandeDetailPage() {
         echeance_jours: c.echeance_jours ?? 30,
         statut_paiement: c.statut_paiement || "Impayé",
         date_paiement: c.date_paiement || "",
+        mode_paiement: c.mode_paiement || "",
       });
       setDateSignature(c.date_signature || "");
       setObservation(c.observation || "");
@@ -217,6 +218,7 @@ export default function CommandeDetailPage() {
       date_facture: facture.date_facture || null,
       echeance_jours: Number(facture.echeance_jours) || 30,
       statut_paiement: facture.statut_paiement,
+      mode_paiement: facture.statut_paiement === "Payé" ? facture.mode_paiement || null : null,
       date_paiement: facture.statut_paiement === "Payé" ? (facture.date_paiement || new Date().toISOString().slice(0, 10)) : null,
     }).eq("id", id);
     charger();
@@ -595,6 +597,14 @@ export default function CommandeDetailPage() {
             <option>Impayé</option>
             <option>Payé</option>
           </select>
+          {facture.statut_paiement === "Payé" && (
+            <select value={facture.mode_paiement} onChange={(e) => setFacture({ ...facture, mode_paiement: e.target.value })} style={inputStyle}>
+              <option value="">Mode de règlement...</option>
+              <option>Chèque</option>
+              <option>Espèces</option>
+              <option>Virement</option>
+            </select>
+          )}
         </div>
         <button onClick={enregistrerFacture} style={buttonStyle}>Enregistrer</button>
       </div>
