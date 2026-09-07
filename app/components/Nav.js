@@ -13,7 +13,7 @@ const LINKS = [
       { href: "/demandes/nouvelle", label: "Nouvelle demande" },
     ],
   },
-  { href: "/commandes", label: "Bons de commande", icon: IconCart },
+  { href: "/commandes", label: "Commandes", icon: IconCart },
   {
     href: "/historique", label: "Historique", icon: IconClock,
     children: [
