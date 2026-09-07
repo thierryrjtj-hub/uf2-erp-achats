@@ -6,6 +6,7 @@ import { exportExcel, slugify } from "../../lib/exportExcel";
 import { formatDate } from "../../lib/format";
 import Autocomplete from "../components/Autocomplete";
 import { inputStyle, buttonStyle } from "../components/ui";
+import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 export default function HistoriquePage() {
   const [lignes, setLignes] = useState([]);
@@ -14,6 +15,7 @@ export default function HistoriquePage() {
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
   const [ligneSelectionnee, setLigneSelectionnee] = useState(null);
+  const [tri, setTri] = useState({ colonne: "date_tri", sens: "desc" });
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -102,13 +104,14 @@ export default function HistoriquePage() {
 
   const filtrees = useMemo(() => {
     const q = recherche.trim().toLowerCase();
-    return lignes.filter((l) => {
+    const base = lignes.filter((l) => {
       const okRecherche = !q || CHAMPS_RECHERCHABLES.some((champ) => (l[champ] || "").toString().toLowerCase().includes(q));
       const okDebut = !dateDebut || (l.date_tri && l.date_tri >= dateDebut);
       const okFin = !dateFin || (l.date_tri && l.date_tri <= dateFin);
       return okRecherche && okDebut && okFin;
     });
-  }, [lignes, recherche, dateDebut, dateFin]);
+    return appliquerTri(base, tri);
+  }, [lignes, recherche, dateDebut, dateFin, tri]);
 
   const totauxFiltres = useMemo(() => {
     const actives = filtrees.filter((l) => l.statut !== "Annulée");
@@ -223,6 +226,17 @@ export default function HistoriquePage() {
             <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
             <label style={{ fontSize: 12, color: "#666" }}>au</label>
             <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
+            <TriMenu
+              colonnes={[
+                { key: "date_tri", label: "Date" },
+                { key: "designation", label: "Article" },
+                { key: "fournisseur_nom", label: "Fournisseur" },
+                { key: "montant_ttc", label: "Montant TTC" },
+                { key: "statut", label: "Statut" },
+              ]}
+              tri={tri}
+              onChange={setTri}
+            />
             <button onClick={exporter} disabled={exporting} style={buttonStyle}>
               {exporting ? "Génération..." : "Exporter en Excel"}
             </button>
