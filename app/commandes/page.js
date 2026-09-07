@@ -44,6 +44,12 @@ export default function CommandesPage() {
   const supprimerBc = async (c) => {
     if (!confirm(`Supprimer définitivement le bon de commande ${c.numero} ? Sa réception et son historique seront aussi supprimés.`)) return;
     await supabase.from("commandes").delete().eq("id", c.id);
+    if (c.demande_id) {
+      const { data: autresBc } = await supabase.from("commandes").select("id").eq("demande_id", c.demande_id);
+      if (!autresBc || autresBc.length === 0) {
+        await supabase.from("demandes").delete().eq("id", c.demande_id);
+      }
+    }
     charger();
   };
 
