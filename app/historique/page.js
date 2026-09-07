@@ -13,6 +13,7 @@ export default function HistoriquePage() {
   const [recherche, setRecherche] = useState("");
   const [dateDebut, setDateDebut] = useState("");
   const [dateFin, setDateFin] = useState("");
+  const [ligneSelectionnee, setLigneSelectionnee] = useState(null);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -183,6 +184,15 @@ export default function HistoriquePage() {
     color: etat === "Livré" ? "#1B7A4C" : etat === "Livré partiellement" ? "#8A6100" : "#999",
   });
 
+  // Couleur de la ligne entière selon le statut, pour un repérage visuel rapide
+  const couleurLigne = (l) => {
+    if (l.statut && l.statut.startsWith("Clôturée (rupture)")) return "#B3261E";
+    if (l.etat_livraison === "Livré") return "#1B7A4C";
+    if (l.etat_livraison === "Livré partiellement") return "#8A6100";
+    if (l.statut === "A faire" || l.statut === "Partiellement traitée") return "#4A5A72";
+    return "#242322";
+  };
+
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
@@ -255,10 +265,17 @@ export default function HistoriquePage() {
                 </thead>
                 <tbody>
                   {filtrees.map((l) => (
-                    <tr key={l.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                    <tr
+                      key={l.id}
+                      onClick={() => setLigneSelectionnee((prev) => (prev === l.id ? null : l.id))}
+                      style={{
+                        borderBottom: "1px solid #f0f0f0", color: couleurLigne(l), cursor: "pointer",
+                        ...(ligneSelectionnee === l.id ? { background: "#EFEEE9" } : {}),
+                      }}
+                    >
                       <td style={tdStyle}>{formatDate(l.date_da) || "-"}</td>
                       <td style={tdStyle}>{l.designation}</td>
-                      <td style={tdStyle}>{l.quantite} {l.unite}</td>
+                      <td style={tdStyle}>{l.quantite}</td>
                       <td style={tdStyle}>{l.unite}</td>
                       <td style={tdStyle}>{l.fournisseur_nom}</td>
                       <td style={tdStyle}>{l.bc_numero}</td>
