@@ -5,9 +5,11 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
 import { linkBtn, inputStyle } from "../components/ui";
-import { IconCopy, IconBan } from "../components/Icons";
+import { IconCopy, IconBan, IconTrash } from "../components/Icons";
+import { useRole } from "../../lib/useRole";
 
 export default function DemandesListePage() {
+  const role = useRole();
   const [liste, setListe] = useState([]);
   const [demandesAvecNonDispo, setDemandesAvecNonDispo] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,19 @@ export default function DemandesListePage() {
     charger();
   };
 
+  const supprimerDemande = async (d) => {
+    const { data: bcLies } = await supabase.from("commandes").select("id, numero").eq("demande_id", d.id);
+    if (bcLies && bcLies.length > 0) {
+      const noms = bcLies.map((b) => b.numero).join(", ");
+      if (!confirm(`La demande ${d.numero} a ${bcLies.length} bon(s) de commande lié(s) (${noms}). Les supprimer aussi (avec leur réception/historique) et supprimer la demande ?`)) return;
+      await supabase.from("commandes").delete().eq("demande_id", d.id);
+    } else {
+      if (!confirm(`Supprimer définitivement la demande ${d.numero} ?`)) return;
+    }
+    await supabase.from("demandes").delete().eq("id", d.id);
+    charger();
+  };
+
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
@@ -100,6 +115,11 @@ export default function DemandesListePage() {
                 <button onClick={() => annulerDemande(d)} style={{ ...linkBtn, color: d.statut === "Annulée" ? "#1B7A4C" : "#8A6100", display: "inline-flex", alignItems: "center" }} title={d.statut === "Annulée" ? "Réactiver" : "Annuler"}>
                   <IconBan />
                 </button>
+                {role === "acheteur" && (
+                  <button onClick={() => supprimerDemande(d)} style={{ ...linkBtn, color: "#B3261E", display: "inline-flex", alignItems: "center" }} title="Supprimer">
+                    <IconTrash />
+                  </button>
+                )}
               </div>
             ))}
           </div>
