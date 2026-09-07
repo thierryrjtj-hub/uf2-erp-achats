@@ -5,6 +5,7 @@ import AuthGuard from "../../components/AuthGuard";
 import { exportExcel } from "../../../lib/exportExcel";
 import { formatDate } from "../../../lib/format";
 import { inputStyle, buttonStyle } from "../../components/ui";
+import TriMenu, { appliquerTri } from "../../components/TriMenu";
 
 const MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
@@ -18,6 +19,7 @@ export default function BoisChauffagePage() {
   const [dateDebut, setDateDebut] = useState(premierJourMois());
   const [dateFin, setDateFin] = useState(todayISO());
   const [annee, setAnnee] = useState(new Date().getFullYear());
+  const [tri, setTri] = useState({ colonne: "date", sens: "asc" });
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function BoisChauffagePage() {
   const joursDistincts = useMemo(() => [...new Set(evenementsPeriode.map((e) => e.date))].sort(), [evenementsPeriode]);
 
   const tableauJournalier = useMemo(() => {
-    return joursDistincts.map((date) => {
+    const brut = joursDistincts.map((date) => {
       const parFournisseur = {};
       let total = 0;
       fournisseurs.forEach((f) => {
@@ -73,7 +75,8 @@ export default function BoisChauffagePage() {
       });
       return { date, parFournisseur, total };
     });
-  }, [joursDistincts, evenementsPeriode, fournisseurs]);
+    return appliquerTri(brut, tri);
+  }, [joursDistincts, evenementsPeriode, fournisseurs, tri]);
 
   const totauxParFournisseurPeriode = useMemo(() => {
     const map = {};
@@ -158,6 +161,14 @@ export default function BoisChauffagePage() {
                   <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
                   <span style={{ alignSelf: "center", fontSize: 12 }}>au</span>
                   <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
+                  <TriMenu
+                    colonnes={[
+                      { key: "date", label: "Date" },
+                      { key: "total", label: "Total journalier" },
+                    ]}
+                    tri={tri}
+                    onChange={setTri}
+                  />
                 </div>
               </div>
 
