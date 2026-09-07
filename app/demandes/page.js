@@ -1,16 +1,18 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
-import { linkBtn } from "../components/ui";
+import { linkBtn, inputStyle } from "../components/ui";
 import { IconCopy } from "../components/Icons";
 
 export default function DemandesListePage() {
   const [liste, setListe] = useState([]);
   const [demandesAvecNonDispo, setDemandesAvecNonDispo] = useState(new Set());
   const [loading, setLoading] = useState(true);
+  const [recherche, setRecherche] = useState("");
+  const [filtreStatut, setFiltreStatut] = useState("");
 
   const charger = async () => {
     const { data } = await supabase.from("demandes").select("*").order("created_at", { ascending: false }).limit(10000);
@@ -21,6 +23,17 @@ export default function DemandesListePage() {
   };
 
   useEffect(() => { charger(); }, []);
+
+  const statutsDistincts = useMemo(() => [...new Set(liste.map((d) => d.statut).filter(Boolean))].sort(), [liste]);
+
+  const filtrees = useMemo(() => {
+    const q = recherche.trim().toLowerCase();
+    return liste.filter((d) => {
+      const okRecherche = !q || [d.numero, d.service, d.demandeur, d.motif_projet].some((v) => (v || "").toLowerCase().includes(q));
+      const okStatut = !filtreStatut || d.statut === filtreStatut;
+      return okRecherche && okStatut;
+    });
+  }, [liste, recherche, filtreStatut]);
 
   const copierPourDevis = async (d) => {
     const { data: lignesDeLaDemande } = await supabase.from("lignes_demande").select("*").eq("demande_id", d.id).order("created_at");
@@ -38,13 +51,24 @@ export default function DemandesListePage() {
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <h1 style={{ fontSize: 18, marginBottom: 14, flexShrink: 0 }}>Liste des demandes ({liste.length})</h1>
+        <h1 style={{ fontSize: 18, marginBottom: 14, flexShrink: 0 }}>Liste des demandes ({filtrees.length} / {liste.length})</h1>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", flexShrink: 0 }}>
+            <div style={{ position: "relative", flex: 1, minWidth: 240 }}>
+              <input placeholder="Rechercher (N°, service, demandeur, motif...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+              {recherche && <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer">×</button>}
+            </div>
+            <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)} style={inputStyle}>
+              <option value="">Tous les statuts</option>
+              {statutsDistincts.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-          {!loading && liste.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour le moment.</p>}
+          {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour ces filtres.</p>}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-            {liste.map((d) => (
+            {filtrees.map((d) => (
               <div key={d.id} style={rowStyle}>
                 <div style={{ flex: 1 }}>
                   <Link href={`/demandes/${d.id}`} style={{ fontWeight: 600, fontSize: 13, color: "#1E3A34", textDecoration: "underline" }}>{d.numero}</Link>
@@ -56,7 +80,7 @@ export default function DemandesListePage() {
                 {demandesAvecNonDispo.has(d.id) && (
                   <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
                 )}
-                <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{d.statut}</span>
+                <button onClick={() => setFiltreStatut(d.statut)} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100", border: "none", cursor: "pointer" }} title="Filtrer sur ce statut">{d.statut}</button>
                 <button onClick={() => copierPourDevis(d)} style={linkBtnBleu} title="Copier pour demande de devis">
                   <IconCopy /> Devis
                 </button>
@@ -77,3 +101,4 @@ function prioriteCouleur(p) {
 
 const linkBtnBleu = { border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer", padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 };
 const rowStyle = { display: "flex", alignItems: "center", gap: 12, padding: "10px 4px", borderBottom: "1px solid #f0f0f0" };
+const clearBtn = { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, lineHeight: 1, color: "#999", cursor: "pointer", padding: "2px 6px" };
