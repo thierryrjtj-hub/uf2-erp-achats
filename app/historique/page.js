@@ -270,7 +270,7 @@ export default function HistoriquePage() {
                     <th style={thStyle}>Remise</th>
                     <th style={thStyle}>Montant HT</th>
                     <th style={thStyle}>Montant TTC</th>
-                    <th style={thStyle}>Total BC</th>
+                    <th style={thStyle}>Total BC (TTC)</th>
                     <th style={thStyle}>Statut</th>
                     <th style={thStyle}>Observation</th>
                   </tr>
