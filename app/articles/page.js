@@ -7,6 +7,7 @@ import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
 import { inputStyle, buttonStyle } from "../components/ui";
+import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 function matchRecherche(a, q) {
   if (!q.trim()) return true;
@@ -21,6 +22,7 @@ export default function ArticlesListePage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [recherche, setRecherche] = useState("");
+  const [tri, setTri] = useState({ colonne: "designation", sens: "asc" });
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState(null);
 
@@ -36,6 +38,8 @@ export default function ArticlesListePage() {
   };
 
   useEffect(() => { charger(); }, []);
+
+  const filtrees = useMemo(() => appliquerTri(liste.filter((a) => matchRecherche(a, recherche)), tri), [liste, recherche, tri]);
 
   const historiqueParArticle = useMemo(() => {
     const map = {};
@@ -114,22 +118,33 @@ export default function ArticlesListePage() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 18 }}>Liste des articles ({loading ? "…" : liste.filter(a => matchRecherche(a, recherche)).length} / {liste.length})</h1>
+          <h1 style={{ fontSize: 18 }}>Liste des articles ({loading ? "…" : filtrees.length} / {liste.length})</h1>
           <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <div style={{ position: "relative", width: 340, marginBottom: 12, flexShrink: 0 }}>
-            <input placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
-            {recherche && (
-              <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
-            )}
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: 300 }}>
+              <input placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+              {recherche && (
+                <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
+              )}
+            </div>
+            <TriMenu
+              colonnes={[
+                { key: "designation", label: "Désignation" },
+                { key: "categorie", label: "Catégorie" },
+                { key: "dernier_prix_ht", label: "Dernier prix HT" },
+              ]}
+              tri={tri}
+              onChange={setTri}
+            />
           </div>
 
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
 
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-            {liste.filter((a) => matchRecherche(a, recherche)).map((a) => {
+            {filtrees.map((a) => {
               const hist = historiqueParArticle[a.id] || [];
               const dernier = hist[0];
               const autres = [...new Map(hist.slice(1).map((h) => [h.fournisseur, h])).values()].slice(0, 4);
