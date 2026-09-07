@@ -1,6 +1,12 @@
 export const metadata = {
   title: "Achats Locaux",
-  description: "Gestion des achats UNIFOODS",
+  description: "Gestion des achats UNIFOODS UF2",
+  manifest: "/manifest.json",
+  icons: { icon: "/logo.png", apple: "/logo.png" },
+};
+
+export const viewport = {
+  themeColor: "#1E3A34",
 };
 
 export default function RootLayout({ children }) {
