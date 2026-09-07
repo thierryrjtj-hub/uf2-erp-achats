@@ -505,6 +505,7 @@ export default function CommandeDetailPage() {
 
       {/* ---- Suivi transmission signature / paiement ---- */}
       {onglet === "facture" && (
+      <>
       <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Suivi de transmission</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
@@ -597,6 +598,7 @@ export default function CommandeDetailPage() {
         </div>
         <button onClick={enregistrerFacture} style={buttonStyle}>Enregistrer</button>
       </div>
+      </>
       )}
 
       {/* ---- PV de réception (imprimable) ---- */}
