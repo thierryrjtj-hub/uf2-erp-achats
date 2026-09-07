@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [alertesPaiement, setAlertesPaiement] = useState([]);
   const [alertesEstimation, setAlertesEstimation] = useState([]);
   const [alertesImport, setAlertesImport] = useState([]);
+  const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -77,6 +78,13 @@ export default function DashboardPage() {
       const { data: aAviser } = await supabase.from("demandes").select("id, numero, service, demandeur, observation").eq("demandeur_avise", false).not("observation", "is", null);
       setAlertesImport(aAviser || []);
 
+      // ---- Résumé "à faire" en un coup d'œil ----
+      setResume({
+        demandesATraiter: (demandes || []).length,
+        bcEnLivraison: Object.keys(resteABcId).length,
+        facturesImpayees: (commandes || []).filter((c) => c.statut_paiement !== "Payé").length,
+      });
+
       setLoading(false);
     })();
   }, []);
@@ -90,6 +98,12 @@ export default function DashboardPage() {
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <h1 style={{ fontSize: 18, marginBottom: 4, flexShrink: 0 }}>Tableau de bord</h1>
         <p style={{ fontSize: 13, color: "#888", marginBottom: 14, flexShrink: 0 }}>À traiter aujourd'hui</p>
+
+        <div style={{ display: "flex", gap: 12, marginBottom: 18, flexShrink: 0, flexWrap: "wrap" }}>
+          <ResumeCard href="/demandes" valeur={resume.demandesATraiter} label="demande(s) à traiter" couleur="#F5A623" />
+          <ResumeCard href="/commandes" valeur={resume.bcEnLivraison} label="BC en cours de livraison" couleur="#1B4C7A" />
+          <ResumeCard href="/commandes" valeur={resume.facturesImpayees} label="facture(s) impayée(s)" couleur="#B3261E" />
+        </div>
 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
           {total === 0 && (
@@ -150,6 +164,18 @@ export default function DashboardPage() {
         </div>
       </div>
     </AuthGuard>
+  );
+}
+
+function ResumeCard({ href, valeur, label, couleur }) {
+  return (
+    <Link href={href} style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: "14px 20px", textDecoration: "none", color: "inherit", minWidth: 160, display: "flex", alignItems: "center", gap: 12 }}>
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: couleur, flexShrink: 0 }} />
+      <div>
+        <div style={{ fontSize: 22, fontWeight: 700 }}>{valeur}</div>
+        <div style={{ fontSize: 12, color: "#888" }}>{label}</div>
+      </div>
+    </Link>
   );
 }
 
