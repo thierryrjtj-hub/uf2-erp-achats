@@ -1,1 +1,14 @@
+{
+  "name": "Achats Locaux — UNIFOODS",
+  "short_name": "Achats Locaux",
+  "description": "Gestion des achats locaux UNIFOODS",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#F1F6F3",
+  "theme_color": "#1E3A34",
+  "icons": [
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
 
