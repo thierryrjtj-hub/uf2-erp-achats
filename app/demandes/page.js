@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
 import { linkBtn, inputStyle } from "../components/ui";
-import { IconCopy } from "../components/Icons";
+import { IconCopy, IconBan } from "../components/Icons";
 
 export default function DemandesListePage() {
   const [liste, setListe] = useState([]);
@@ -48,6 +48,19 @@ export default function DemandesListePage() {
     navigator.clipboard.writeText(texte).then(() => alert("Copié — colle-le dans un e-mail pour demander les devis aux fournisseurs."));
   };
 
+  const annulerDemande = async (d) => {
+    if (d.statut === "Annulée") {
+      if (!confirm(`Réactiver la demande ${d.numero} (retirer le statut Annulée) ?`)) return;
+      await supabase.from("demandes").update({ statut: "A faire" }).eq("id", d.id);
+      charger();
+      return;
+    }
+    const motif = prompt(`Pourquoi annuler la demande ${d.numero} ? (raison obligatoire)`);
+    if (!motif || !motif.trim()) return;
+    await supabase.from("demandes").update({ statut: "Annulée", observation: motif.trim() }).eq("id", d.id);
+    charger();
+  };
+
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
@@ -83,6 +96,9 @@ export default function DemandesListePage() {
                 <button onClick={() => setFiltreStatut(d.statut)} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100", border: "none", cursor: "pointer" }} title="Filtrer sur ce statut">{d.statut}</button>
                 <button onClick={() => copierPourDevis(d)} style={linkBtnBleu} title="Copier pour demande de devis">
                   <IconCopy /> Devis
+                </button>
+                <button onClick={() => annulerDemande(d)} style={{ ...linkBtn, color: d.statut === "Annulée" ? "#1B7A4C" : "#8A6100", display: "inline-flex", alignItems: "center" }} title={d.statut === "Annulée" ? "Réactiver" : "Annuler"}>
+                  <IconBan />
                 </button>
               </div>
             ))}
