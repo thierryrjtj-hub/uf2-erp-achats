@@ -7,6 +7,8 @@ export const metadata = {
 
 export const viewport = {
   themeColor: "#1E3A34",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }) {
@@ -35,6 +37,16 @@ export default function RootLayout({ children }) {
             box-shadow: 0 0 0 2px rgba(27,36,48,0.08);
           }
           a { color: inherit; }
+
+          /* ---- Adaptation mobile ---- */
+          @media (max-width: 680px) {
+            .nav-sidebar { width: 60px !important; }
+            .nav-label, .nav-souslabel, .nav-footer { display: none !important; }
+            .nav-logo-chip { padding: 6px !important; }
+            .nav-logo-chip img { height: 22px !important; }
+            .content-pane { padding: 14px 12px !important; }
+            table { font-size: 12px !important; }
+          }
         `}</style>
       </head>
       <body>{children}</body>
