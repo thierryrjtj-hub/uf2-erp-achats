@@ -153,8 +153,12 @@ export default function CommandesPage() {
               const reception = receptions.find((r) => r.bc_id === c.id);
               const echeance = echeanceInfo(c);
               const enRetard = echeance && c.statut_paiement !== "Payé" && new Date() > echeance;
+              const couleurLigne = c.statut?.startsWith("Clôturée (rupture)") ? "#B3261E"
+                : reception?.statut === "Totale" ? "#1B7A4C"
+                : enRetard ? "#B3261E"
+                : "#242322";
               return (
-                <tr key={c.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                <tr key={c.id} style={{ borderBottom: "1px solid #f0f0f0", color: couleurLigne }}>
                   <td style={{ ...tdStyle, fontWeight: 600 }}><Link href={`/commandes/${c.id}`} style={{ color: "#1E3A34", textDecoration: "underline" }}>{c.numero}</Link></td>
                   <td style={tdStyle}>{c.fournisseur_nom}</td>
                   <td style={tdStyle}>{Number(c.montant_ttc).toLocaleString("fr-FR")} Ar</td>
