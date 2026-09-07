@@ -7,6 +7,7 @@ import { exportExcel } from "../../lib/exportExcel";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
 import { IconTrash, IconBan } from "../components/Icons";
+import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 export default function CommandesPage() {
   const role = useRole();
@@ -15,6 +16,7 @@ export default function CommandesPage() {
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
+  const [tri, setTri] = useState({ colonne: "created_at", sens: "desc" });
 
   const charger = async () => {
     const { data: c } = await supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000);
@@ -29,12 +31,13 @@ export default function CommandesPage() {
   const statutsDistincts = useMemo(() => [...new Set(liste.map((c) => c.statut).filter(Boolean))].sort(), [liste]);
   const filtrees = useMemo(() => {
     const q = recherche.trim().toLowerCase();
-    return liste.filter((c) => {
+    const base = liste.filter((c) => {
       const okRecherche = !q || [c.numero, c.fournisseur_nom].some((v) => (v || "").toLowerCase().includes(q));
       const okStatut = !filtreStatut || c.statut === filtreStatut;
       return okRecherche && okStatut;
     });
-  }, [liste, recherche, filtreStatut]);
+    return appliquerTri(base, tri);
+  }, [liste, recherche, filtreStatut, tri]);
 
   const changerStatut = async (id, statut) => {
     setListe((prev) => prev.map((c) => (c.id === id ? { ...c, statut } : c)));
@@ -148,6 +151,17 @@ export default function CommandesPage() {
                 <option value="">Tous les statuts</option>
                 {statutsDistincts.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
+              <TriMenu
+                colonnes={[
+                  { key: "created_at", label: "Date" },
+                  { key: "numero", label: "N° BC" },
+                  { key: "fournisseur_nom", label: "Fournisseur" },
+                  { key: "montant_ttc", label: "Montant TTC" },
+                  { key: "statut", label: "Statut" },
+                ]}
+                tri={tri}
+                onChange={setTri}
+              />
             </div>
           </div>
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
