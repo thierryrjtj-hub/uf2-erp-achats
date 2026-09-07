@@ -5,6 +5,8 @@ import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import { buttonStyle } from "../components/ui";
 
+export const dynamic = "force-dynamic";
+
 const TABLES = [
   { table: "fournisseurs", nom: "Fournisseurs" },
   { table: "articles", nom: "Articles" },
@@ -88,4 +90,3 @@ export default function SauvegardePage() {
     </AuthGuard>
   );
 }
-
