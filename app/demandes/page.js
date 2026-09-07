@@ -7,6 +7,7 @@ import { formatDate } from "../../lib/format";
 import { linkBtn, inputStyle } from "../components/ui";
 import { IconCopy, IconBan, IconTrash } from "../components/Icons";
 import { useRole } from "../../lib/useRole";
+import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 export default function DemandesListePage() {
   const role = useRole();
@@ -15,6 +16,7 @@ export default function DemandesListePage() {
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
+  const [tri, setTri] = useState({ colonne: "created_at", sens: "desc" });
 
   const charger = async () => {
     const { data } = await supabase.from("demandes").select("*").order("created_at", { ascending: false }).limit(10000);
@@ -30,12 +32,13 @@ export default function DemandesListePage() {
 
   const filtrees = useMemo(() => {
     const q = recherche.trim().toLowerCase();
-    return liste.filter((d) => {
+    const base = liste.filter((d) => {
       const okRecherche = !q || [d.numero, d.service, d.demandeur, d.motif_projet].some((v) => (v || "").toLowerCase().includes(q));
       const okStatut = !filtreStatut || d.statut === filtreStatut;
       return okRecherche && okStatut;
     });
-  }, [liste, recherche, filtreStatut]);
+    return appliquerTri(base, tri);
+  }, [liste, recherche, filtreStatut, tri]);
 
   const copierPourDevis = async (d) => {
     const { data: lignesDeLaDemande } = await supabase.from("lignes_demande").select("*").eq("demande_id", d.id).order("created_at");
@@ -91,6 +94,16 @@ export default function DemandesListePage() {
               <option value="">Tous les statuts</option>
               {statutsDistincts.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+            <TriMenu
+              colonnes={[
+                { key: "created_at", label: "Date" },
+                { key: "numero", label: "N°" },
+                { key: "service", label: "Service" },
+                { key: "statut", label: "Statut" },
+              ]}
+              tri={tri}
+              onChange={setTri}
+            />
           </div>
 
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
