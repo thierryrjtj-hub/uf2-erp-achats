@@ -169,6 +169,7 @@ export default function CommandesPage() {
                       <option>Livraison en cours</option>
                       <option>Clôturée</option>
                       <option>Clôturée (rupture)</option>
+                      <option>Annulée</option>
                     </select>
                   </td>
                   <td style={tdStyle}>
