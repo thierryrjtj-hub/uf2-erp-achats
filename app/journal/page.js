@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { inputStyle, thStyle, tdStyle } from "../components/ui";
+import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 const ACTIONS_LABEL = { INSERT: "Création", UPDATE: "Modification", DELETE: "Suppression" };
 const ENTITES_LABEL = {
@@ -23,6 +24,7 @@ export default function JournalAuditPage() {
   const [recherche, setRecherche] = useState("");
   const [filtreEntite, setFiltreEntite] = useState("");
   const [filtreAction, setFiltreAction] = useState("");
+  const [tri, setTri] = useState({ colonne: "date_heure", sens: "desc" });
 
   useEffect(() => {
     (async () => {
@@ -43,14 +45,15 @@ export default function JournalAuditPage() {
 
   const filtrees = useMemo(() => {
     const q = recherche.trim().toLowerCase();
-    return entrees.filter((e) => {
+    const base = entrees.filter((e) => {
       const ref = reference(e.details);
       const okRecherche = !q || ref.toLowerCase().includes(q) || (profils[e.utilisateur_id] || "").toLowerCase().includes(q);
       const okEntite = !filtreEntite || e.entite === filtreEntite;
       const okAction = !filtreAction || e.action === filtreAction;
       return okRecherche && okEntite && okAction;
     });
-  }, [entrees, recherche, filtreEntite, filtreAction, profils]);
+    return appliquerTri(base, tri);
+  }, [entrees, recherche, filtreEntite, filtreAction, profils, tri]);
 
   const badgeAction = (a) => ({
     fontSize: 11, padding: "2px 8px", borderRadius: 5,
@@ -84,6 +87,15 @@ export default function JournalAuditPage() {
               <option value="UPDATE">Modification</option>
               <option value="DELETE">Suppression</option>
             </select>
+            <TriMenu
+              colonnes={[
+                { key: "date_heure", label: "Date / heure" },
+                { key: "entite", label: "Entité" },
+                { key: "action", label: "Action" },
+              ]}
+              tri={tri}
+              onChange={setTri}
+            />
           </div>
 
           {filtrees.length === 0 ? (
