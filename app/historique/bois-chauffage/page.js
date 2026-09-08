@@ -24,7 +24,7 @@ export default function BoisChauffagePage() {
 
   useEffect(() => {
     (async () => {
-      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, prix_unitaire_ht, remise_pct");
+      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, prix_unitaire_ht, remise_pct").limit(10000);
       const boisLignes = (lignesBc || []).filter((l) => l.designation.toLowerCase().includes("bois de chauffage") || l.designation.toLowerCase().includes("bois chauffage"));
       if (boisLignes.length === 0) { setEvenements([]); setLoading(false); return; }
 
