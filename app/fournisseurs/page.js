@@ -1,18 +1,13 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
-import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
+import { inputStyle, buttonStyle } from "../components/ui";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
-
-const empty = {
-  nom: "", contact: "", telephone: "", email: "", adresse: "", code_postal: "",
-  nif: "", stat: "", rcs: "", cin: "", type_reglement: "Chèque",
-  tva_defaut_pct: 20, activite: "", conditions_paiement_jours: 30, remise_par_defaut_pct: 0,
-};
 
 function matchRecherche(f, q) {
   if (!q.trim()) return true;
@@ -20,11 +15,9 @@ function matchRecherche(f, q) {
   return [f.nom, f.contact, f.activite, f.telephone, f.email, f.adresse, f.nif].some((v) => (v || "").toLowerCase().includes(s));
 }
 
-export default function FournisseursPage() {
+export default function FournisseursListePage() {
   const role = useRole();
   const [liste, setListe] = useState([]);
-  const [form, setForm] = useState(empty);
-  const [editId, setEditId] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [recherche, setRecherche] = useState("");
   const [tri, setTri] = useState({ colonne: "nom", sens: "asc" });
@@ -37,29 +30,6 @@ export default function FournisseursPage() {
   useEffect(() => { charger(); }, []);
 
   const filtrees = useMemo(() => appliquerTri(liste.filter((f) => matchRecherche(f, recherche)), tri), [liste, recherche, tri]);
-
-  const enregistrer = async () => {
-    if (!form.nom.trim()) return;
-    if (editId) {
-      await supabase.from("fournisseurs").update(form).eq("id", editId);
-    } else {
-      await supabase.from("fournisseurs").insert(form);
-    }
-    setForm(empty);
-    setEditId(null);
-    charger();
-  };
-
-  const modifier = (f) => {
-    setForm({
-      nom: f.nom, contact: f.contact || "", telephone: f.telephone || "", email: f.email || "",
-      adresse: f.adresse || "", code_postal: f.code_postal || "", nif: f.nif || "", stat: f.stat || "",
-      rcs: f.rcs || "", cin: f.cin || "", type_reglement: f.type_reglement || "Chèque",
-      tva_defaut_pct: f.tva_defaut_pct ?? 20, activite: f.activite || "",
-      conditions_paiement_jours: f.conditions_paiement_jours || 30, remise_par_defaut_pct: f.remise_par_defaut_pct || 0,
-    });
-    setEditId(f.id);
-  };
 
   const supprimer = async (id) => {
     await supabase.from("fournisseurs").delete().eq("id", id);
@@ -109,74 +79,27 @@ export default function FournisseursPage() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 18 }}>Fournisseurs</h1>
+          <h1 style={{ fontSize: 18 }}>Liste des fournisseurs ({filtrees.length} / {liste.length})</h1>
           <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16, flexShrink: 0 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12 }}>{editId ? "Modifier le fournisseur" : "Ajouter un fournisseur"}</h2>
-
-          <div style={rowStyle}>
-            <input placeholder="Nom ou raison sociale" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-            <input placeholder="Nom du contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-            <input placeholder="Téléphone" value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-            <input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-          </div>
-
-          <div style={rowStyle}>
-            <input placeholder="Adresse" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-            <input placeholder="Code postal" value={form.code_postal} onChange={(e) => setForm({ ...form, code_postal: e.target.value })} style={{ ...inputStyle, width: 120 }} />
-          </div>
-
-          <div style={rowStyle}>
-            <input placeholder="NIF" value={form.nif} onChange={(e) => setForm({ ...form, nif: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-            <input placeholder="STAT" value={form.stat} onChange={(e) => setForm({ ...form, stat: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-            <input placeholder="RCS" value={form.rcs} onChange={(e) => setForm({ ...form, rcs: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-            <input placeholder="CIN" value={form.cin} onChange={(e) => setForm({ ...form, cin: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-          </div>
-
-          <div style={rowStyle}>
-            <select value={form.type_reglement} onChange={(e) => setForm({ ...form, type_reglement: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
-              <option>Chèque</option><option>Espèces</option><option>Chèque/Espèces</option><option>Virement</option>
-            </select>
-            <select value={form.tva_defaut_pct} onChange={(e) => setForm({ ...form, tva_defaut_pct: Number(e.target.value) })} style={{ ...inputStyle, flex: 1 }}>
-              <option value={20}>TVA 20% (taxable)</option>
-              <option value={0}>Non assujetti (0%)</option>
-            </select>
-            <input placeholder="Activité / secteur" value={form.activite} onChange={(e) => setForm({ ...form, activite: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-          </div>
-
-          <div style={rowStyle}>
-            <input type="number" placeholder="Délai paiement (jours)" value={form.conditions_paiement_jours} onChange={(e) => setForm({ ...form, conditions_paiement_jours: e.target.value })} style={{ ...inputStyle, width: 180 }} />
-            <input type="number" placeholder="Remise par défaut (%)" value={form.remise_par_defaut_pct} onChange={(e) => setForm({ ...form, remise_par_defaut_pct: e.target.value })} style={{ ...inputStyle, width: 180 }} />
-          </div>
-
-          <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-            <button onClick={enregistrer} style={buttonStyle}>{editId ? "Enregistrer" : "Ajouter"}</button>
-            {editId && <button onClick={() => { setForm(empty); setEditId(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>}
-          </div>
-        </div>
-
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
-            <h2 style={{ fontSize: 15 }}>Liste ({filtrees.length} / {liste.length})</h2>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div style={{ position: "relative", width: 300 }}>
-                <input placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
-                {recherche && (
-                  <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
-                )}
-              </div>
-              <TriMenu
-                colonnes={[
-                  { key: "nom", label: "Nom" },
-                  { key: "activite", label: "Activité" },
-                  { key: "created_at", label: "Date de création" },
-                ]}
-                tri={tri}
-                onChange={setTri}
-              />
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: 300 }}>
+              <input placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+              {recherche && (
+                <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
+              )}
             </div>
+            <TriMenu
+              colonnes={[
+                { key: "nom", label: "Nom" },
+                { key: "activite", label: "Activité" },
+                { key: "created_at", label: "Date de création" },
+              ]}
+              tri={tri}
+              onChange={setTri}
+            />
           </div>
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
           {filtrees.map((f) => (
@@ -187,9 +110,9 @@ export default function FournisseursPage() {
                 <button onClick={() => copierFiche(f)} style={iconBtn} title="Copier toutes les infos">
                   <IconCopy />
                 </button>
-                <button onClick={() => modifier(f)} style={iconBtn} title="Modifier">
+                <Link href={`/fournisseurs/nouveau?id=${f.id}`} style={{ ...iconBtn, textDecoration: "none" }} title="Modifier">
                   <IconEdit />
-                </button>
+                </Link>
                 {role === "acheteur" && (
                   <button onClick={() => supprimer(f.id)} style={{ ...iconBtn, color: "#B3261E" }} title="Supprimer">
                     <IconTrash />
@@ -247,8 +170,6 @@ function ChampCopiable({ label, value }) {
   );
 }
 
-const rowStyle = { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 };
-const tdBold = { padding: "8px 6px", fontWeight: 600 };
 const cardStyle = { border: "1px solid #eee", borderRadius: 10, padding: 16, marginBottom: 12 };
 const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 14, marginTop: 10 };
 const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3 };
