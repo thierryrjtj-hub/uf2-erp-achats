@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Fragment } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
@@ -7,6 +7,7 @@ import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import CadreExtensible from "../../components/CadreExtensible";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../../components/ui";
+import { formatDate } from "../../../lib/format";
 
 function computeTotal(lignesOffre, lignesDemande, assujettiTva) {
   let totalHT = 0;
@@ -34,6 +35,7 @@ export default function TCODetailPage() {
   const [lignesOffre, setLignesOffre] = useState([]);
   const [dejaCouvertes, setDejaCouvertes] = useState(new Set());
   const [bcGeneres, setBcGeneres] = useState([]);
+  const [notesTco, setNotesTco] = useState({ remarque: "", mci: "", autres: "" });
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
@@ -50,6 +52,7 @@ export default function TCODetailPage() {
       lo = data || [];
     }
     setDemande(d);
+    setNotesTco({ remarque: d?.tco_remarque || "", mci: d?.tco_mci_consulte || "", autres: d?.tco_autres_fournisseurs || "" });
     setLignesDemande(ld || []);
     setFournisseurs(f || []);
     setOffres(o || []);
@@ -66,6 +69,12 @@ export default function TCODetailPage() {
   };
 
   useEffect(() => { charger(); }, [id]);
+
+  const fournisseursDetailMap = useMemo(() => {
+    const map = {};
+    fournisseurs.forEach((f) => { map[f.id] = f; });
+    return map;
+  }, [fournisseurs]);
 
   const offresAvecTotaux = useMemo(() => {
     return offres.map((o) => {
@@ -201,6 +210,14 @@ export default function TCODetailPage() {
     await supabase.from("offres").update({ [champ]: valeur || null }).eq("id", offreId);
   };
 
+  const enregistrerNotesTco = async () => {
+    await supabase.from("demandes").update({
+      tco_remarque: notesTco.remarque || null,
+      tco_mci_consulte: notesTco.mci || null,
+      tco_autres_fournisseurs: notesTco.autres || null,
+    }).eq("id", id);
+  };
+
   const majPrix = async (offreId, ligneDemandeId, field, value) => {
     const existante = lignesOffre.find((x) => x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId);
     setLignesOffre((prev) =>
@@ -313,6 +330,7 @@ export default function TCODetailPage() {
   return (
     <AuthGuard>
       <style>{`
+        @page { size: A4 portrait; margin: 8mm; }
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }
@@ -326,6 +344,8 @@ export default function TCODetailPage() {
         @media screen {
           .impression-seulement { display: none !important; }
         }
+        .tableau-zebre tbody tr:nth-child(odd) { background: #F5F5F5; }
+        .tableau-zebre tbody tr:nth-child(even) { background: #FFFFFF; }
       `}</style>
 
       <button onClick={() => router.push("/demandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux demandes</button>
@@ -578,21 +598,58 @@ export default function TCODetailPage() {
           </div>
         )}
 
-        {/* ---- Vue impression : pages de 4 fournisseurs, colonnes fixes répétées (point 21) ---- */}
+        {/* ---- Vue impression : gabarit fidèle au modèle réel (logo, en-tête, devis, totaux, notes) ---- */}
         {offresAvecTotaux.length > 0 && pagesImpression.map((page, pIdx) => (
-          <div key={pIdx} className="impression-seulement page-impression">
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <div key={pIdx} className="impression-seulement page-impression tableau-zebre" style={{ fontFamily: "Arial, sans-serif", color: "#1a1a1a" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
+              <img src="/logo.png" alt="UNIFOODS" style={{ height: 40 }} />
+              <div style={{ flex: 1, background: "#ECECEA", borderRadius: 10, padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 16, fontWeight: 700, color: "#3E7A52" }}>Tableau Comparatif des Offres Fournisseurs (TCO)</span>
+                <span style={{ fontSize: 11 }}><strong>N°</strong> &nbsp; {demande.numero_tco || "—"} &nbsp;&nbsp; <strong>Page</strong> {pIdx + 1} sur {pagesImpression.length}</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
+              <div style={{ ...infoBoxTco, flex: 2 }}>
+                <LigneInfoTco label="Date DA" value={formatDate(demande.created_at)} />
+                <LigneInfoTco label="Service Demandeur" value={demande.service || ""} />
+                <LigneInfoTco label="Nom Demandeur" value={demande.demandeur || ""} />
+                <LigneInfoTco label="N° DA" value={demande.numero} />
+              </div>
+              <div style={{ ...infoBoxTco, flex: 1 }}>
+                <LigneInfoTco label="Émetteur" value="Judicaël RANDRIANAIVO" />
+                <LigneInfoTco label="Fonction" value="Buyer" />
+                <LigneInfoTco label="Destinataire" value="Tous" />
+              </div>
+            </div>
+
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>N°</th>
-                  <th style={thStyle}>Article</th>
-                  <th style={thStyle}>Qté</th>
-                  <th style={thStyle}>Unité</th>
-                  <th style={{ ...thStyle, color: "#1B7A4C" }}>Préconisation</th>
+                  <th style={thTco}>N°</th>
+                  <th style={thTco}>Désignation Article</th>
+                  <th style={thTco}>Qté</th>
+                  <th style={thTco}>Unité</th>
+                  <th style={{ ...thTco, background: "#3E7A52", color: "#fff" }}>Préconisation</th>
                   {page.map((o) => (
-                    <th key={o.id} style={{ ...thStyle, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
-                      {o.fournisseur_nom}{etiquetteParOffre[o.id] ? ` — ${etiquetteParOffre[o.id]}` : ""}
+                    <th key={o.id} style={{ ...thTco, background: "#4a5568", color: "#fff" }} colSpan={3}>
+                      {o.fournisseur_nom}
+                      {(o.numero_devis || o.date_devis) && (
+                        <div style={{ fontWeight: 400, fontSize: 9 }}>
+                          {o.numero_devis || ""}{o.date_devis ? ` — ${formatDate(o.date_devis)}` : ""}
+                        </div>
+                      )}
                     </th>
+                  ))}
+                </tr>
+                <tr>
+                  <th style={thTcoSub} colSpan={5}></th>
+                  {page.map((o) => (
+                    <Fragment key={o.id}>
+                      <th style={thTcoSub}>PU HT</th>
+                      <th style={thTcoSub}>Remise</th>
+                      <th style={thTcoSub}>Montant HT</th>
+                    </Fragment>
                   ))}
                 </tr>
               </thead>
@@ -602,34 +659,94 @@ export default function TCODetailPage() {
                   const montantRetenu = offreRetenue ? montantLigne(offreRetenue, ld) : null;
                   return (
                     <tr key={ld.id}>
-                      <td style={tdStyle}>{i + 1}</td>
-                      <td style={tdStyle}>{ld.designation}</td>
-                      <td style={tdStyle}>{ld.quantite.toLocaleString("fr-FR")}</td>
-                      <td style={tdStyle}>{ld.unite}</td>
-                      <td style={tdStyle}>{offreRetenue ? `${offreRetenue.fournisseur_nom} — ${montantRetenu != null ? montantRetenu.toLocaleString("fr-FR") : "-"} Ar` : "-"}</td>
+                      <td style={tdTco}>{i + 1}</td>
+                      <td style={tdTco}>{ld.designation}</td>
+                      <td style={{ ...tdTco, textAlign: "center" }}>{Number(ld.quantite).toLocaleString("fr-FR")}</td>
+                      <td style={tdTco}>{ld.unite}</td>
+                      <td style={{ ...tdTco, fontWeight: 600, background: "#EAF7EE" }}>
+                        {offreRetenue ? `${offreRetenue.fournisseur_nom} — ${montantRetenu != null ? montantRetenu.toLocaleString("fr-FR") : "-"} Ar` : "-"}
+                      </td>
                       {page.map((o) => {
                         const lo = o.lignesOffre.find((x) => x.ligne_demande_id === ld.id) || {};
                         const m = montantLigne(o, ld);
+                        const estMoinsCher = moinsCherParLigne[ld.id] === o.id;
+                        const styleCell = { ...tdTco, ...(estMoinsCher ? { background: "#FFF3B0", fontWeight: 700 } : {}) };
                         return (
-                          <td key={o.id} style={tdStyle}>
-                            {lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR")} Ar (-${lo.remise_pct || 0}%) = ${m != null ? m.toLocaleString("fr-FR") : "-"} Ar` : "-"}
-                          </td>
+                          <Fragment key={o.id}>
+                            <td style={{ ...styleCell, textAlign: "right" }}>{lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : "-"}</td>
+                            <td style={{ ...styleCell, textAlign: "right" }}>{lo.remise_pct ? `${lo.remise_pct}%` : ""}</td>
+                            <td style={{ ...styleCell, textAlign: "right" }}>{m != null ? `${m.toLocaleString("fr-FR")} Ar` : "-"}</td>
+                          </Fragment>
                         );
                       })}
                     </tr>
                   );
                 })}
-                <tr style={{ borderTop: "2px solid #eee" }}>
-                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>Total (préconisation)</td>
-                  <td style={{ ...tdStyle, fontWeight: 700 }}>HT {totalPreconisation.ht.toLocaleString("fr-FR")} / TTC {totalPreconisation.ttc.toLocaleString("fr-FR")} Ar</td>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={4} style={{ ...tdTco, fontWeight: 700, verticalAlign: "top" }}>
+                    <div style={{ fontStyle: "italic", textDecoration: "underline" }}>Motif de la demande :</div>
+                    <div>{demande.motif_projet}</div>
+                  </td>
+                  <td style={{ ...tdTco, fontWeight: 700, background: "#EAF7EE" }}>
+                    TOTAL TTC PRÉCONISATION<br />{totalPreconisation.ttc.toLocaleString("fr-FR")} Ar
+                  </td>
                   {page.map((o) => (
-                    <td key={o.id} style={{ ...tdStyle, fontWeight: 600 }}>HT {o.totalHT.toLocaleString("fr-FR")} / TTC {o.totalTTC.toLocaleString("fr-FR")} Ar</td>
+                    <td key={o.id} colSpan={3} style={{ ...tdTco, fontWeight: 600 }}>
+                      MONTANT HT : {o.totalHT.toLocaleString("fr-FR")} Ar<br />
+                      TVA {o.assujetti_tva === false ? "0%" : "20%"} : {(o.assujetti_tva === false ? 0 : o.tva).toLocaleString("fr-FR")} Ar<br />
+                      <strong>TOTAL TTC : {o.totalTTC.toLocaleString("fr-FR")} Ar</strong>
+                    </td>
                   ))}
                 </tr>
-              </tbody>
+                {pIdx === pagesImpression.length - 1 && (
+                  <tr>
+                    <td colSpan={5} style={{ ...tdTco, verticalAlign: "top" }}>
+                      {notesTco.remarque && <><div style={{ fontStyle: "italic", textDecoration: "underline" }}>Remarque :</div><div style={{ marginBottom: 6, whiteSpace: "pre-wrap" }}>{notesTco.remarque}</div></>}
+                      {notesTco.mci && <><div style={{ fontStyle: "italic", textDecoration: "underline" }}>MCI également consulté :</div><div style={{ marginBottom: 6, whiteSpace: "pre-wrap" }}>{notesTco.mci}</div></>}
+                      {notesTco.autres && <><div style={{ fontStyle: "italic", textDecoration: "underline" }}>Autres fournisseurs consultés :</div><div style={{ whiteSpace: "pre-wrap" }}>{notesTco.autres}</div></>}
+                    </td>
+                    {page.map((o) => (
+                      <td key={o.id} colSpan={3} style={{ ...tdTco, fontSize: 9.5, verticalAlign: "top" }}>
+                        {fournisseursDetailMap[o.fournisseur_id]?.conditions_paiement_jours ? `* Échéance ${fournisseursDetailMap[o.fournisseur_id].conditions_paiement_jours} jours` : ""}
+                      </td>
+                    ))}
+                  </tr>
+                )}
+              </tfoot>
             </table>
+
+            {pIdx === pagesImpression.length - 1 && (
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 20, marginTop: 24 }}>
+                <div style={{ flex: 1, border: "1px solid #ccc", borderRadius: 8, padding: "10px 14px", minHeight: 60 }}>
+                  <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>Validation technique</div>
+                  <div style={{ fontSize: 9, color: "#666" }}>Nom, date, signature :</div>
+                </div>
+                <div style={{ flex: 1, border: "1px solid #ccc", borderRadius: 8, padding: "10px 14px", minHeight: 60 }}>
+                  <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>Validation direction</div>
+                  <div style={{ fontSize: 9, color: "#666" }}>Nom, date, signature :</div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #3E7A52", paddingTop: 8, marginTop: 20, fontSize: 9 }}>
+              <div><strong>UNIFOODS</strong> — 27, Rue Radama 1er Tsaralalana, 101 Antananarivo, Madagascar</div>
+              <div>NIF : 3001453076 &nbsp; STAT : 10505 11 2013 1 11066 &nbsp; RCS : 21013 B 00860 2018 B 01049</div>
+            </div>
           </div>
         ))}
+
+        {offresAvecTotaux.length > 0 && (
+          <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Notes pour le TCO imprimé</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+              <textarea placeholder="Remarque (ex. article surligné en jaune abordable...)" value={notesTco.remarque} onChange={(e) => setNotesTco({ ...notesTco, remarque: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
+              <textarea placeholder="MCI également consulté (notes libres)" value={notesTco.mci} onChange={(e) => setNotesTco({ ...notesTco, mci: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
+              <textarea placeholder="Autres fournisseurs consultés" value={notesTco.autres} onChange={(e) => setNotesTco({ ...notesTco, autres: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
+            </div>
+          </div>
+        )}
 
         {offresAvecTotaux.length > 0 && lignesDemande.some((ld) => !dejaCouvertes.has(ld.id)) && (
           <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
@@ -651,3 +768,16 @@ export default function TCODetailPage() {
   );
 }
 
+function LigneInfoTco({ label, value }) {
+  return (
+    <div style={{ display: "flex", fontSize: 10.5, marginBottom: 2 }}>
+      <span style={{ width: 110, fontWeight: 600, color: "#444", flexShrink: 0 }}>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+const infoBoxTco = { background: "#ECECEA", borderRadius: 8, padding: "8px 12px" };
+const thTco = { padding: "5px 4px", fontSize: 10, textAlign: "left", fontWeight: 700, background: "#3E7A52", color: "#fff", border: "1px solid #fff" };
+const thTcoSub = { padding: "3px 4px", fontSize: 9, textAlign: "center", fontWeight: 600, background: "#EFEFEF", border: "1px solid #ddd" };
+const tdTco = { padding: "4px", fontSize: 10, border: "1px solid #ddd" };
