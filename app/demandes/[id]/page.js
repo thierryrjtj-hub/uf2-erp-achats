@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
+import CadreExtensible from "../../components/CadreExtensible";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../../components/ui";
 
 function computeTotal(lignesOffre, lignesDemande, assujettiTva) {
@@ -391,7 +392,7 @@ export default function TCODetailPage() {
         </table>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }} className="print-area">
+      <CadreExtensible titre="Tableau comparatif (TCO)" className="print-area" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }} className="no-print">Tableau comparatif (TCO)</h2>
 
         <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -626,7 +627,7 @@ export default function TCODetailPage() {
             ✓ Tous les articles de cette demande ont déjà un bon de commande.
           </p>
         )}
-      </div>
+      </CadreExtensible>
     </AuthGuard>
   );
 }
