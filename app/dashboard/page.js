@@ -24,9 +24,9 @@ export default function DashboardPage() {
   useEffect(() => {
     (async () => {
       // ---- Demandes en attente de devis ----
-      const { data: demandes } = await supabase.from("demandes").select("id, numero, service, statut, created_at").not("statut", "in", '("Basculée en commande","Clôturée")');
-      const { data: offres } = await supabase.from("offres").select("id, demande_id");
-      const { data: lignesOffre } = await supabase.from("lignes_offre").select("offre_id, prix_unitaire_ht");
+      const { data: demandes } = await supabase.from("demandes").select("id, numero, service, statut, created_at").not("statut", "in", '("Basculée en commande","Clôturée")').limit(10000);
+      const { data: offres } = await supabase.from("offres").select("id, demande_id").limit(10000);
+      const { data: lignesOffre } = await supabase.from("lignes_offre").select("offre_id, prix_unitaire_ht").limit(10000);
 
       const devis = (demandes || []).filter((d) => {
         const j = joursDepuis(d.created_at);
@@ -39,10 +39,10 @@ export default function DashboardPage() {
       setAlertesDevis(devis);
 
       // ---- BC en attente de livraison ----
-      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, date_signature, statut, statut_paiement, date_facture, echeance_jours, date_estimee_reste");
-      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, quantite");
-      const { data: receptions } = await supabase.from("receptions").select("id, bc_id");
-      const { data: lignesReception } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree");
+      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, date_signature, statut, statut_paiement, date_facture, echeance_jours, date_estimee_reste").limit(10000);
+      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, quantite").limit(10000);
+      const { data: receptions } = await supabase.from("receptions").select("id, bc_id").limit(10000);
+      const { data: lignesReception } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
 
       const resteABcId = {};
       (lignesBc || []).forEach((l) => {
@@ -75,7 +75,7 @@ export default function DashboardPage() {
       setAlertesEstimation(estimation);
 
       // ---- Demandeurs à aviser (articles non disponibles localement) ----
-      const { data: aAviser } = await supabase.from("demandes").select("id, numero, service, demandeur, observation").eq("demandeur_avise", false).not("observation", "is", null);
+      const { data: aAviser } = await supabase.from("demandes").select("id, numero, service, demandeur, observation").eq("demandeur_avise", false).not("observation", "is", null).limit(10000);
       setAlertesImport(aAviser || []);
 
       // ---- Résumé "à faire" en un coup d'œil ----
