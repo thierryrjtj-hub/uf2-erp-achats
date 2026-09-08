@@ -729,11 +729,6 @@ export default function TCODetailPage() {
                 </div>
               </div>
             )}
-
-            <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #3E7A52", paddingTop: 8, marginTop: 20, fontSize: 9 }}>
-              <div><strong>UNIFOODS</strong> — 27, Rue Radama 1er Tsaralalana, 101 Antananarivo, Madagascar</div>
-              <div>NIF : 3001453076 &nbsp; STAT : 10505 11 2013 1 11066 &nbsp; RCS : 21013 B 00860 2018 B 01049</div>
-            </div>
           </div>
         ))}
 
