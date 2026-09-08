@@ -21,7 +21,7 @@ export default function DemandesListePage() {
   const charger = async () => {
     const { data } = await supabase.from("demandes").select("*").order("created_at", { ascending: false }).limit(10000);
     setListe(data || []);
-    const { data: nonDispo } = await supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true);
+    const { data: nonDispo } = await supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true).limit(10000);
     setDemandesAvecNonDispo(new Set((nonDispo || []).map((x) => x.demande_id)));
     setLoading(false);
   };
