@@ -541,6 +541,13 @@ export default function TCODetailPage() {
                           style={{ ...inputStyle, width: 100, fontWeight: 400, fontSize: 11, padding: "4px 6px" }}
                         />
                       </div>
+                      <textarea
+                        className="no-print"
+                        placeholder="Observation (dispo, conditions, précision article...)"
+                        defaultValue={o.observation || ""}
+                        onBlur={(e) => majOffre(o.id, "observation", e.target.value)}
+                        style={{ ...inputStyle, width: "100%", minHeight: 30, fontWeight: 400, fontSize: 11, marginTop: 6, resize: "vertical" }}
+                      />
                     </th>
                   ))}
                 </tr>
@@ -878,6 +885,7 @@ export default function TCODetailPage() {
                       const echeance = fournisseursDetailMap[o.fournisseur_id]?.conditions_paiement_jours;
                       const lignesObs = [];
                       if (echeance) lignesObs.push(`* Échéance ${echeance} jours`);
+                      if (o.observation) lignesObs.push(o.observation);
                       exceptions.forEach((e) => {
                         if (e.remise === 0) lignesObs.push(`* Pas de remise sur l'article n°${e.numero} (${truncateTexte(e.designation, 26)}) — habituellement ${e.defaut}%`);
                         else lignesObs.push(`* Remise de ${e.remise}% sur l'article n°${e.numero} (${truncateTexte(e.designation, 26)}), au lieu de ${e.defaut}% habituellement`);
