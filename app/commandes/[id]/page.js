@@ -287,6 +287,7 @@ export default function CommandeDetailPage() {
   return (
     <AuthGuard>
       <style>{`
+        @page { size: A4 portrait; margin: 10mm; }
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }
@@ -297,6 +298,8 @@ export default function CommandeDetailPage() {
         @media print { .pv-template.print-area { display: block; } }
         .bc-template { display: none; }
         @media print { .bc-template.print-area { display: block; } }
+        .tableau-zebre tbody tr:nth-child(odd) { background: #F5F5F5; }
+        .tableau-zebre tbody tr:nth-child(even) { background: #FFFFFF; }
       `}</style>
 
       <button onClick={() => router.push("/commandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux commandes</button>
@@ -668,7 +671,7 @@ export default function CommandeDetailPage() {
           </div>
         </div>
 
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginBottom: 24 }}>
+        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginBottom: 24 }}>
           <thead>
             <tr style={{ background: "#3E7A52", color: "#fff" }}>
               <th style={thPrint}>Réf. Devis n°</th><th style={thPrint}>Description</th><th style={thPrint}>Quantité</th>
@@ -734,7 +737,7 @@ export default function CommandeDetailPage() {
         <h1 style={{ fontSize: 18, display: "flex", alignItems: "center", gap: 10 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 28 }} /> — PV de Réception
         </h1>
-        <p style={{ fontSize: 13 }}>N° {bc.numero.replace("BC-", "PVR-")} — Date : {new Date().toLocaleDateString("fr-FR")}</p>
+        <p style={{ fontSize: 13 }}>N° {receptions[receptions.length - 1]?.numero || "—"} — Date : {new Date().toLocaleDateString("fr-FR")}</p>
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 16 }}>
           <tbody>
@@ -753,7 +756,7 @@ export default function CommandeDetailPage() {
           </tbody>
         </table>
 
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 16 }}>
+        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 16 }}>
           <thead>
             <tr>
               <th style={pvTh}>BC UF2 n°</th><th style={pvTh}>Description</th><th style={pvTh}>Quantité</th>
@@ -787,6 +790,15 @@ export default function CommandeDetailPage() {
           {["RESPONSABLE MAGASIN", "MAGASINIER", "AGENT DE SECURITE", "LIVREUR ou TRANSPORTEUR"].map((s) => (
             <div key={s} style={{ width: "22%", borderTop: "1px solid #333", paddingTop: 6, textAlign: "center", fontSize: 11 }}>{s}</div>
           ))}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #3E7A52", paddingTop: 10, marginTop: 36, fontSize: 10 }}>
+          <div>
+            <strong>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <strong>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
+          </div>
         </div>
       </div>
     </AuthGuard>
