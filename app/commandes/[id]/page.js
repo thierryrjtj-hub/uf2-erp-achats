@@ -8,6 +8,8 @@ import Autocomplete from "../../components/Autocomplete";
 import { useRole } from "../../../lib/useRole";
 import { thStyle, tdStyle, linkBtn, buttonStyle, inputStyle } from "../../components/ui";
 import { IconPrint, IconTrash } from "../../components/Icons";
+import { montantEnLettresAriary } from "../../../lib/nombreEnLettres";
+import { formatDate } from "../../../lib/format";
 
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
 const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins"];
@@ -25,6 +27,7 @@ export default function CommandeDetailPage() {
   const [lignes, setLignes] = useState([]);
   const [demande, setDemande] = useState(null);
   const [fournisseurDetail, setFournisseurDetail] = useState(null);
+  const [offreLiee, setOffreLiee] = useState(null);
   const [receptions, setReceptions] = useState([]); // historique complet, avec .lignes
   const [saisie, setSaisie] = useState(nouvelleSaisie());
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
@@ -63,6 +66,12 @@ export default function CommandeDetailPage() {
     if (c?.fournisseur_id) {
       const { data: f } = await supabase.from("fournisseurs").select("*").eq("id", c.fournisseur_id).maybeSingle();
       setFournisseurDetail(f || null);
+    }
+    if (c?.demande_id && c?.fournisseur_id) {
+      const { data: off } = await supabase.from("offres").select("numero_devis, date_devis").eq("demande_id", c.demande_id).eq("fournisseur_id", c.fournisseur_id).maybeSingle();
+      setOffreLiee(off || null);
+    } else {
+      setOffreLiee(null);
     }
 
     if (c) {
@@ -286,6 +295,8 @@ export default function CommandeDetailPage() {
         }
         .pv-template { display: none; }
         @media print { .pv-template.print-area { display: block; } }
+        .bc-template { display: none; }
+        @media print { .bc-template.print-area { display: block; } }
       `}</style>
 
       <button onClick={() => router.push("/commandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux commandes</button>
@@ -315,7 +326,7 @@ export default function CommandeDetailPage() {
 
       {/* ---- Bon de commande ---- */}
       {onglet === "bc" && (
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, marginBottom: 20 }} className={modeImpression === "bc" ? "print-area" : "no-print"}>
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, marginBottom: 20 }} className="no-print">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
           <div>
             <h1 style={{ fontSize: 20, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
@@ -612,6 +623,113 @@ export default function CommandeDetailPage() {
       )}
 
       {/* ---- PV de réception (imprimable) ---- */}
+      <div className={`bc-template ${modeImpression === "bc" ? "print-area" : ""}`} style={{ padding: 24, fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+          <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
+          <div style={{ flex: 1, background: "#ECECEA", borderRadius: 10, padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 19, fontWeight: 700, color: "#3E7A52" }}>Bon de Commande</span>
+            <span style={{ fontSize: 12 }}><strong>N°</strong> &nbsp; {bc.numero}</span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+          <div style={infoBox}>
+            <LigneInfo label="Date" value={formatDate(bc.date)} />
+            <LigneInfo label="Emis par" value="Judicaël RANDRIANAIVO" />
+            <LigneInfo label="Contact" value="+261 38 77 419 60" />
+            <LigneInfo label="E-Mail" value="judicael.randrianaivo@unifoods.mg" />
+            <div style={{ height: 8 }} />
+            <LigneInfo label="Date DA" value={demande ? formatDate(demande.created_at) : ""} />
+            <LigneInfo label="DA N°" value={demande?.numero || ""} />
+            <LigneInfo label="Objet" value={demande?.motif_projet || ""} />
+            <LigneInfo label="Utilisateur Final" value={demande?.demandeur || ""} />
+          </div>
+          <div style={infoBox}>
+            <LigneInfo label="Destinataire" value={bc.fournisseur_nom} accent />
+            <LigneInfo label="Adresse" value={fournisseurDetail?.adresse || ""} />
+            <LigneInfo label="Code postal" value={fournisseurDetail?.code_postal || ""} />
+            <LigneInfo label="NIF" value={fournisseurDetail?.nif || ""} />
+            <LigneInfo label="STAT" value={fournisseurDetail?.stat || ""} />
+            <LigneInfo label="RCS" value={fournisseurDetail?.rcs || ""} />
+            <LigneInfo label="Contact" value={fournisseurDetail?.contact || ""} />
+            <LigneInfo label="Tél" value={fournisseurDetail?.telephone || ""} />
+            <LigneInfo label="E-Mail" value={fournisseurDetail?.email || ""} />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
+          <div style={infoBoxPlate}>
+            <LigneInfo label="Adresse de livraison" value="Lot AZ 122 AI ZI SANTILO ANOSIZATO OUEST" />
+            <LigneInfo label="Réceptionnaire" value="Magasin" />
+          </div>
+          <div style={infoBoxPlate}>
+            <LigneInfo label="Type de règlement" value={fournisseurDetail?.type_reglement || ""} />
+            <LigneInfo label="Modalité de paiement" value={fournisseurDetail?.conditions_paiement_jours ? `${fournisseurDetail.conditions_paiement_jours} Jours` : ""} />
+          </div>
+        </div>
+
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginBottom: 24 }}>
+          <thead>
+            <tr style={{ background: "#3E7A52", color: "#fff" }}>
+              <th style={thPrint}>Réf. Devis n°</th><th style={thPrint}>Description</th><th style={thPrint}>Quantité</th>
+              <th style={thPrint}>Unité</th><th style={thPrint}>PU</th><th style={thPrint}>Remise</th>
+              <th style={thPrint}>PU Net</th><th style={thPrint}>Total HT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {offreLiee?.numero_devis && (
+              <tr><td colSpan={8} style={{ padding: "6px 4px", fontWeight: 600, fontSize: 11 }}>
+                {offreLiee.numero_devis}{offreLiee.date_devis ? ` du ${formatDate(offreLiee.date_devis)}` : ""}
+              </td></tr>
+            )}
+            {lignes.map((l) => {
+              const puNet = (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100);
+              return (
+                <tr key={l.id}>
+                  <td style={tdPrint}></td>
+                  <td style={tdPrint}>{l.designation}</td>
+                  <td style={{ ...tdPrint, textAlign: "center" }}>{Number(l.quantite).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</td>
+                  <td style={tdPrint}>{l.unite}</td>
+                  <td style={{ ...tdPrint, textAlign: "right" }}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdPrint, textAlign: "right" }}>{l.remise_pct ? `${l.remise_pct}%` : ""}</td>
+                  <td style={{ ...tdPrint, textAlign: "right" }}>{puNet.toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdPrint, textAlign: "right" }}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 50 }}>
+          <div style={{ fontSize: 12 }}>Signature :</div>
+          <div style={{ width: 290, background: "#ECECEA", borderRadius: 10, padding: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+              <span>Montant Total HT</span><strong>{Number(bc.montant_ht).toLocaleString("fr-FR")} Ar</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span>Tva {bc.assujetti_tva === false ? "0%" : "20%"}</span>
+              <strong>{bc.assujetti_tva === false ? "-" : `${Number(bc.montant_tva).toLocaleString("fr-FR")} Ar`}</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, marginTop: 8, borderTop: "1px solid #bbb", paddingTop: 8 }}>
+              <span>NET A PAYER TTC</span><span>{Number(bc.montant_ttc).toLocaleString("fr-FR")} Ar</span>
+            </div>
+          </div>
+        </div>
+
+        <p style={{ textAlign: "center", fontStyle: "italic", fontSize: 12, marginTop: 24 }}>
+          Arrêter le présent Bon de Commande à la somme de : {montantEnLettresAriary(bc.montant_ttc)}
+        </p>
+
+        <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #3E7A52", paddingTop: 10, marginTop: 36, fontSize: 10 }}>
+          <div>
+            <strong>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <strong>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
+          </div>
+        </div>
+      </div>
+
       <div className={`pv-template ${modeImpression === "pv" ? "print-area" : ""}`} style={{ padding: 20 }}>
         <h1 style={{ fontSize: 18, display: "flex", alignItems: "center", gap: 10 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 28 }} /> — PV de Réception
@@ -681,3 +799,17 @@ const pvLabel = { padding: "4px 6px", color: "#666", fontWeight: 600, border: "1
 const pvVal = { padding: "4px 6px", border: "1px solid #eee", width: "35%" };
 const pvTh = { border: "1px solid #ccc", padding: "6px 4px", background: "#F0F7F2" };
 const pvTd = { border: "1px solid #ddd", padding: "6px 4px" };
+
+function LigneInfo({ label, value, accent }) {
+  return (
+    <div style={{ display: "flex", fontSize: 11, marginBottom: 3 }}>
+      <span style={{ width: 130, fontWeight: 600, color: "#444", flexShrink: 0 }}>{label}</span>
+      <span style={{ fontWeight: accent ? 700 : 400, color: accent ? "#3E7A52" : "#1a1a1a" }}>{value}</span>
+    </div>
+  );
+}
+
+const infoBox = { flex: 1, background: "#ECECEA", borderRadius: 10, padding: "12px 16px" };
+const infoBoxPlate = { flex: 1, border: "1px solid #ccc", borderRadius: 8, padding: "8px 14px" };
+const thPrint = { padding: "6px 4px", fontSize: 10.5, textAlign: "left", fontWeight: 700 };
+const tdPrint = { padding: "5px 4px", fontSize: 11, borderBottom: "1px solid #eee" };
