@@ -110,4 +110,3 @@ function NouveauFournisseurInner() {
 }
 
 const rowStyle = { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 };
-
