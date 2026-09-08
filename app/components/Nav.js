@@ -22,7 +22,13 @@ const LINKS = [
     ],
   },
   { href: "/kpi", label: "KPI", icon: IconChart },
-  { href: "/fournisseurs", label: "Fournisseurs", icon: IconTruck },
+  {
+    href: "/fournisseurs", label: "Fournisseurs", icon: IconTruck,
+    children: [
+      { href: "/fournisseurs", label: "Liste des fournisseurs" },
+      { href: "/fournisseurs/nouveau", label: "Ajouter un fournisseur" },
+    ],
+  },
   {
     href: "/articles", label: "Articles", icon: IconBox,
     children: [
