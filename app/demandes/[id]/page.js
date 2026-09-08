@@ -196,6 +196,11 @@ export default function TCODetailPage() {
     await supabase.from("offres").update({ assujetti_tva: nouvelle }).eq("id", offreId);
   };
 
+  const majOffre = async (offreId, champ, valeur) => {
+    setOffres((prev) => prev.map((o) => (o.id === offreId ? { ...o, [champ]: valeur } : o)));
+    await supabase.from("offres").update({ [champ]: valeur || null }).eq("id", offreId);
+  };
+
   const majPrix = async (offreId, ligneDemandeId, field, value) => {
     const existante = lignesOffre.find((x) => x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId);
     setLignesOffre((prev) =>
@@ -456,6 +461,20 @@ export default function TCODetailPage() {
                         <input type="checkbox" checked={o.assujetti_tva === false} onChange={() => toggleTva(o.id, o.assujetti_tva)} />
                         Fournisseur non taxable
                       </label>
+                      <div className="no-print" style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                        <input
+                          placeholder="N° devis"
+                          defaultValue={o.numero_devis || ""}
+                          onBlur={(e) => majOffre(o.id, "numero_devis", e.target.value)}
+                          style={{ ...inputStyle, width: 70, fontWeight: 400, fontSize: 11, padding: "4px 6px" }}
+                        />
+                        <input
+                          type="date"
+                          defaultValue={o.date_devis || ""}
+                          onBlur={(e) => majOffre(o.id, "date_devis", e.target.value)}
+                          style={{ ...inputStyle, width: 100, fontWeight: 400, fontSize: 11, padding: "4px 6px" }}
+                        />
+                      </div>
                     </th>
                   ))}
                 </tr>
