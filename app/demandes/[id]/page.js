@@ -36,6 +36,7 @@ export default function TCODetailPage() {
   const [dejaCouvertes, setDejaCouvertes] = useState(new Set());
   const [bcGeneres, setBcGeneres] = useState([]);
   const [notesTco, setNotesTco] = useState({ remarque: "", mci: "", autres: "" });
+  const [orientation, setOrientation] = useState("portrait");
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
@@ -330,34 +331,30 @@ export default function TCODetailPage() {
   return (
     <AuthGuard>
       <style>{`
-        @page { size: A4 portrait; margin: 8mm; }
+        @page { size: A4 ${orientation}; margin: 8mm; }
         @media print {
-          body * { visibility: hidden; }
-          .print-area, .print-area * { visibility: visible; }
-          .print-area { position: absolute; left: 0; top: 0; width: 100%; }
           .no-print { display: none !important; }
-          .ecran-seulement { display: none !important; }
           .page-impression { page-break-after: always; }
           .page-impression:last-child { page-break-after: auto; }
           tr, td, th { break-inside: avoid; }
         }
-        @media screen {
-          .impression-seulement { display: none !important; }
-        }
+        .tco-imprimable { display: none; }
+        @media print { .tco-imprimable { display: block; } }
         .tableau-zebre tbody tr:nth-child(odd) { background: #F5F5F5; }
         .tableau-zebre tbody tr:nth-child(even) { background: #FFFFFF; }
       `}</style>
 
-      <button onClick={() => router.push("/demandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux demandes</button>
+      <div className="no-print">
+      <button onClick={() => router.push("/demandes")} style={{ ...linkBtn, marginBottom: 16 }}>&larr; Retour aux demandes</button>
 
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }} className="print-area">
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <h1 style={{ fontSize: 18, marginBottom: 4 }}>{demande.numero}</h1>
             <p style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>{demande.service} — {demande.motif_projet}</p>
             {demande.numero_tco && <p style={{ fontSize: 12, color: "#1B7A4C", marginTop: -8, marginBottom: 12 }}>N° {demande.numero_tco}</p>}
             {bcGeneres.length > 0 && (
-              <p className="no-print" style={{ fontSize: 13, marginBottom: 12 }}>
+              <p style={{ fontSize: 13, marginBottom: 12 }}>
                 <strong>Bon(s) de commande généré(s) :</strong>{" "}
                 {bcGeneres.map((bc, i) => (
                   <span key={bc.id}>
@@ -368,7 +365,7 @@ export default function TCODetailPage() {
               </p>
             )}
             {demande.observation && (
-              <div className="no-print" style={{ background: "#FDECEA", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13 }}>
+              <div style={{ background: "#FDECEA", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13 }}>
                 <strong>Observation :</strong> {demande.observation}
                 {!demande.demandeur_avise && (
                   <button
@@ -382,7 +379,13 @@ export default function TCODetailPage() {
               </div>
             )}
           </div>
-          <button onClick={() => window.print()} style={buttonStyle} className="no-print">Imprimer le comparatif</button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select value={orientation} onChange={(e) => setOrientation(e.target.value)} style={inputStyle} title="Orientation d'impression du TCO">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Paysage</option>
+            </select>
+            <button onClick={() => window.print()} style={buttonStyle}>Imprimer le comparatif</button>
+          </div>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
@@ -391,7 +394,7 @@ export default function TCODetailPage() {
               <th style={thStyle}>Article</th>
               <th style={thStyle}>Qté</th>
               <th style={thStyle}>Unité</th>
-              <th style={thStyle} className="no-print">Non dispo. localement</th>
+              <th style={thStyle}>Non dispo. localement</th>
             </tr>
           </thead>
           <tbody>
@@ -404,7 +407,7 @@ export default function TCODetailPage() {
                 </td>
                 <td style={tdStyle}>{l.quantite.toLocaleString("fr-FR")}</td>
                 <td style={tdStyle}>{l.unite}</td>
-                <td style={tdStyle} className="no-print">
+                <td style={tdStyle}>
                   <input
                     type="checkbox"
                     checked={!!l.non_disponible_localement}
@@ -417,10 +420,10 @@ export default function TCODetailPage() {
         </table>
       </div>
 
-      <CadreExtensible titre="Tableau comparatif (TCO)" className="print-area" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }} className="no-print">Tableau comparatif (TCO)</h2>
+      <CadreExtensible titre="Tableau comparatif (TCO)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Tableau comparatif (TCO)</h2>
 
-        <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <Autocomplete
             placeholder="Taper le nom du fournisseur à comparer..."
             value={rechercheFournisseur}
@@ -598,9 +601,40 @@ export default function TCODetailPage() {
           </div>
         )}
 
+
+        {offresAvecTotaux.length > 0 && (
+          <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Notes pour le TCO imprimé</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+              <textarea placeholder="Remarque (ex. article surligné en jaune abordable...)" value={notesTco.remarque} onChange={(e) => setNotesTco({ ...notesTco, remarque: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
+              <textarea placeholder="MCI également consulté (notes libres)" value={notesTco.mci} onChange={(e) => setNotesTco({ ...notesTco, mci: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
+              <textarea placeholder="Autres fournisseurs consultés" value={notesTco.autres} onChange={(e) => setNotesTco({ ...notesTco, autres: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
+            </div>
+          </div>
+        )}
+
+        {offresAvecTotaux.length > 0 && lignesDemande.some((ld) => !dejaCouvertes.has(ld.id)) && (
+          <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
+            <p style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
+              Le point (radio) coché sur chaque article indique le fournisseur retenu pour cet article (par défaut le moins cher). Change-le si besoin avant de générer les bons de commande — un BC distinct sera créé par fournisseur retenu, seulement pour les articles pas encore attribués.
+            </p>
+            <button onClick={genererBC} disabled={generating} style={buttonStyle}>
+              {generating ? "Génération..." : "Générer le(s) bon(s) de commande"}
+            </button>
+          </div>
+        )}
+        {offresAvecTotaux.length > 0 && lignesDemande.length > 0 && lignesDemande.every((ld) => dejaCouvertes.has(ld.id)) && (
+          <p className="no-print" style={{ fontSize: 13, color: "#1B7A4C", marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
+            ✓ Tous les articles de cette demande ont déjà un bon de commande.
+          </p>
+        )}
+      </CadreExtensible>
+      </div>
+
+      <div className="tco-imprimable">
         {/* ---- Vue impression : gabarit fidèle au modèle réel (logo, en-tête, devis, totaux, notes) ---- */}
         {offresAvecTotaux.length > 0 && pagesImpression.map((page, pIdx) => (
-          <div key={pIdx} className="impression-seulement page-impression tableau-zebre" style={{ fontFamily: "Arial, sans-serif", color: "#1a1a1a" }}>
+          <div key={pIdx} className="page-impression tableau-zebre" style={{ fontFamily: "Arial, sans-serif", color: "#1a1a1a" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
               <img src="/logo.png" alt="UNIFOODS" style={{ height: 40 }} />
               <div style={{ flex: 1, background: "#ECECEA", borderRadius: 10, padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -731,34 +765,7 @@ export default function TCODetailPage() {
             )}
           </div>
         ))}
-
-        {offresAvecTotaux.length > 0 && (
-          <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
-            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Notes pour le TCO imprimé</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
-              <textarea placeholder="Remarque (ex. article surligné en jaune abordable...)" value={notesTco.remarque} onChange={(e) => setNotesTco({ ...notesTco, remarque: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
-              <textarea placeholder="MCI également consulté (notes libres)" value={notesTco.mci} onChange={(e) => setNotesTco({ ...notesTco, mci: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
-              <textarea placeholder="Autres fournisseurs consultés" value={notesTco.autres} onChange={(e) => setNotesTco({ ...notesTco, autres: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
-            </div>
-          </div>
-        )}
-
-        {offresAvecTotaux.length > 0 && lignesDemande.some((ld) => !dejaCouvertes.has(ld.id)) && (
-          <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
-            <p style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
-              Le point (radio) coché sur chaque article indique le fournisseur retenu pour cet article (par défaut le moins cher). Change-le si besoin avant de générer les bons de commande — un BC distinct sera créé par fournisseur retenu, seulement pour les articles pas encore attribués.
-            </p>
-            <button onClick={genererBC} disabled={generating} style={buttonStyle}>
-              {generating ? "Génération..." : "Générer le(s) bon(s) de commande"}
-            </button>
-          </div>
-        )}
-        {offresAvecTotaux.length > 0 && lignesDemande.length > 0 && lignesDemande.every((ld) => dejaCouvertes.has(ld.id)) && (
-          <p className="no-print" style={{ fontSize: 13, color: "#1B7A4C", marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
-            ✓ Tous les articles de cette demande ont déjà un bon de commande.
-          </p>
-        )}
-      </CadreExtensible>
+      </div>
     </AuthGuard>
   );
 }
