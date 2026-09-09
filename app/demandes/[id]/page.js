@@ -729,27 +729,31 @@ export default function TCODetailPage() {
               </div>
             </div>
 
-            {/* Cadre 1 : tableau des articles */}
-            <div style={cadreStyle}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
+            {/* Cadre 1 : tableau des articles — 3 blocs distincts (gauche arrondi
+                à gauche / préconisation rectangle / droite arrondi à droite) */}
+            <div>
+              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: 24 }} /><col /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
                   <col style={{ width: 7 }} />
-                  <col style={{ width: 118 }} />
+                  <col style={{ width: 134 }} />
                   <col style={{ width: 7 }} />
                   {page.map((o) => (<Fragment key={o.id}><col style={{ width: 68 }} /><col style={{ width: 52 }} /><col style={{ width: 78 }} /></Fragment>))}
                 </colgroup>
                 <thead>
                   <tr>
-                    <th style={thBlank}></th><th style={thBlank}></th><th style={thBlank}></th><th style={thBlank}></th>
+                    <th style={{ ...thBlank, ...boxEdge("left", { first: true, firstCol: true }) }}></th>
+                    <th style={{ ...thBlank, ...boxEdge("left", { first: true }) }}></th>
+                    <th style={{ ...thBlank, ...boxEdge("left", { first: true }) }}></th>
+                    <th style={{ ...thBlank, ...boxEdge("left", { first: true, lastCol: true }) }}></th>
                     <th style={thBlank}></th>
-                    <th style={{ ...thBlank, ...precoColStyle, fontSize: 16, fontWeight: 700, textAlign: "center", verticalAlign: "middle" }}>Préconisation</th>
+                    <th style={{ ...thBlank, ...precoColStyle, ...boxEdge("mid", { first: true, firstCol: true, lastCol: true }), fontSize: 16, fontWeight: 700, textAlign: "center", verticalAlign: "middle" }}>Préconisation</th>
                     <th style={thBlank}></th>
-                    {page.map((o) => {
+                    {page.map((o, idx) => {
                       const wins = [];
                       lignesDemande.forEach((ld, i) => { if (moinsCherParLigne[ld.id] === o.id) wins.push(i + 1); });
                       return (
-                        <th key={o.id} colSpan={3} style={{ ...thGroupStart, padding: 0 }}>
+                        <th key={o.id} colSpan={3} style={{ padding: 0, ...boxEdge("right", { first: true, firstCol: idx === 0, lastCol: idx === page.length - 1 }) }}>
                           <div style={{ fontSize: 10.5, fontWeight: 700, textAlign: "center", padding: "3px 4px 0" }}>
                             {o.fournisseur_nom}
                           </div>
@@ -764,20 +768,20 @@ export default function TCODetailPage() {
                     })}
                   </tr>
                   <tr>
-                    <th style={thTco}>N°</th>
-                    <th style={{ ...thTco, textAlign: "center" }}>Article</th>
-                    <th style={{ ...thTco, textAlign: "center" }}>Qté</th>
-                    <th style={{ ...thTco, textAlign: "center" }}>Unité</th>
+                    <th style={{ ...thTco, ...boxEdge("left", { firstCol: true }) }}>N°</th>
+                    <th style={{ ...thTco, textAlign: "center", ...boxEdge("left", {}) }}>Article</th>
+                    <th style={{ ...thTco, textAlign: "center", ...boxEdge("left", {}) }}>Qté</th>
+                    <th style={{ ...thTco, textAlign: "center", ...boxEdge("left", { lastCol: true }) }}>Unité</th>
                     <th style={thBlank}></th>
-                    <th style={{ ...thTco, ...precoColStyle }}></th>
+                    <th style={{ ...thTco, ...precoColStyle, ...boxEdge("mid", { firstCol: true, lastCol: true }) }}></th>
                     <th style={thBlank}></th>
-                    {page.map((o) => {
+                    {page.map((o, idx) => {
                       const defaut = fournisseursDetailMap[o.fournisseur_id]?.remise_par_defaut_pct;
                       return (
                         <Fragment key={o.id}>
-                          <th style={{ ...thTco, textAlign: "right", borderLeft: "1.25px solid #1a1a1a" }}>PU HT</th>
+                          <th style={{ ...thTco, textAlign: "right", ...(idx === 0 ? boxEdge("right", { firstCol: true }) : { borderLeft: "1.25px solid #1a1a1a" }) }}>PU HT</th>
                           <th style={{ ...thTco, textAlign: "right" }}>{defaut ? `Remise ${defaut}%` : "Remise"}</th>
-                          <th style={{ ...thTco, textAlign: "right" }}>Montant HT</th>
+                          <th style={{ ...thTco, textAlign: "right", ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>Montant HT</th>
                         </Fragment>
                       );
                     })}
@@ -787,14 +791,15 @@ export default function TCODetailPage() {
                   {lignesDemande.map((ld, i) => {
                     const offreRetenue = offresAvecTotaux.find((o) => o.id === selection[ld.id]);
                     const montantRetenu = offreRetenue ? montantLigne(offreRetenue, ld) : null;
+                    const finRangee = i === lignesDemande.length - 1;
                     return (
                       <tr key={ld.id}>
-                        <td style={{ ...tdTco, textAlign: "center", padding: padCellule }}>{i + 1}</td>
-                        <td style={{ ...tdTco, padding: padCellule }}>{ld.designation}</td>
-                        <td style={{ ...tdTco, textAlign: "center", padding: padCellule }}>{Number(ld.quantite).toLocaleString("fr-FR")}</td>
-                        <td style={{ ...tdTco, textAlign: "center", padding: padCellule }}>{ld.unite}</td>
+                        <td style={{ ...tdTco, textAlign: "center", padding: padCellule, ...boxEdge("left", { last: finRangee, firstCol: true }) }}>{i + 1}</td>
+                        <td style={{ ...tdTco, padding: padCellule, ...boxEdge("left", { last: finRangee }) }}>{ld.designation}</td>
+                        <td style={{ ...tdTco, textAlign: "center", padding: padCellule, ...boxEdge("left", { last: finRangee }) }}>{Number(ld.quantite).toLocaleString("fr-FR")}</td>
+                        <td style={{ ...tdTco, textAlign: "center", padding: padCellule, ...boxEdge("left", { last: finRangee, lastCol: true }) }}>{ld.unite}</td>
                         <td style={{ ...tdTco, border: "none" }}></td>
-                        <td style={{ ...tdTco, ...precoColStyle, textAlign: "center", verticalAlign: "middle", padding: "8px 6px" }}>
+                        <td style={{ ...tdTco, ...precoColStyle, textAlign: "center", verticalAlign: "middle", padding: "8px 6px", ...boxEdge("mid", { last: finRangee, firstCol: true, lastCol: true }) }}>
                           {offreRetenue ? (
                             <>
                               <div style={{ fontWeight: 700, fontSize: 12.5, color: "#1B7A4C" }}>{offreRetenue.fournisseur_nom}</div>
@@ -803,19 +808,19 @@ export default function TCODetailPage() {
                           ) : "—"}
                         </td>
                         <td style={{ ...tdTco, border: "none" }}></td>
-                        {page.map((o) => {
+                        {page.map((o, idx) => {
                           const lo = o.lignesOffre.find((x) => x.ligne_demande_id === ld.id) || {};
                           const m = montantLigne(o, ld);
                           const estMoinsCher = moinsCherParLigne[ld.id] === o.id && !!lo.prix_unitaire_ht;
-                          const styleCell1 = { ...tdTco, padding: padCellule, textAlign: "right", borderLeft: "1.25px solid #1a1a1a", ...(estMoinsCher ? { background: "#EAF7EE" } : {}) };
-                          const styleCell = { ...tdTco, padding: padCellule, textAlign: "right", ...(estMoinsCher ? { background: "#EAF7EE" } : {}) };
+                          const fond = estMoinsCher ? { background: "#EAF7EE" } : {};
+                          const styleCell1 = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...(idx === 0 ? boxEdge("right", { last: finRangee, firstCol: true }) : { borderLeft: "1.25px solid #1a1a1a" }) };
+                          const styleCell = { ...tdTco, padding: padCellule, textAlign: "right", ...fond };
+                          const styleCellDer = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...boxEdge("right", { last: finRangee, lastCol: idx === page.length - 1 }), fontWeight: estMoinsCher ? 700 : 400, color: estMoinsCher ? "#1B7A4C" : "#1a1a1a" };
                           return (
                             <Fragment key={o.id}>
                               <td style={styleCell1}>{lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : ""}</td>
                               <td style={styleCell}>{lo.remise_pct ? `${lo.remise_pct}%` : ""}</td>
-                              <td style={{ ...styleCell, fontWeight: estMoinsCher ? 700 : 400, color: estMoinsCher ? "#1B7A4C" : "#1a1a1a" }}>
-                                {m != null ? `${m.toLocaleString("fr-FR")} Ar` : ""}
-                              </td>
+                              <td style={styleCellDer}>{m != null ? `${m.toLocaleString("fr-FR")} Ar` : ""}</td>
                             </Fragment>
                           );
                         })}
@@ -828,19 +833,19 @@ export default function TCODetailPage() {
 
             <div style={{ height: 10 }} />
 
-            {/* Cadre 2 : totaux (séparé du tableau des articles) */}
-            <div style={cadreStyle}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
+            {/* Cadre 2 : totaux — mêmes 3 blocs, séparé du tableau des articles */}
+            <div>
+              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: 24 }} /><col /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
                   <col style={{ width: 7 }} />
-                  <col style={{ width: 118 }} />
+                  <col style={{ width: 134 }} />
                   <col style={{ width: 7 }} />
                   {page.map((o) => (<Fragment key={o.id}><col style={{ width: 68 }} /><col style={{ width: 52 }} /><col style={{ width: 78 }} /></Fragment>))}
                 </colgroup>
                 <tbody>
                   <tr>
-                    <td colSpan={4} rowSpan={rowSpanMotif} style={{ ...tdTco, verticalAlign: "top", padding: 10 }}>
+                    <td colSpan={4} rowSpan={rowSpanMotif} style={{ ...tdTco, verticalAlign: "top", padding: 10, ...boxEdge("left", { first: true, last: true, firstCol: true, lastCol: true }) }}>
                       {derniere && (
                         <div>
                           <div style={lblStyle}>Remarque de la demande</div>
@@ -848,7 +853,7 @@ export default function TCODetailPage() {
                         </div>
                       )}
                     </td>
-                    <td rowSpan={rowSpanMotif} colSpan={3} style={{ ...tdTco, ...precoColStyle, verticalAlign: "top", padding: 10 }}>
+                    <td rowSpan={rowSpanMotif} colSpan={3} style={{ ...tdTco, ...precoColStyle, verticalAlign: "top", padding: 10, ...boxEdge("mid", { first: true, last: true, firstCol: true, lastCol: true }) }}>
                       <div style={lblStyle}>Total au prix le moins cher (HT)</div>
                       <div style={{ fontWeight: 700, fontSize: 11 }}>{totalPreconisation.ht.toLocaleString("fr-FR")} Ar</div>
                       <div style={{ ...lblStyle, marginTop: 6 }}>TVA</div>
@@ -856,42 +861,42 @@ export default function TCODetailPage() {
                       <div style={{ ...lblStyle, marginTop: 6 }}>Total TTC</div>
                       <div style={{ fontWeight: 700, fontSize: 13, color: "#1B7A4C" }}>{totalPreconisation.ttc.toLocaleString("fr-FR")} Ar</div>
                     </td>
-                    {page.map((o) => (
+                    {page.map((o, idx) => (
                       <Fragment key={o.id}>
-                        <td colSpan={2} style={{ ...tdTco, borderLeft: "1.25px solid #1a1a1a" }}>Montant HT</td>
-                        <td style={tdTco}>{o.totalHT.toLocaleString("fr-FR")} Ar</td>
+                        <td colSpan={2} style={{ ...tdTco, ...(idx === 0 ? boxEdge("right", { first: true, firstCol: true }) : { borderLeft: "1.25px solid #1a1a1a" }) }}>Montant HT</td>
+                        <td style={{ ...tdTco, ...boxEdge("right", { first: true, lastCol: idx === page.length - 1 }) }}>{o.totalHT.toLocaleString("fr-FR")} Ar</td>
                       </Fragment>
                     ))}
                   </tr>
                   <tr>
-                    {page.map((o) => {
+                    {page.map((o, idx) => {
                       const remiseObt = remiseObtenueOffre(o, lignesDemande);
                       return (
                         <Fragment key={o.id}>
-                          <td colSpan={2} style={{ ...tdTco, borderLeft: "1.25px solid #1a1a1a" }}>Remise obtenue</td>
-                          <td style={tdTco}>{remiseObt ? `${remiseObt.toLocaleString("fr-FR")} Ar` : ""}</td>
+                          <td colSpan={2} style={{ ...tdTco, ...(idx === 0 ? boxEdge("right", { firstCol: true }) : { borderLeft: "1.25px solid #1a1a1a" }) }}>Remise obtenue</td>
+                          <td style={{ ...tdTco, ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>{remiseObt ? `${remiseObt.toLocaleString("fr-FR")} Ar` : ""}</td>
                         </Fragment>
                       );
                     })}
                   </tr>
                   <tr>
-                    {page.map((o) => (
+                    {page.map((o, idx) => (
                       <Fragment key={o.id}>
-                        <td colSpan={2} style={{ ...tdTco, borderLeft: "1.25px solid #1a1a1a" }}>TVA</td>
-                        <td style={tdTco}>{o.assujetti_tva === false ? <span style={{ color: "#999", fontStyle: "italic" }}>Non taxable</span> : `${o.tva.toLocaleString("fr-FR")} Ar`}</td>
+                        <td colSpan={2} style={{ ...tdTco, ...(idx === 0 ? boxEdge("right", { firstCol: true }) : { borderLeft: "1.25px solid #1a1a1a" }) }}>TVA</td>
+                        <td style={{ ...tdTco, ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>{o.assujetti_tva === false ? <span style={{ color: "#999", fontStyle: "italic" }}>Non taxable</span> : `${o.tva.toLocaleString("fr-FR")} Ar`}</td>
                       </Fragment>
                     ))}
                   </tr>
                   <tr>
-                    {page.map((o) => (
+                    {page.map((o, idx) => (
                       <Fragment key={o.id}>
-                        <td colSpan={2} style={{ ...tdTco, borderLeft: "1.25px solid #1a1a1a", fontWeight: 600 }}>Total TTC</td>
-                        <td style={{ ...tdTco, fontWeight: 700, color: "#1B7A4C" }}>{o.totalTTC.toLocaleString("fr-FR")} Ar</td>
+                        <td colSpan={2} style={{ ...tdTco, fontWeight: 600, ...(idx === 0 ? boxEdge("right", { firstCol: true }) : { borderLeft: "1.25px solid #1a1a1a" }) }}>Total TTC</td>
+                        <td style={{ ...tdTco, fontWeight: 700, color: "#1B7A4C", ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>{o.totalTTC.toLocaleString("fr-FR")} Ar</td>
                       </Fragment>
                     ))}
                   </tr>
                   <tr>
-                    {page.map((o) => {
+                    {page.map((o, idx) => {
                       const exceptions = remiseExceptionsOffre(o, lignesDemande, fournisseursDetailMap);
                       const echeance = fournisseursDetailMap[o.fournisseur_id]?.conditions_paiement_jours;
                       const lignesObs = [];
@@ -902,7 +907,7 @@ export default function TCODetailPage() {
                         else lignesObs.push(`* Remise de ${e.remise}% sur l'article n°${e.numero} (${truncateTexte(e.designation, 26)}), au lieu de ${e.defaut}% habituellement`);
                       });
                       return (
-                        <td key={o.id} colSpan={3} style={{ ...tdTco, borderLeft: "1.25px solid #1a1a1a", verticalAlign: "top", fontSize: 8.8 }}>
+                        <td key={o.id} colSpan={3} style={{ ...tdTco, verticalAlign: "top", fontSize: 8.8, ...boxEdge("right", { last: true, firstCol: true, lastCol: idx === page.length - 1 }) }}>
                           <div style={{ fontSize: 8, color: "#888", textTransform: "uppercase", marginBottom: 2 }}>Observation</div>
                           <div style={{ whiteSpace: "pre-wrap" }}>{lignesObs.join("\n")}</div>
                         </td>
@@ -941,10 +946,29 @@ function MetaItem({ label, value }) {
   );
 }
 
-const cadreStyle = { border: "1.5px solid #1a1a1a", borderRadius: 10, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,.06)" };
-const precoColStyle = { background: "#EAF7EE", color: "#1B7A4C", borderLeft: "1.5px solid #1a1a1a", borderRight: "1.5px solid #1a1a1a" };
+const precoColStyle = { background: "#EAF7EE", color: "#1B7A4C" };
+// Bordure + coin arrondi d'une des 3 "boîtes" du TCO (gauche / milieu / droite).
+// "left" est arrondi seulement à gauche, "right" seulement à droite, "mid" jamais
+// (reste un simple rectangle) — pour bien distinguer les 3 blocs même en N&B,
+// avec un vrai espace vide entre eux (colonnes espaceurs) plutôt que de la couleur.
+function boxEdge(group, { first = false, last = false, firstCol = false, lastCol = false } = {}) {
+  const c = "1.5px solid #1a1a1a";
+  const s = {};
+  if (firstCol) s.borderLeft = c;
+  if (lastCol) s.borderRight = c;
+  if (first) s.borderTop = c;
+  if (last) s.borderBottom = c;
+  if (group === "left") {
+    if (first && firstCol) s.borderTopLeftRadius = 10;
+    if (last && firstCol) s.borderBottomLeftRadius = 10;
+  }
+  if (group === "right") {
+    if (first && lastCol) s.borderTopRightRadius = 10;
+    if (last && lastCol) s.borderBottomRightRadius = 10;
+  }
+  return s;
+}
 const lblStyle = { fontSize: 8.5, color: "#888", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 };
 const thBlank = { borderBottom: "none", padding: 0 };
-const thGroupStart = { borderLeft: "1.25px solid #1a1a1a", borderBottom: "none" };
 const thTco = { padding: "3px 5px 5px", fontSize: 8, fontWeight: 600, textAlign: "left", color: "#888", textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1.2px solid #1a1a1a" };
 const tdTco = { padding: "4px", fontSize: 10, borderBottom: "0.75px solid #eee" };
