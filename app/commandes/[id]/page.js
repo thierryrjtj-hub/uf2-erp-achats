@@ -312,7 +312,9 @@ export default function CommandeDetailPage() {
         .bc-template { display: none; }
         @media print { .bc-template.print-area { display: block; } }
         .tableau-zebre tbody tr:nth-child(odd) { background: #F5F5F5; }
+        .tableau-zebre tbody tr:nth-child(odd) td { border-bottom: 1px solid #E2E2E2; }
         .tableau-zebre tbody tr:nth-child(even) { background: #FFFFFF; }
+        .tableau-zebre tbody tr:nth-child(even) td { border-bottom: 1px solid #F0F0F0; }
       `}</style>
 
       <button onClick={() => router.push("/commandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux commandes</button>
@@ -642,9 +644,9 @@ export default function CommandeDetailPage() {
       <div className={`bc-template ${modeImpression === "bc" ? "print-area" : ""}`} style={{ padding: 24, fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
-          <div style={{ flex: 1, background: "#ECECEA", borderRadius: 10, padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 19, fontWeight: 700, color: "#3E7A52" }}>Bon de Commande</span>
-            <span style={{ fontSize: 12 }}><strong>N°</strong> &nbsp; {bc.numero}</span>
+          <div style={{ flex: 1, ...encadreDouble(), padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 19, fontWeight: 700, color: VERT }}>Bon de Commande</span>
+            <span style={{ fontSize: 12, color: GRIS_LABEL }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {bc.numero}</span>
           </div>
         </div>
 
@@ -684,12 +686,13 @@ export default function CommandeDetailPage() {
           </div>
         </div>
 
-        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginBottom: 10 }}>
+        <div style={ombrePortee(false)} />
+        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
           <thead>
             <tr>
               <th style={thPrint}>Réf. Devis n°</th><th style={thPrint}>Description</th><th style={thPrint}>Quantité</th>
               <th style={thPrint}>Unité</th><th style={thPrint}>PU</th><th style={thPrint}>Remise</th>
-              <th style={thPrint}>PU Net</th><th style={thPrint}>Total HT</th>
+              <th style={thPrint}>PU Net</th><th style={{ ...thPrint, borderRight: "none" }}>Total HT</th>
             </tr>
           </thead>
           <tbody>
@@ -698,7 +701,7 @@ export default function CommandeDetailPage() {
                 {offreLiee.numero_devis}{offreLiee.date_devis ? ` du ${formatDate(offreLiee.date_devis)}` : ""}
               </td></tr>
             )}
-            {avecLignesVides(lignes).map((l) => {
+            {avecLignesVides(lignes, 16).map((l) => {
               if (l.__vide) return (
                 <tr key={l.id}><td style={tdPrint}>&nbsp;</td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td></tr>
               );
@@ -718,48 +721,53 @@ export default function CommandeDetailPage() {
             })}
           </tbody>
         </table>
-
-        <div style={doubleLigneVerte} />
+        <div style={{ ...ombrePortee(true), display: "flex", alignItems: "center", justifyContent: "flex-end", position: "relative" }}>
+          <span style={{ position: "absolute", right: 4, top: 4, fontSize: 8, color: "#fff" }}>Page 1/1</span>
+        </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 20 }}>
-          <div style={{ fontSize: 12 }}>Signature :</div>
-          <div style={{ width: 290, background: "#ECECEA", borderRadius: 10, padding: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
-              <span>Montant Total HT</span><strong>{Number(bc.montant_ht).toLocaleString("fr-FR")} Ar</strong>
+          <div style={{ fontSize: 12, color: NOIR_VALEUR }}>Signature :</div>
+          <div style={{ width: 290, ...encadreDouble(), padding: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4, color: GRIS_LABEL }}>
+              <span>Montant Total HT</span><strong style={{ color: NOIR_VALEUR }}>{Number(bc.montant_ht).toLocaleString("fr-FR")} Ar</strong>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: GRIS_LABEL }}>
               <span>Tva {bc.assujetti_tva === false ? "0%" : "20%"}</span>
-              <strong>{bc.assujetti_tva === false ? "-" : `${Number(bc.montant_tva).toLocaleString("fr-FR")} Ar`}</strong>
+              <strong style={{ color: NOIR_VALEUR }}>{bc.assujetti_tva === false ? "-" : `${Number(bc.montant_tva).toLocaleString("fr-FR")} Ar`}</strong>
             </div>
-            <div style={{ marginTop: 8, background: "#fff", borderRadius: 6, padding: "6px 10px", display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700 }}>
+            <div style={{ marginTop: 8, background: "#fff", borderRadius: 6, padding: "6px 10px", display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: NOIR_VALEUR }}>
               <span>NET A PAYER TTC</span><span>{Number(bc.montant_ttc).toLocaleString("fr-FR")} Ar</span>
             </div>
           </div>
         </div>
 
-        <p style={{ textAlign: "center", fontStyle: "italic", fontSize: 12, marginTop: 24 }}>
+        <div style={{ height: 90 }} />
+
+        <p style={{ textAlign: "center", fontStyle: "italic", fontSize: 12, color: NOIR_VALEUR }}>
           Arrêter le présent Bon de Commande à la somme de : {montantEnLettresAriary(bc.montant_ttc)}
         </p>
 
-        <div style={{ borderTop: "3px double #3E7A52", paddingTop: 10, marginTop: 24, fontSize: 10 }}>
+        <div style={doubleLigneVerte} />
+
+        <div style={{ fontSize: 10, color: GRIS_LABEL }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <div>
-              <strong>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
+              <strong style={{ color: NOIR_VALEUR }}>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
             </div>
             <div style={{ textAlign: "right" }}>
-              <strong>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
+              <strong style={{ color: NOIR_VALEUR }}>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
             </div>
           </div>
-          <div style={{ borderBottom: "3px double #3E7A52", marginTop: 10 }} />
+          <div style={{ height: 10, background: VERT_FONCE, marginTop: 14, borderRadius: 2 }} />
         </div>
       </div>
 
       <div className={`pv-template ${modeImpression === "pv" ? "print-area" : ""}`} style={{ padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
-          <div style={{ flex: 1, background: "#ECECEA", borderRadius: 10, padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 19, fontWeight: 700, color: "#3E7A52" }}>PV de Réception</span>
-            <span style={{ fontSize: 12 }}><strong>N°</strong> &nbsp; {receptions[receptions.length - 1]?.numero || "—"}</span>
+          <div style={{ flex: 1, ...encadreDouble(), padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 19, fontWeight: 700, color: VERT }}>PV de Réception</span>
+            <span style={{ fontSize: 12, color: GRIS_LABEL }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {receptions[receptions.length - 1]?.numero || "—"}</span>
           </div>
         </div>
 
@@ -799,16 +807,17 @@ export default function CommandeDetailPage() {
           </div>
         </div>
 
-        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginBottom: 10 }}>
+        <div style={ombrePortee(false)} />
+        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
           <thead>
             <tr>
               <th style={thPrint}>BC UF2 n°</th><th style={thPrint}>Description</th><th style={thPrint}>Quantité</th>
               <th style={thPrint}>Unité</th><th style={thPrint}>Quantité livré</th><th style={thPrint}>Unité</th>
-              <th style={thPrint}>Reste à Livrer</th><th style={thPrint}>Remarque</th>
+              <th style={thPrint}>Reste à Livrer</th><th style={{ ...thPrint, borderRight: "none" }}>Remarque</th>
             </tr>
           </thead>
           <tbody>
-            {avecLignesVides(lignes).map((l, i) => {
+            {avecLignesVides(lignes, 16).map((l, i) => {
               if (l.__vide) return (
                 <tr key={l.id}><td style={tdPrint}>&nbsp;</td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td></tr>
               );
@@ -827,27 +836,30 @@ export default function CommandeDetailPage() {
             })}
           </tbody>
         </table>
+        <div style={{ ...ombrePortee(true), position: "relative" }}>
+          <span style={{ position: "absolute", right: 4, top: 4, fontSize: 8, color: "#fff" }}>Page 1/1</span>
+        </div>
 
         <div style={doubleLigneVerte} />
 
         <div style={{ display: "flex", justifyContent: "space-between", gap: 14, marginTop: 20 }}>
           {["RESPONSABLE MAGASIN", "MAGASINIER", "AGENT DE SECURITE", "LIVREUR ou TRANSPORTEUR"].map((s) => (
-            <div key={s} style={{ flex: 1, border: "1px solid #ccc", borderRadius: 10, minHeight: 80, padding: "10px 10px 6px", textAlign: "center", fontSize: 10.5, fontWeight: 700 }}>
+            <div key={s} style={{ flex: 1, ...encadreDouble(), minHeight: 80, padding: "10px 10px 6px", textAlign: "center", fontSize: 10.5, fontWeight: 700, color: NOIR_VALEUR }}>
               {s}
             </div>
           ))}
         </div>
 
-        <div style={{ borderTop: "3px double #3E7A52", paddingTop: 10, marginTop: 24, fontSize: 10 }}>
+        <div style={{ marginTop: 24, fontSize: 10, color: GRIS_LABEL }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <div>
-              <strong>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
+              <strong style={{ color: NOIR_VALEUR }}>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
             </div>
             <div style={{ textAlign: "right" }}>
-              <strong>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
+              <strong style={{ color: NOIR_VALEUR }}>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
             </div>
           </div>
-          <div style={{ borderBottom: "3px double #3E7A52", marginTop: 10 }} />
+          <div style={{ height: 10, background: VERT_FONCE, marginTop: 14, borderRadius: 2 }} />
         </div>
       </div>
     </AuthGuard>
@@ -860,18 +872,36 @@ const miniLabel = { display: "block", fontSize: 11, color: "#999", marginBottom:
 function LigneInfo({ label, value, accent }) {
   return (
     <div style={{ display: "flex", fontSize: 11, marginBottom: 3 }}>
-      <span style={{ width: 130, fontWeight: 600, color: "#444", flexShrink: 0 }}>{label}</span>
-      <span style={{ fontWeight: accent ? 700 : 400, color: accent ? "#3E7A52" : "#1a1a1a" }}>{value}</span>
+      <span style={{ width: 130, fontWeight: 400, color: GRIS_LABEL, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontWeight: 700, color: accent ? VERT : NOIR_VALEUR }}>{value}</span>
     </div>
   );
 }
 
-const infoBox = { flex: 1, background: "#ECECEA", borderRadius: 10, padding: "12px 16px" };
-const infoBoxPlate = { flex: 1, border: "1px solid #ccc", borderRadius: 8, padding: "8px 14px" };
-const infoBoxVert = { flex: 1, background: "#E3F1E7", borderRadius: 8, padding: "8px 14px" };
-const thPrint = { padding: "6px 4px", fontSize: 10.5, textAlign: "left", fontWeight: 700, background: "#EDEDED", color: "#1a1a1a" };
-const tdPrint = { padding: "5px 4px", fontSize: 11, borderBottom: "1px solid #eee" };
-const doubleLigneVerte = { borderTop: "3px double #3E7A52", margin: "18px 0" };
+const VERT = "#74BC1F";
+const VERT_FONCE = "#185640";
+const GRIS_FOND = "#E7E6E6";
+const GRIS_BORD = "#BFBFBF";
+const GRIS_LABEL = "#4D4D4D";
+const NOIR_VALEUR = "#262626";
+
+// Encadré arrondi avec le double-liseré (contour gris + fin trait blanc à
+// l'intérieur) utilisé pour tous les blocs d'information du document.
+const encadreDouble = (fond = GRIS_FOND) => ({
+  flex: 1, background: fond, borderRadius: 10, border: `1px solid ${GRIS_BORD}`,
+  boxShadow: "inset 0 0 0 3px #fff", padding: "13px 18px",
+});
+const infoBox = encadreDouble();
+const infoBoxPlate = encadreDouble();
+const infoBoxVert = encadreDouble("#E3F1E7");
+const thPrint = { padding: "6px 4px", fontSize: 10, textAlign: "left", fontWeight: 700, background: GRIS_FOND, color: GRIS_LABEL, borderRight: "1px solid #fff" };
+const tdPrint = { padding: "4px 4px", fontSize: 10.5, color: NOIR_VALEUR };
+const doubleLigneVerte = { borderTop: `2.5px double ${VERT}`, margin: "18px 0" };
+// Ombre portée fine, couleur verte, au-dessus (haut=true) ou en dessous du tableau
+const ombrePortee = (haut) => ({
+  height: 3, background: VERT,
+  boxShadow: haut ? `0 3px 4px -1px rgba(116,188,31,0.55)` : `0 -3px 4px -1px rgba(116,188,31,0.55)`,
+});
 // Complète une liste de lignes avec des lignes vides pour garder un tableau
 // à hauteur fixe (effet visuel du modèle réel), même s'il y a peu d'articles.
 function avecLignesVides(lignes, minimum = 8) {
