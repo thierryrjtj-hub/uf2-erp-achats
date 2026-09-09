@@ -50,7 +50,7 @@ export default function Nav() {
   };
 
   return (
-    <div className="nav-sidebar" style={{ width: 226, height: "100vh", background: BRAND, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+    <div className="nav-sidebar no-print" style={{ width: 226, height: "100vh", background: BRAND, display: "flex", flexDirection: "column", flexShrink: 0 }}>
       <div className="nav-logo-chip" style={{ padding: "22px 18px 18px" }}>
         <div style={{ background: "#fff", borderRadius: 10, padding: "8px 12px", display: "inline-block" }}>
           <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 36, display: "block" }} />
