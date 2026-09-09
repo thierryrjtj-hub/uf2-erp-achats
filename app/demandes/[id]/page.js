@@ -77,7 +77,7 @@ export default function TCODetailPage() {
   const [lignesOffre, setLignesOffre] = useState([]);
   const [dejaCouvertes, setDejaCouvertes] = useState(new Set());
   const [bcGeneres, setBcGeneres] = useState([]);
-  const [notesTco, setNotesTco] = useState({ remarque: "", autres: "" });
+  const [notesTco, setNotesTco] = useState({ remarque: "" });
   const [orientation, setOrientation] = useState("portrait");
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
@@ -95,7 +95,7 @@ export default function TCODetailPage() {
       lo = data || [];
     }
     setDemande(d);
-    setNotesTco({ remarque: d?.tco_remarque || "", autres: d?.tco_autres_fournisseurs || "" });
+    setNotesTco({ remarque: d?.tco_remarque || "" });
     setLignesDemande(ld || []);
     setFournisseurs(f || []);
     setOffres(o || []);
@@ -256,7 +256,6 @@ export default function TCODetailPage() {
   const enregistrerNotesTco = async () => {
     await supabase.from("demandes").update({
       tco_remarque: notesTco.remarque || null,
-      tco_autres_fournisseurs: notesTco.autres || null,
     }).eq("id", id);
   };
 
@@ -656,10 +655,15 @@ export default function TCODetailPage() {
 
         {offresAvecTotaux.length > 0 && (
           <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
-            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Notes pour le TCO imprimé</p>
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Remarque de la demande (pour le TCO imprimé)</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
-              <textarea placeholder="Remarque (ex. article surligné en jaune abordable...)" value={notesTco.remarque} onChange={(e) => setNotesTco({ ...notesTco, remarque: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
-              <textarea placeholder="Autres fournisseurs consultés (ex. n'ont pas répondu à la demande de devis, ou ne vendent pas l'article)" value={notesTco.autres} onChange={(e) => setNotesTco({ ...notesTco, autres: e.target.value })} onBlur={enregistrerNotesTco} style={{ ...inputStyle, minHeight: 40 }} />
+              <textarea
+                placeholder="Ex. article surligné en jaune abordable... / Autres fournisseurs consultés : Sanifer et Batimax pas de dispo, MC Mining en attente de réponse..."
+                value={notesTco.remarque}
+                onChange={(e) => setNotesTco({ ...notesTco, remarque: e.target.value })}
+                onBlur={enregistrerNotesTco}
+                style={{ ...inputStyle, minHeight: 60 }}
+              />
             </div>
           </div>
         )}
@@ -695,7 +699,6 @@ export default function TCODetailPage() {
               <div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo.png" alt="UNIFOODS" style={{ height: 34 }} />
-                <div style={{ fontSize: 8.5, color: "#888", marginTop: 2 }}>Membre du groupe HV</div>
               </div>
               <div style={{ textAlign: "center", flex: 1, padding: "0 20px" }}>
                 <div style={{ fontSize: 15, fontWeight: 700 }}>Tableau comparatif des offres fournisseurs</div>
@@ -708,15 +711,22 @@ export default function TCODetailPage() {
               </div>
             </div>
 
-            {/* Bandeau meta */}
-            <div style={{ display: "flex", flexWrap: "wrap", background: "#FAFAF9", borderRadius: 8, padding: "8px 14px", marginBottom: 12, gap: 18 }}>
-              <MetaItem label="Date DA" value={formatDate(demande.created_at)} />
-              <MetaItem label="Service demandeur" value={demande.service || "—"} />
-              <MetaItem label="Nom demandeur" value={demande.demandeur || "—"} />
-              <MetaItem label="N° DA" value={demande.numero} />
-              <MetaItem label="Émetteur" value="Judicaël RANDRIANAIVO" />
-              <MetaItem label="Fonction" value="Buyer" />
-              <MetaItem label="Signature" value="\u00A0" />
+            {/* Bandeau meta : identification à gauche, motif au centre, émetteur à droite */}
+            <div style={{ display: "flex", alignItems: "center", background: "#FAFAF9", borderRadius: 8, padding: "8px 14px", marginBottom: 12, gap: 18 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
+                <MetaItem label="Date DA" value={formatDate(demande.created_at)} />
+                <MetaItem label="Service demandeur" value={demande.service || "—"} />
+                <MetaItem label="Nom demandeur" value={demande.demandeur || "—"} />
+                <MetaItem label="N° DA" value={demande.numero} />
+              </div>
+              <div style={{ flex: 1, textAlign: "center", padding: "0 12px" }}>
+                <div style={lblStyle}>Motif de la demande</div>
+                <div style={{ fontSize: 10, fontWeight: 600, marginTop: 2 }}>{demande.motif_projet || "—"}</div>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
+                <MetaItem label="Émetteur" value="Judicaël RANDRIANAIVO" />
+                <MetaItem label="Fonction" value="Buyer" />
+              </div>
             </div>
 
             {/* Cadre 1 : tableau des articles */}
@@ -730,7 +740,7 @@ export default function TCODetailPage() {
                 <thead>
                   <tr>
                     <th style={thBlank}></th><th style={thBlank}></th><th style={thBlank}></th><th style={thBlank}></th>
-                    <th style={{ ...thBlank, background: "#EAF7EE", color: "#1B7A4C", fontWeight: 700, fontSize: 11, textAlign: "center" }}>Préconisation</th>
+                    <th style={{ ...thBlank, ...precoColStyle, fontSize: 13, fontWeight: 700, textAlign: "center" }}>Préconisation</th>
                     {page.map((o) => {
                       const wins = [];
                       lignesDemande.forEach((ld, i) => { if (moinsCherParLigne[ld.id] === o.id) wins.push(i + 1); });
@@ -738,7 +748,6 @@ export default function TCODetailPage() {
                         <th key={o.id} colSpan={3} style={{ ...thGroupStart, padding: 0 }}>
                           <div style={{ fontSize: 10.5, fontWeight: 700, textAlign: "center", padding: "3px 4px 0" }}>
                             {o.fournisseur_nom}
-                            {o.assujetti_tva === false && <span style={{ fontSize: 8.5, color: "#888", fontStyle: "italic" }}> (non taxable)</span>}
                           </div>
                           <div style={{ fontSize: 8.5, color: "#888", textAlign: "center" }}>
                             {o.numero_devis ? `Devis ${o.numero_devis} · ` : ""}{o.date_devis ? formatDate(o.date_devis) : ""}
@@ -755,13 +764,13 @@ export default function TCODetailPage() {
                     <th style={{ ...thTco, textAlign: "center" }}>Article</th>
                     <th style={{ ...thTco, textAlign: "center" }}>Qté</th>
                     <th style={{ ...thTco, textAlign: "center" }}>Unité</th>
-                    <th style={{ ...thTco, background: "#EAF7EE" }}></th>
+                    <th style={{ ...thTco, ...precoColStyle }}></th>
                     {page.map((o) => {
                       const defaut = fournisseursDetailMap[o.fournisseur_id]?.remise_par_defaut_pct;
                       return (
                         <Fragment key={o.id}>
                           <th style={{ ...thTco, textAlign: "right", borderLeft: "1.25px solid #1a1a1a" }}>PU HT</th>
-                          <th style={{ ...thTco, textAlign: "right" }}>{defaut !== null && defaut !== undefined ? `Remise ${defaut}%` : "Remise"}</th>
+                          <th style={{ ...thTco, textAlign: "right" }}>{defaut ? `Remise ${defaut}%` : "Remise"}</th>
                           <th style={{ ...thTco, textAlign: "right" }}>Montant HT</th>
                         </Fragment>
                       );
@@ -778,11 +787,11 @@ export default function TCODetailPage() {
                         <td style={{ ...tdTco, padding: padCellule }}>{ld.designation}</td>
                         <td style={{ ...tdTco, textAlign: "center", padding: padCellule }}>{Number(ld.quantite).toLocaleString("fr-FR")}</td>
                         <td style={{ ...tdTco, textAlign: "center", padding: padCellule }}>{ld.unite}</td>
-                        <td style={{ ...tdTco, background: "#EAF7EE", textAlign: "center", padding: padCellule }}>
+                        <td style={{ ...tdTco, ...precoColStyle, textAlign: "center", verticalAlign: "middle", padding: "8px 6px" }}>
                           {offreRetenue ? (
                             <>
-                              <div style={{ fontWeight: 700, color: "#1B7A4C" }}>{offreRetenue.fournisseur_nom}</div>
-                              <div style={{ fontSize: 9, color: "#888" }}>HT {montantRetenu != null ? montantRetenu.toLocaleString("fr-FR") + " Ar" : "-"}</div>
+                              <div style={{ fontWeight: 700, fontSize: 12.5, color: "#1B7A4C" }}>{offreRetenue.fournisseur_nom}</div>
+                              <div style={{ fontSize: 9.5, color: "#888", marginTop: 2 }}>HT {montantRetenu != null ? montantRetenu.toLocaleString("fr-FR") + " Ar" : "-"}</div>
                             </>
                           ) : "—"}
                         </td>
@@ -822,24 +831,14 @@ export default function TCODetailPage() {
                 <tbody>
                   <tr>
                     <td colSpan={4} rowSpan={rowSpanMotif} style={{ ...tdTco, verticalAlign: "top", padding: 10 }}>
-                      <div style={lblStyle}>Motif de la demande</div>
-                      <div style={{ marginBottom: 8 }}>{demande.motif_projet || "—"}</div>
-                      {derniere && notesTco.remarque && (
-                        <div style={{ marginBottom: 8 }}>
-                          <div style={lblStyle}>Remarque</div>
-                          <div style={{ whiteSpace: "pre-wrap" }}>{notesTco.remarque}</div>
-                        </div>
-                      )}
                       {derniere && (
                         <div>
-                          <div style={lblStyle}>Autres fournisseurs consultés</div>
-                          <div style={{ whiteSpace: "pre-wrap", color: notesTco.autres ? "#1a1a1a" : "#bbb", fontStyle: notesTco.autres ? "normal" : "italic" }}>
-                            {notesTco.autres || "ex. consultés mais n'ont pas répondu à la demande de devis, ou ne vendent pas l'article recherché"}
-                          </div>
+                          <div style={lblStyle}>Remarque de la demande</div>
+                          <div style={{ whiteSpace: "pre-wrap" }}>{notesTco.remarque || "—"}</div>
                         </div>
                       )}
                     </td>
-                    <td rowSpan={rowSpanMotif} style={{ ...tdTco, background: "#EAF7EE", verticalAlign: "top", padding: 10 }}>
+                    <td rowSpan={rowSpanMotif} style={{ ...tdTco, ...precoColStyle, verticalAlign: "top", padding: 10 }}>
                       <div style={lblStyle}>Total au prix le moins cher (HT)</div>
                       <div style={{ fontWeight: 700, fontSize: 11 }}>{totalPreconisation.ht.toLocaleString("fr-FR")} Ar</div>
                       <div style={{ ...lblStyle, marginTop: 6 }}>TVA</div>
@@ -906,12 +905,12 @@ export default function TCODetailPage() {
 
             {derniere && (
               <div style={{ display: "flex", gap: 20, marginTop: 16 }}>
-                <div style={{ flex: 1, maxWidth: 260 }}>
-                  <div style={{ fontWeight: 700, fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1px solid #1a1a1a", paddingBottom: 5, marginBottom: 40 }}>Validation technique</div>
+                <div style={{ flex: 1, maxWidth: 320 }}>
+                  <div style={{ fontWeight: 700, fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1px solid #1a1a1a", paddingBottom: 5, marginBottom: 85 }}>Validation technique</div>
                   <div style={{ fontSize: 8.5, color: "#888", borderTop: "0.75px solid #ddd", paddingTop: 4 }}>Date / Nom / Signature</div>
                 </div>
-                <div style={{ flex: 1, maxWidth: 260 }}>
-                  <div style={{ fontWeight: 700, fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1px solid #1a1a1a", paddingBottom: 5, marginBottom: 40 }}>Validation direction</div>
+                <div style={{ flex: 1, maxWidth: 320 }}>
+                  <div style={{ fontWeight: 700, fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1px solid #1a1a1a", paddingBottom: 5, marginBottom: 85 }}>Validation direction</div>
                   <div style={{ fontSize: 8.5, color: "#888", borderTop: "0.75px solid #ddd", paddingTop: 4 }}>Date / Nom / Signature</div>
                 </div>
               </div>
@@ -933,6 +932,7 @@ function MetaItem({ label, value }) {
 }
 
 const cadreStyle = { border: "1.5px solid #1a1a1a", borderRadius: 10, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,.06)" };
+const precoColStyle = { background: "#EAF7EE", color: "#1B7A4C", borderLeft: "2px solid #3E7A52", borderRight: "2px solid #3E7A52" };
 const lblStyle = { fontSize: 8.5, color: "#888", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 };
 const thBlank = { borderBottom: "none", padding: 0 };
 const thGroupStart = { borderLeft: "1.25px solid #1a1a1a", borderBottom: "none" };
