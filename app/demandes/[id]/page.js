@@ -23,7 +23,6 @@ function computeTotal(lignesOffre, lignesDemande, assujettiTva) {
   return { totalHT, tva, totalTTC: totalHT + tva };
 }
 
-// Montant total de remise obtenue chez ce fournisseur, tous articles confondus
 function remiseObtenueOffre(o, lignesDemande) {
   let total = 0;
   for (const ld of lignesDemande) {
@@ -37,8 +36,6 @@ function remiseObtenueOffre(o, lignesDemande) {
   return total;
 }
 
-// Articles dont la remise s'écarte du taux habituel du fournisseur (promo sans
-// remise, ou remise exceptionnelle plus forte que d'habitude)
 function remiseExceptionsOffre(o, lignesDemande, fournisseursDetailMap) {
   const defaut = fournisseursDetailMap[o.fournisseur_id]?.remise_par_defaut_pct;
   if (defaut === null || defaut === undefined) return [];
@@ -54,7 +51,6 @@ function remiseExceptionsOffre(o, lignesDemande, fournisseursDetailMap) {
   return out;
 }
 
-// Liste à la française : "3 et 5" / "1, 3 et 5" — plus lisible qu'une liste à virgules
 function joinFrench(arr) {
   if (arr.length === 0) return "";
   if (arr.length === 1) return String(arr[0]);
@@ -83,6 +79,7 @@ export default function TCODetailPage() {
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
   const [rechercheFournisseur, setRechercheFournisseur] = useState("");
+  const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", fonction: "Buyer" });
 
   const charger = async () => {
     const { data: d } = await supabase.from("demandes").select("*").eq("id", id).single();
@@ -113,6 +110,16 @@ export default function TCODetailPage() {
 
   useEffect(() => { charger(); }, [id]);
 
+  useEffect(() => {
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) return;
+      const { data: p } = await supabase.from("profiles").select("nom, role").eq("id", userData.user.id).maybeSingle();
+      const fonctions = { acheteur: "Buyer", direction: "Direction", invite: "Invité" };
+      setEmetteur({ nom: p?.nom || userData.user.email, fonction: fonctions[p?.role] || "Buyer" });
+    })();
+  }, []);
+
   const fournisseursDetailMap = useMemo(() => {
     const map = {};
     fournisseurs.forEach((f) => { map[f.id] = f; });
@@ -135,7 +142,6 @@ export default function TCODetailPage() {
     return qte * pu * (1 - remise / 100);
   };
 
-  // Pour chaque ligne article, quel fournisseur est le moins cher (indépendant de la sélection manuelle)
   const moinsCherParLigne = useMemo(() => {
     const map = {};
     for (const ld of lignesDemande) {
@@ -148,7 +154,6 @@ export default function TCODetailPage() {
     return map;
   }, [offresAvecTotaux, lignesDemande]);
 
-  // Étiquette "moins cher" par fournisseur (point 1) : liste des numéros de ligne où il est le moins cher
   const etiquetteParOffre = useMemo(() => {
     const map = {};
     offresAvecTotaux.forEach((o) => {
@@ -163,7 +168,6 @@ export default function TCODetailPage() {
     return map;
   }, [offresAvecTotaux, lignesDemande, moinsCherParLigne]);
 
-  // Total des articles au prix le moins cher sélectionné (point 18), avec TVA/TTC selon le fournisseur retenu par ligne
   const totalPreconisation = useMemo(() => {
     let ht = 0, tva = 0;
     for (const ld of lignesDemande) {
@@ -180,7 +184,6 @@ export default function TCODetailPage() {
     return { ht, tva, ttc: ht + tva };
   }, [selection, offresAvecTotaux, lignesDemande]);
 
-  // Sélection par défaut : le fournisseur le moins cher, article par article
   useEffect(() => {
     setSelection((prev) => {
       const next = { ...prev };
@@ -210,7 +213,6 @@ export default function TCODetailPage() {
       .select()
       .single();
     if (offre) {
-      // Pré-remplissage avec le dernier prix connu pour ce couple article + fournisseur (point 2)
       const designations = lignesDemande.map((ld) => ld.designation);
       let derniersPrix = {};
       if (designations.length) {
@@ -266,7 +268,6 @@ export default function TCODetailPage() {
     );
     if (existante) {
       await supabase.from("lignes_offre").update({ [field]: value === "" ? null : Number(value) }).eq("id", existante.id);
-      // Le prix saisi devient le nouveau "dernier prix HT" de référence de l'article (point 2)
       if (field === "prix_unitaire_ht" && value !== "") {
         const ld = lignesDemande.find((l) => l.id === ligneDemandeId);
         if (ld) await supabase.from("articles").update({ dernier_prix_ht: Number(value) }).ilike("designation", ld.designation);
@@ -330,7 +331,6 @@ export default function TCODetailPage() {
       }
     }
 
-    // Une demande n'est marquée "Basculée en commande" que si TOUS ses articles ont désormais un BC (point 19)
     const nouvellesCouvertes = new Set(Object.values(groupes).flat().map((l) => l.id));
     const restants = lignesDemande.filter((ld) => !dejaCouvertes.has(ld.id) && !nouvellesCouvertes.has(ld.id));
     await supabase.from("demandes").update({ statut: restants.length === 0 ? "Basculée en commande" : "Partiellement traitée" }).eq("id", id);
@@ -341,11 +341,9 @@ export default function TCODetailPage() {
   const marquerNonDisponible = async (ligne) => {
     const observation = `À rechercher à l'import — ${ligne.designation}`;
     if (lignesDemande.length <= 1) {
-      // Seul article de la demande : on clôture directement cette demande
       await supabase.from("lignes_demande").update({ non_disponible_localement: true }).eq("id", ligne.id);
       await supabase.from("demandes").update({ statut: "Clôturée", observation }).eq("id", id);
     } else {
-      // D'autres articles restent à traiter : on détache celui-ci dans une nouvelle demande clôturée
       const { data: nouvelleDemande } = await supabase.from("demandes").insert({
         service: demande.service, demandeur: demande.demandeur, priorite: demande.priorite,
         statut: "Clôturée", observation,
@@ -362,12 +360,10 @@ export default function TCODetailPage() {
   if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
   if (!demande) return <AuthGuard><p>Demande introuvable.</p></AuthGuard>;
 
-  // Découpage des fournisseurs en pages de 4 pour l'impression (point 21)
   const pagesImpression = [];
   for (let i = 0; i < offresAvecTotaux.length; i += FOURNISSEURS_PAR_PAGE) {
     pagesImpression.push(offresAvecTotaux.slice(i, i + FOURNISSEURS_PAR_PAGE));
   }
-  // Le tableau se resserre automatiquement s'il y a beaucoup d'articles
   const dense = lignesDemande.length > 10;
   const cozy = lignesDemande.length <= 3;
   const padCellule = dense ? "2px 4px" : cozy ? "7px 4px" : "4px 4px";
@@ -503,7 +499,6 @@ export default function TCODetailPage() {
         )}
         {offresAvecTotaux.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Ajoute au moins un fournisseur pour saisir ses prix.</p>}
 
-        {/* ---- Vue écran : tableau unique interactif ---- */}
         {offresAvecTotaux.length > 0 && (
           <div className="ecran-seulement">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -652,7 +647,6 @@ export default function TCODetailPage() {
           </div>
         )}
 
-
         {offresAvecTotaux.length > 0 && (
           <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
             <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Remarque de la demande (pour le TCO imprimé)</p>
@@ -687,17 +681,13 @@ export default function TCODetailPage() {
       </div>
 
       <div className="tco-imprimable">
-        {/* ---- Vue impression : modèle moderne validé (cadres arrondis séparés,
-             en-têtes centrés, taux de remise, détection des remises hors norme) ---- */}
         {offresAvecTotaux.length > 0 && pagesImpression.map((page, pIdx) => {
           const derniere = pIdx === pagesImpression.length - 1;
           const rowSpanMotif = derniere ? 5 : 4;
           return (
           <div key={pIdx} className="page-impression" style={{ fontFamily: "Arial, sans-serif", color: "#1a1a1a" }}>
-            {/* En-tête */}
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", borderBottom: "2px solid #3E7A52", paddingBottom: 10, marginBottom: 10 }}>
               <div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/logo.png" alt="UNIFOODS" style={{ height: 34 }} />
               </div>
               <div style={{ textAlign: "center", flex: 1, padding: "0 20px" }}>
@@ -711,7 +701,6 @@ export default function TCODetailPage() {
               </div>
             </div>
 
-            {/* Bandeau meta : identification à gauche, motif au centre, émetteur à droite */}
             <div style={{ display: "flex", alignItems: "center", background: "#FAFAF9", borderRadius: 8, padding: "8px 14px", marginBottom: 12, gap: 18 }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
                 <MetaItem label="Date DA" value={formatDate(demande.created_at)} />
@@ -724,13 +713,11 @@ export default function TCODetailPage() {
                 <div style={{ fontSize: 10, fontWeight: 600, marginTop: 2 }}>{demande.motif_projet || "—"}</div>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
-                <MetaItem label="Émetteur" value="Judicaël RANDRIANAIVO" />
-                <MetaItem label="Fonction" value="Buyer" />
+                <MetaItem label="Émetteur" value={emetteur.nom} />
+                <MetaItem label="Fonction" value={emetteur.fonction} />
               </div>
             </div>
 
-            {/* Cadre 1 : tableau des articles — 3 blocs distincts (gauche arrondi
-                à gauche / préconisation rectangle / droite arrondi à droite) */}
             <div>
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
@@ -832,7 +819,6 @@ export default function TCODetailPage() {
 
             <div style={{ height: 10 }} />
 
-            {/* Cadre 2 : totaux — mêmes 3 blocs, séparé du tableau des articles */}
             <div>
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
@@ -948,10 +934,6 @@ function MetaItem({ label, value }) {
 }
 
 const precoColStyle = { background: "#EAF7EE", color: "#1B7A4C" };
-// Bordure + coin arrondi d'une des 3 "boîtes" du TCO (gauche / milieu / droite).
-// "left" est arrondi seulement à gauche, "right" seulement à droite, "mid" jamais
-// (reste un simple rectangle) — pour bien distinguer les 3 blocs même en N&B,
-// avec un vrai espace vide entre eux (colonnes espaceurs) plutôt que de la couleur.
 function boxEdge(group, { first = false, last = false, firstCol = false, lastCol = false } = {}) {
   const c = "1.5px solid #1a1a1a";
   const s = {};
