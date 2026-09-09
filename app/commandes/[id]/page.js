@@ -304,7 +304,7 @@ export default function CommandeDetailPage() {
   return (
     <AuthGuard>
       <style>{`
-        @page { size: A4 portrait; margin: 10mm; }
+        @page { size: A4 portrait; margin: 12.5mm 7.5mm; }
         .bc-template, .pv-template { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
         @media print {
           body * { visibility: hidden; }
@@ -317,10 +317,6 @@ export default function CommandeDetailPage() {
         @media print { .pv-template.print-area { display: block; } }
         .bc-template { display: none; }
         @media print { .bc-template.print-area { display: block; } }
-        .tableau-zebre tbody tr:nth-child(odd) { background: #F5F5F5; }
-        .tableau-zebre tbody tr:nth-child(odd) td { border-bottom: 1px solid #E2E2E2; }
-        .tableau-zebre tbody tr:nth-child(even) { background: #FFFFFF; }
-        .tableau-zebre tbody tr:nth-child(even) td { border-bottom: 1px solid #F0F0F0; }
       `}</style>
 
       <button onClick={() => router.push("/commandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux commandes</button>
@@ -654,12 +650,12 @@ export default function CommandeDetailPage() {
       )}
 
       {/* ---- PV de réception (imprimable) ---- */}
-      <div className={`bc-template ${modeImpression === "bc" ? "print-area" : ""}`} style={{ padding: 24, fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "273mm" }}>
+      <div className={`bc-template ${modeImpression === "bc" ? "print-area" : ""}`} style={{ padding: "0 8px", fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "calc(297mm - 25mm)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 48, marginBottom: 16 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
           <div style={{ ...encadreDouble(), flex: "0 0 auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "10px 22px" }}>
             <span style={{ fontSize: 19, fontWeight: 700, color: VERT, whiteSpace: "nowrap" }}>Bon de Commande</span>
-            <span style={{ fontSize: 12, color: GRIS_LABEL, whiteSpace: "nowrap" }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {bc.numero}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: GRIS_LABEL, whiteSpace: "nowrap" }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {bc.numero}</span>
           </div>
         </div>
 
@@ -716,7 +712,7 @@ export default function CommandeDetailPage() {
                 <tr key={l.id}><td style={tdPrint}>&nbsp;</td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td></tr>
               );
               const grise = !l.__vide && i % 2 === 1;
-              const tdGris = grise ? { ...tdPrint, background: "#F5F5F5", borderBottom: "1px solid #D8D8D8" } : tdPrint;
+              const tdGris = grise ? { ...tdPrint, background: "#F5F5F5", borderBottom: "1px solid #EAEAEA" } : tdPrint;
               const puNet = (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100);
               return (
                 <tr key={l.id}>
@@ -771,20 +767,20 @@ export default function CommandeDetailPage() {
               <strong style={{ color: NOIR_VALEUR }}>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
             </div>
           </div>
-          <div style={{ height: 10, background: VERT_FONCE, marginTop: 14, borderRadius: 2 }} />
+          <div style={{ height: 10, background: VERT_FONCE, marginTop: 14 }} />
         </div>
       </div>
 
-      <div className={`pv-template ${modeImpression === "pv" ? "print-area" : ""}`} style={{ padding: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+      <div className={`pv-template ${modeImpression === "pv" ? "print-area" : ""}`} style={{ padding: "0 8px", fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "calc(297mm - 25mm)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 48, marginBottom: 16 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
           <div style={{ flex: 1, ...encadreDouble(), padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: 19, fontWeight: 700, color: VERT }}>PV de Réception</span>
-            <span style={{ fontSize: 12, color: GRIS_LABEL }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {receptions[receptions.length - 1]?.numero || "—"}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: GRIS_LABEL }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {receptions[receptions.length - 1]?.numero || "—"}</span>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
           <div style={infoBox}>
             <LigneInfo label="Date" value={formatDate(new Date().toISOString())} />
             <LigneInfo label="Emis par" value={emetteur.nom} />
@@ -807,10 +803,7 @@ export default function CommandeDetailPage() {
             <LigneInfo label="Tél" value={fournisseurDetail?.telephone || ""} />
             <LigneInfo label="E-Mail" value={fournisseurDetail?.email || ""} />
           </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
-          <div style={infoBoxPlate}>
+          <div style={infoBoxVert}>
             <LigneInfo label="Date de livraison" value="____________" />
             <LigneInfo label="Nom Réceptionnaire du Magasin" value="____________" />
           </div>
@@ -821,7 +814,7 @@ export default function CommandeDetailPage() {
         </div>
 
         <div style={ombrePortee()} />
-        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
           <thead>
             <tr>
               <th style={thPrint}>BC UF2 n°</th><th style={thPrint}>Description</th><th style={thPrint}>Quantité</th>
@@ -834,16 +827,18 @@ export default function CommandeDetailPage() {
               if (l.__vide) return (
                 <tr key={l.id}><td style={tdPrint}>&nbsp;</td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td></tr>
               );
+              const grise = i % 2 === 1;
+              const tdGris = grise ? { ...tdPrint, background: "#F5F5F5", borderBottom: "1px solid #EAEAEA" } : tdPrint;
               return (
                 <tr key={l.id}>
                   <td style={tdPrint}>{i === 0 ? bc.numero : ""}</td>
-                  <td style={tdPrint}>{l.designation}</td>
-                  <td style={{ ...tdPrint, textAlign: "center" }}>{l.quantite}</td>
-                  <td style={tdPrint}>{l.unite}</td>
-                  <td style={tdPrint}></td>
-                  <td style={tdPrint}></td>
-                  <td style={tdPrint}></td>
-                  <td style={tdPrint}></td>
+                  <td style={tdGris}>{l.designation}</td>
+                  <td style={{ ...tdGris, textAlign: "center" }}>{l.quantite}</td>
+                  <td style={tdGris}>{l.unite}</td>
+                  <td style={tdGris}></td>
+                  <td style={tdGris}></td>
+                  <td style={tdGris}></td>
+                  <td style={tdGris}></td>
                 </tr>
               );
             })}
@@ -852,9 +847,11 @@ export default function CommandeDetailPage() {
         <div style={ombrePortee()} />
         <div style={{ textAlign: "right", fontSize: 8, color: GRIS_LABEL, marginTop: 3 }}>Page 1/1</div>
 
+        <div style={{ flex: 1 }} />
+
         <div style={doubleLigneVerte} />
 
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 14, marginTop: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 14, marginTop: 8 }}>
           {["RESPONSABLE MAGASIN", "MAGASINIER", "AGENT DE SECURITE", "LIVREUR ou TRANSPORTEUR"].map((s) => (
             <div key={s} style={{ flex: 1, ...encadreDouble(), minHeight: 80, padding: "10px 10px 6px", textAlign: "center", fontSize: 10.5, fontWeight: 700, color: NOIR_VALEUR }}>
               {s}
@@ -871,7 +868,7 @@ export default function CommandeDetailPage() {
               <strong style={{ color: NOIR_VALEUR }}>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
             </div>
           </div>
-          <div style={{ height: 10, background: VERT_FONCE, marginTop: 14, borderRadius: 2 }} />
+          <div style={{ height: 10, background: VERT_FONCE, marginTop: 14 }} />
         </div>
       </div>
     </AuthGuard>
