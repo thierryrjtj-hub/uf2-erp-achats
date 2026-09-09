@@ -39,6 +39,8 @@ export default function CommandeDetailPage() {
   const [nouvelAccuse, setNouvelAccuse] = useState({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", demandeur: "", observation: "" });
   const [dateSignature, setDateSignature] = useState("");
   const [observation, setObservation] = useState("");
+  const [objet, setObjet] = useState("");
+  const [utilisateurFinal, setUtilisateurFinal] = useState("");
   const [dateEstimeeReste, setDateEstimeeReste] = useState("");
   const [enregistrement, setEnregistrement] = useState(false);
   const [modeImpression, setModeImpression] = useState("bc");
@@ -86,6 +88,8 @@ export default function CommandeDetailPage() {
       });
       setDateSignature(c.date_signature || "");
       setObservation(c.observation || "");
+      setObjet(c.objet || "");
+      setUtilisateurFinal(c.utilisateur_final || "");
       setTransmission({
         dateEnvoiSignature: c.date_envoi_signature || "", dateRetourSignature: c.date_retour_signature || "",
         destinataireSignature: c.destinataire_signature || "", dateEnvoiPaiement: c.date_envoi_paiement || "",
@@ -176,7 +180,7 @@ export default function CommandeDetailPage() {
   };
 
   const enregistrerSignatureObservation = async () => {
-    await supabase.from("commandes").update({ date_signature: dateSignature || null, observation }).eq("id", id);
+    await supabase.from("commandes").update({ date_signature: dateSignature || null, observation, objet: objet || null, utilisateur_final: utilisateurFinal || null }).eq("id", id);
     charger();
   };
 
@@ -372,10 +376,17 @@ export default function CommandeDetailPage() {
           </p>
         )}
 
-        <div className="no-print" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+        <div className="no-print" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
           <label style={{ fontSize: 12, color: "#666" }}>Date de signature du BC :</label>
           <input type="date" value={dateSignature} onChange={(e) => setDateSignature(e.target.value)} style={inputStyle} />
           <input placeholder="Observation" value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
+          <button onClick={enregistrerSignatureObservation} style={{ ...buttonStyle, background: "#888" }}>Enregistrer</button>
+        </div>
+        <div className="no-print" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+          <label style={{ fontSize: 12, color: "#666" }} title="Utilisé pour le BC imprimé. Pré-rempli depuis la demande liée si elle existe, sinon à saisir ici (BC direct).">Objet (pour le BC imprimé) :</label>
+          <input placeholder={demande?.motif_projet || "Objet"} value={objet} onChange={(e) => setObjet(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+          <label style={{ fontSize: 12, color: "#666" }}>Utilisateur Final :</label>
+          <input placeholder={demande?.demandeur || "Utilisateur final"} value={utilisateurFinal} onChange={(e) => setUtilisateurFinal(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
           <button onClick={enregistrerSignatureObservation} style={{ ...buttonStyle, background: "#888" }}>Enregistrer</button>
         </div>
 
@@ -643,8 +654,8 @@ export default function CommandeDetailPage() {
       )}
 
       {/* ---- PV de réception (imprimable) ---- */}
-      <div className={`bc-template ${modeImpression === "bc" ? "print-area" : ""}`} style={{ padding: 24, fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+      <div className={`bc-template ${modeImpression === "bc" ? "print-area" : ""}`} style={{ padding: 24, fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "273mm" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 48, marginBottom: 16 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
           <div style={{ ...encadreDouble(), flex: "0 0 auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "10px 22px" }}>
             <span style={{ fontSize: 19, fontWeight: 700, color: VERT, whiteSpace: "nowrap" }}>Bon de Commande</span>
@@ -652,40 +663,36 @@ export default function CommandeDetailPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={infoBox}>
-              <LigneInfo label="Date" value={formatDate(bc.date)} />
-              <LigneInfo label="Emis par" value={emetteur.nom} />
-              <LigneInfo label="Contact" value={emetteur.telephone} />
-              <LigneInfo label="E-Mail" value={emetteur.email} />
-              <div style={{ height: 8 }} />
-              <LigneInfo label="Date DA" value={demande ? formatDate(demande.created_at) : ""} />
-              <LigneInfo label="DA N°" value={demande?.numero || ""} />
-              <LigneInfo label="Objet" value={demande?.motif_projet || ""} />
-              <LigneInfo label="Utilisateur Final" value={demande?.demandeur || ""} />
-            </div>
-            <div style={infoBoxPlate}>
-              <LigneInfo label="Adresse de livraison" value="Lot AZ 122 AI ZI SANTILO ANOSIZATO OUEST" />
-              <LigneInfo label="Réceptionnaire" value="Magasin" />
-            </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+          <div style={infoBox}>
+            <LigneInfo label="Date" value={formatDate(bc.date)} />
+            <LigneInfo label="Emis par" value={emetteur.nom} />
+            <LigneInfo label="Contact" value={emetteur.telephone} />
+            <LigneInfo label="E-Mail" value={emetteur.email} />
+            <div style={{ height: 8 }} />
+            <LigneInfo label="Date DA" value={demande ? formatDate(demande.created_at) : ""} />
+            <LigneInfo label="DA N°" value={demande?.numero || ""} />
+            <LigneInfo label="Objet" value={bc.objet || demande?.motif_projet || ""} />
+            <LigneInfo label="Utilisateur Final" value={bc.utilisateur_final || demande?.demandeur || ""} />
           </div>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={infoBox}>
-              <LigneInfo label="Destinataire" value={bc.fournisseur_nom} accent />
-              <LigneInfo label="Adresse" value={fournisseurDetail?.adresse || ""} />
-              <LigneInfo label="Code postal" value={fournisseurDetail?.code_postal || ""} />
-              <LigneInfo label="NIF" value={fournisseurDetail?.nif || ""} />
-              <LigneInfo label="STAT" value={fournisseurDetail?.stat || ""} />
-              <LigneInfo label="RCS" value={fournisseurDetail?.rcs || ""} />
-              <LigneInfo label="Contact" value={fournisseurDetail?.contact || ""} />
-              <LigneInfo label="Tél" value={fournisseurDetail?.telephone || ""} />
-              <LigneInfo label="E-Mail" value={fournisseurDetail?.email || ""} />
-            </div>
-            <div style={infoBoxVert}>
-              <LigneInfo label="Type de règlement" value={fournisseurDetail?.type_reglement || ""} />
-              <LigneInfo label="Modalité de paiement" value={fournisseurDetail?.conditions_paiement_jours ? `${fournisseurDetail.conditions_paiement_jours} Jours` : ""} />
-            </div>
+          <div style={infoBox}>
+            <LigneInfo label="Destinataire" value={bc.fournisseur_nom} accent />
+            <LigneInfo label="Adresse" value={fournisseurDetail?.adresse || ""} />
+            <LigneInfo label="Code postal" value={fournisseurDetail?.code_postal || ""} />
+            <LigneInfo label="NIF" value={fournisseurDetail?.nif || ""} />
+            <LigneInfo label="STAT" value={fournisseurDetail?.stat || ""} />
+            <LigneInfo label="RCS" value={fournisseurDetail?.rcs || ""} />
+            <LigneInfo label="Contact" value={fournisseurDetail?.contact || ""} />
+            <LigneInfo label="Tél" value={fournisseurDetail?.telephone || ""} />
+            <LigneInfo label="E-Mail" value={fournisseurDetail?.email || ""} />
+          </div>
+          <div style={infoBoxVert}>
+            <LigneInfo label="Adresse de livraison" value="Lot AZ 122 AI ZI SANTILO ANOSIZATO OUEST" />
+            <LigneInfo label="Réceptionnaire" value="Magasin" />
+          </div>
+          <div style={infoBoxVert}>
+            <LigneInfo label="Type de règlement" value={fournisseurDetail?.type_reglement || ""} />
+            <LigneInfo label="Modalité de paiement" value={fournisseurDetail?.conditions_paiement_jours ? `${fournisseurDetail.conditions_paiement_jours} Jours` : ""} />
           </div>
         </div>
 
@@ -708,8 +715,8 @@ export default function CommandeDetailPage() {
               if (l.__vide) return (
                 <tr key={l.id}><td style={tdPrint}>&nbsp;</td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td></tr>
               );
-              const grise = i % 2 === 0;
-              const tdGris = grise ? { ...tdPrint, background: "#F5F5F5", borderBottom: "1px solid #E2E2E2" } : tdPrint;
+              const grise = !l.__vide && i % 2 === 1;
+              const tdGris = grise ? { ...tdPrint, background: "#F5F5F5", borderBottom: "1px solid #D8D8D8" } : tdPrint;
               const puNet = (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100);
               return (
                 <tr key={l.id}>
@@ -729,8 +736,11 @@ export default function CommandeDetailPage() {
         <div style={ombrePortee()} />
         <div style={{ textAlign: "right", fontSize: 8, color: GRIS_LABEL, marginTop: 3 }}>Page 1/1</div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 20 }}>
-          <div style={{ fontSize: 12, color: NOIR_VALEUR }}>Signature :</div>
+        <div style={{ fontSize: 12, color: NOIR_VALEUR, marginTop: 18 }}>Signature :</div>
+
+        <div style={{ flex: 1 }} />
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <div style={{ width: 290, ...encadreDouble(), padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4, color: GRIS_LABEL }}>
               <span>Montant Total HT</span><strong style={{ color: NOIR_VALEUR }}>{Number(bc.montant_ht).toLocaleString("fr-FR")} Ar</strong>
@@ -739,15 +749,14 @@ export default function CommandeDetailPage() {
               <span>Tva {bc.assujetti_tva === false ? "0%" : "20%"}</span>
               <strong style={{ color: NOIR_VALEUR }}>{bc.assujetti_tva === false ? "-" : `${Number(bc.montant_tva).toLocaleString("fr-FR")} Ar`}</strong>
             </div>
-            <div style={{ marginTop: 10, background: "#fff", borderRadius: 6, padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 16, fontWeight: 700, color: NOIR_VALEUR }}>
-              <span>NET A PAYER TTC</span><span>{Number(bc.montant_ttc).toLocaleString("fr-FR")} Ar</span>
+            <div style={{ marginTop: 10, background: "#fff", borderRadius: 6, padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", color: NOIR_VALEUR }}>
+              <span style={{ fontSize: 11, fontWeight: 700 }}>NET A PAYER TTC</span>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>{Number(bc.montant_ttc).toLocaleString("fr-FR")} Ar</span>
             </div>
           </div>
         </div>
 
-        <div style={{ height: 90 }} />
-
-        <p style={{ textAlign: "center", fontStyle: "italic", fontSize: 12, color: NOIR_VALEUR }}>
+        <p style={{ textAlign: "center", fontStyle: "italic", fontSize: 12, color: NOIR_VALEUR, marginTop: 16 }}>
           Arrêter le présent Bon de Commande à la somme de : {montantEnLettresAriary(bc.montant_ttc)}
         </p>
 
