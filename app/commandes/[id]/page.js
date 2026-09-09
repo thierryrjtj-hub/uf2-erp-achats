@@ -301,11 +301,13 @@ export default function CommandeDetailPage() {
     <AuthGuard>
       <style>{`
         @page { size: A4 portrait; margin: 10mm; }
+        .bc-template, .pv-template { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
         @media print {
           body * { visibility: hidden; }
           .print-area, .print-area * { visibility: visible; }
           .print-area { position: absolute; left: 0; top: 0; width: 100%; }
           .no-print { display: none !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
         .pv-template { display: none; }
         @media print { .pv-template.print-area { display: block; } }
@@ -644,50 +646,51 @@ export default function CommandeDetailPage() {
       <div className={`bc-template ${modeImpression === "bc" ? "print-area" : ""}`} style={{ padding: 24, fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
-          <div style={{ flex: 1, ...encadreDouble(), padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 19, fontWeight: 700, color: VERT }}>Bon de Commande</span>
-            <span style={{ fontSize: 12, color: GRIS_LABEL }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {bc.numero}</span>
+          <div style={{ ...encadreDouble(), flex: "0 0 auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "10px 22px" }}>
+            <span style={{ fontSize: 19, fontWeight: 700, color: VERT, whiteSpace: "nowrap" }}>Bon de Commande</span>
+            <span style={{ fontSize: 12, color: GRIS_LABEL, whiteSpace: "nowrap" }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {bc.numero}</span>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
-          <div style={infoBox}>
-            <LigneInfo label="Date" value={formatDate(bc.date)} />
-            <LigneInfo label="Emis par" value={emetteur.nom} />
-            <LigneInfo label="Contact" value={emetteur.telephone} />
-            <LigneInfo label="E-Mail" value={emetteur.email} />
-            <div style={{ height: 8 }} />
-            <LigneInfo label="Date DA" value={demande ? formatDate(demande.created_at) : ""} />
-            <LigneInfo label="DA N°" value={demande?.numero || ""} />
-            <LigneInfo label="Objet" value={demande?.motif_projet || ""} />
-            <LigneInfo label="Utilisateur Final" value={demande?.demandeur || ""} />
+        <div style={{ display: "flex", gap: 20, marginBottom: 20 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={infoBox}>
+              <LigneInfo label="Date" value={formatDate(bc.date)} />
+              <LigneInfo label="Emis par" value={emetteur.nom} />
+              <LigneInfo label="Contact" value={emetteur.telephone} />
+              <LigneInfo label="E-Mail" value={emetteur.email} />
+              <div style={{ height: 8 }} />
+              <LigneInfo label="Date DA" value={demande ? formatDate(demande.created_at) : ""} />
+              <LigneInfo label="DA N°" value={demande?.numero || ""} />
+              <LigneInfo label="Objet" value={demande?.motif_projet || ""} />
+              <LigneInfo label="Utilisateur Final" value={demande?.demandeur || ""} />
+            </div>
+            <div style={infoBoxPlate}>
+              <LigneInfo label="Adresse de livraison" value="Lot AZ 122 AI ZI SANTILO ANOSIZATO OUEST" />
+              <LigneInfo label="Réceptionnaire" value="Magasin" />
+            </div>
           </div>
-          <div style={infoBox}>
-            <LigneInfo label="Destinataire" value={bc.fournisseur_nom} accent />
-            <LigneInfo label="Adresse" value={fournisseurDetail?.adresse || ""} />
-            <LigneInfo label="Code postal" value={fournisseurDetail?.code_postal || ""} />
-            <LigneInfo label="NIF" value={fournisseurDetail?.nif || ""} />
-            <LigneInfo label="STAT" value={fournisseurDetail?.stat || ""} />
-            <LigneInfo label="RCS" value={fournisseurDetail?.rcs || ""} />
-            <LigneInfo label="Contact" value={fournisseurDetail?.contact || ""} />
-            <LigneInfo label="Tél" value={fournisseurDetail?.telephone || ""} />
-            <LigneInfo label="E-Mail" value={fournisseurDetail?.email || ""} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={infoBox}>
+              <LigneInfo label="Destinataire" value={bc.fournisseur_nom} accent />
+              <LigneInfo label="Adresse" value={fournisseurDetail?.adresse || ""} />
+              <LigneInfo label="Code postal" value={fournisseurDetail?.code_postal || ""} />
+              <LigneInfo label="NIF" value={fournisseurDetail?.nif || ""} />
+              <LigneInfo label="STAT" value={fournisseurDetail?.stat || ""} />
+              <LigneInfo label="RCS" value={fournisseurDetail?.rcs || ""} />
+              <LigneInfo label="Contact" value={fournisseurDetail?.contact || ""} />
+              <LigneInfo label="Tél" value={fournisseurDetail?.telephone || ""} />
+              <LigneInfo label="E-Mail" value={fournisseurDetail?.email || ""} />
+            </div>
+            <div style={infoBoxVert}>
+              <LigneInfo label="Type de règlement" value={fournisseurDetail?.type_reglement || ""} />
+              <LigneInfo label="Modalité de paiement" value={fournisseurDetail?.conditions_paiement_jours ? `${fournisseurDetail.conditions_paiement_jours} Jours` : ""} />
+            </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
-          <div style={infoBoxPlate}>
-            <LigneInfo label="Adresse de livraison" value="Lot AZ 122 AI ZI SANTILO ANOSIZATO OUEST" />
-            <LigneInfo label="Réceptionnaire" value="Magasin" />
-          </div>
-          <div style={infoBoxVert}>
-            <LigneInfo label="Type de règlement" value={fournisseurDetail?.type_reglement || ""} />
-            <LigneInfo label="Modalité de paiement" value={fournisseurDetail?.conditions_paiement_jours ? `${fournisseurDetail.conditions_paiement_jours} Jours` : ""} />
-          </div>
-        </div>
-
-        <div style={ombrePortee(false)} />
-        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+        <div style={ombrePortee()} />
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
           <thead>
             <tr>
               <th style={thPrint}>Réf. Devis n°</th><th style={thPrint}>Description</th><th style={thPrint}>Quantité</th>
@@ -701,29 +704,30 @@ export default function CommandeDetailPage() {
                 {offreLiee.numero_devis}{offreLiee.date_devis ? ` du ${formatDate(offreLiee.date_devis)}` : ""}
               </td></tr>
             )}
-            {avecLignesVides(lignes, 16).map((l) => {
+            {avecLignesVides(lignes, 16).map((l, i) => {
               if (l.__vide) return (
                 <tr key={l.id}><td style={tdPrint}>&nbsp;</td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td></tr>
               );
+              const grise = i % 2 === 0;
+              const tdGris = grise ? { ...tdPrint, background: "#F5F5F5", borderBottom: "1px solid #E2E2E2" } : tdPrint;
               const puNet = (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100);
               return (
                 <tr key={l.id}>
                   <td style={tdPrint}></td>
-                  <td style={tdPrint}>{l.designation}</td>
-                  <td style={{ ...tdPrint, textAlign: "center" }}>{Number(l.quantite).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</td>
-                  <td style={tdPrint}>{l.unite}</td>
-                  <td style={{ ...tdPrint, textAlign: "right" }}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar</td>
-                  <td style={{ ...tdPrint, textAlign: "right" }}>{l.remise_pct ? `${l.remise_pct}%` : ""}</td>
-                  <td style={{ ...tdPrint, textAlign: "right" }}>{puNet.toLocaleString("fr-FR")} Ar</td>
-                  <td style={{ ...tdPrint, textAlign: "right" }}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
+                  <td style={tdGris}>{l.designation}</td>
+                  <td style={{ ...tdGris, textAlign: "center" }}>{Number(l.quantite).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</td>
+                  <td style={tdGris}>{l.unite}</td>
+                  <td style={{ ...tdGris, textAlign: "right" }}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdGris, textAlign: "right" }}>{l.remise_pct ? `${l.remise_pct}%` : ""}</td>
+                  <td style={{ ...tdGris, textAlign: "right" }}>{puNet.toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdGris, textAlign: "right" }}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        <div style={{ ...ombrePortee(true), display: "flex", alignItems: "center", justifyContent: "flex-end", position: "relative" }}>
-          <span style={{ position: "absolute", right: 4, top: 4, fontSize: 8, color: "#fff" }}>Page 1/1</span>
-        </div>
+        <div style={ombrePortee()} />
+        <div style={{ textAlign: "right", fontSize: 8, color: GRIS_LABEL, marginTop: 3 }}>Page 1/1</div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 20 }}>
           <div style={{ fontSize: 12, color: NOIR_VALEUR }}>Signature :</div>
@@ -735,7 +739,7 @@ export default function CommandeDetailPage() {
               <span>Tva {bc.assujetti_tva === false ? "0%" : "20%"}</span>
               <strong style={{ color: NOIR_VALEUR }}>{bc.assujetti_tva === false ? "-" : `${Number(bc.montant_tva).toLocaleString("fr-FR")} Ar`}</strong>
             </div>
-            <div style={{ marginTop: 8, background: "#fff", borderRadius: 6, padding: "6px 10px", display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: NOIR_VALEUR }}>
+            <div style={{ marginTop: 10, background: "#fff", borderRadius: 6, padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 16, fontWeight: 700, color: NOIR_VALEUR }}>
               <span>NET A PAYER TTC</span><span>{Number(bc.montant_ttc).toLocaleString("fr-FR")} Ar</span>
             </div>
           </div>
@@ -807,7 +811,7 @@ export default function CommandeDetailPage() {
           </div>
         </div>
 
-        <div style={ombrePortee(false)} />
+        <div style={ombrePortee()} />
         <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
           <thead>
             <tr>
@@ -836,9 +840,8 @@ export default function CommandeDetailPage() {
             })}
           </tbody>
         </table>
-        <div style={{ ...ombrePortee(true), position: "relative" }}>
-          <span style={{ position: "absolute", right: 4, top: 4, fontSize: 8, color: "#fff" }}>Page 1/1</span>
-        </div>
+        <div style={ombrePortee()} />
+        <div style={{ textAlign: "right", fontSize: 8, color: GRIS_LABEL, marginTop: 3 }}>Page 1/1</div>
 
         <div style={doubleLigneVerte} />
 
@@ -872,7 +875,7 @@ const miniLabel = { display: "block", fontSize: 11, color: "#999", marginBottom:
 function LigneInfo({ label, value, accent }) {
   return (
     <div style={{ display: "flex", fontSize: 11, marginBottom: 3 }}>
-      <span style={{ width: 130, fontWeight: 400, color: GRIS_LABEL, flexShrink: 0 }}>{label}</span>
+      <span style={{ width: 118, flexShrink: 0, fontWeight: 400, color: GRIS_LABEL, borderRight: "1px solid #CFCFCF", paddingRight: 8, marginRight: 8 }}>{label}</span>
       <span style={{ fontWeight: 700, color: accent ? VERT : NOIR_VALEUR }}>{value}</span>
     </div>
   );
@@ -888,7 +891,7 @@ const NOIR_VALEUR = "#262626";
 // Encadré arrondi avec le double-liseré (contour gris + fin trait blanc à
 // l'intérieur) utilisé pour tous les blocs d'information du document.
 const encadreDouble = (fond = GRIS_FOND) => ({
-  flex: 1, background: fond, borderRadius: 10, border: `1px solid ${GRIS_BORD}`,
+  background: fond, borderRadius: 10, border: `1px solid ${GRIS_BORD}`,
   boxShadow: "inset 0 0 0 3px #fff", padding: "13px 18px",
 });
 const infoBox = encadreDouble();
@@ -898,10 +901,7 @@ const thPrint = { padding: "6px 4px", fontSize: 10, textAlign: "left", fontWeigh
 const tdPrint = { padding: "4px 4px", fontSize: 10.5, color: NOIR_VALEUR };
 const doubleLigneVerte = { borderTop: `2.5px double ${VERT}`, margin: "18px 0" };
 // Ombre portée fine, couleur verte, au-dessus (haut=true) ou en dessous du tableau
-const ombrePortee = (haut) => ({
-  height: 3, background: VERT,
-  boxShadow: haut ? `0 3px 4px -1px rgba(116,188,31,0.55)` : `0 -3px 4px -1px rgba(116,188,31,0.55)`,
-});
+const ombrePortee = () => ({ height: 2.5, background: VERT });
 // Complète une liste de lignes avec des lignes vides pour garder un tableau
 // à hauteur fixe (effet visuel du modèle réel), même s'il y a peu d'articles.
 function avecLignesVides(lignes, minimum = 8) {
