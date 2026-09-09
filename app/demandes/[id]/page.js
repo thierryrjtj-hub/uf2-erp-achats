@@ -379,6 +379,8 @@ export default function TCODetailPage() {
         @page { size: A4 ${orientation}; margin: 8mm; }
         @media print {
           .no-print { display: none !important; }
+          .nav-sidebar { display: none !important; }
+          .content-pane { max-width: none !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
           .page-impression { page-break-after: always; }
           .page-impression:last-child { page-break-after: auto; }
           tr, td, th { break-inside: avoid; }
