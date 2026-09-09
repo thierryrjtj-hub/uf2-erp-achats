@@ -42,15 +42,64 @@ export default function DemandesListePage() {
 
   const copierPourDevis = async (d) => {
     const { data: lignesDeLaDemande } = await supabase.from("lignes_demande").select("*").eq("demande_id", d.id).order("created_at");
+    const lignes = lignesDeLaDemande || [];
+
+    const intros = [
+      "Je vous prie de bien vouloir me faire parvenir votre meilleure offre pour les articles mentionnés ci-après.",
+      "Pourriez-vous nous transmettre votre meilleure offre de prix pour les articles listés ci-dessous ?",
+      "Nous souhaiterions recevoir votre devis pour les articles suivants.",
+      "Merci de bien vouloir nous faire parvenir votre proposition tarifaire pour les articles ci-dessous.",
+    ];
+    const clotures = [
+      "Je reste à votre disposition pour tout complément d'information.\nDans l'attente de votre réponse.",
+      "N'hésitez pas à me contacter pour toute précision.\nBien cordialement.",
+      "Je reste disponible pour toute question complémentaire.\nAu plaisir de vous lire.",
+    ];
+    const intro = intros[Math.floor(Math.random() * intros.length)];
+    const cloture = clotures[Math.floor(Math.random() * clotures.length)];
+
+    const ligneHtml = (l) =>
+      `<tr><td style="border:1px solid #ccc;padding:6px 10px;">${l.designation}</td><td style="border:1px solid #ccc;padding:6px 10px;text-align:center;">${l.quantite}</td><td style="border:1px solid #ccc;padding:6px 10px;">${l.unite}</td></tr>`;
+
+    const html = `
+      <p>Bonjour,</p>
+      <p>${intro}</p>
+      <table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;">
+        <thead>
+          <tr style="background:#F2F2F2;">
+            <th style="border:1px solid #ccc;padding:6px 10px;text-align:left;">Désignation</th>
+            <th style="border:1px solid #ccc;padding:6px 10px;text-align:center;">Quantité</th>
+            <th style="border:1px solid #ccc;padding:6px 10px;text-align:left;">Unité</th>
+          </tr>
+        </thead>
+        <tbody>${lignes.map(ligneHtml).join("")}</tbody>
+      </table>
+      <p>${cloture.replace(/\n/g, "<br/>")}</p>
+    `;
+
     const texte = [
-      `Demande de devis — ${d.numero}`,
-      `Service : ${d.service || "-"}  |  Demandeur : ${d.demandeur || "-"}`,
-      d.motif_projet ? `Motif / projet : ${d.motif_projet}` : "",
-      "",
-      "Articles souhaités :",
-      ...(lignesDeLaDemande || []).map((l, i) => `${i + 1}. ${l.designation} — ${l.quantite} ${l.unite}`),
-    ].filter(Boolean).join("\n");
-    navigator.clipboard.writeText(texte).then(() => alert("Copié — colle-le dans un e-mail pour demander les devis aux fournisseurs."));
+      "Bonjour,", "", intro, "",
+      "Désignation | Quantité | Unité",
+      ...lignes.map((l) => `${l.designation} | ${l.quantite} | ${l.unite}`),
+      "", cloture,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([texte], { type: "text/plain" }),
+        }),
+      ]);
+      alert("Copié — colle-le dans un e-mail (Outlook/Gmail), il ne reste qu'à mettre l'objet et le(s) destinataire(s).");
+    } catch (e) {
+      try {
+        await navigator.clipboard.writeText(texte);
+        alert("Copié en texte brut (le tableau formaté n'a pas pu être copié) — colle-le dans un e-mail.");
+      } catch (e2) {
+        alert("La copie a échoué. Réessaie.");
+      }
+    }
   };
 
   const annulerDemande = async (d) => {
