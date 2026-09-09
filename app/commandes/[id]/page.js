@@ -33,6 +33,7 @@ export default function CommandeDetailPage() {
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
   const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", echeance_jours: 30, statut_paiement: "Impayé", date_paiement: "", mode_paiement: "" });
+  const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", telephone: "+261 38 77 419 60", email: "judicael.randrianaivo@unifoods.mg" });
   const [transmission, setTransmission] = useState({ dateEnvoiSignature: "", dateRetourSignature: "", destinataireSignature: "", dateEnvoiPaiement: "", dateDisponibilitePaiement: "", destinatairePaiement: "" });
   const [accuses, setAccuses] = useState([]);
   const [nouvelAccuse, setNouvelAccuse] = useState({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", demandeur: "", observation: "" });
@@ -97,6 +98,18 @@ export default function CommandeDetailPage() {
   };
 
   useEffect(() => { charger(); }, [id]);
+  useEffect(() => {
+    (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) return;
+      const { data: p } = await supabase.from("profiles").select("nom, telephone").eq("id", userData.user.id).maybeSingle();
+      setEmetteur({
+        nom: p?.nom || userData.user.email,
+        telephone: p?.telephone || "",
+        email: userData.user.email || "",
+      });
+    })();
+  }, []);
   useEffect(() => {
     (async () => {
       const { data } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht").limit(10000);
@@ -638,9 +651,9 @@ export default function CommandeDetailPage() {
         <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
           <div style={infoBox}>
             <LigneInfo label="Date" value={formatDate(bc.date)} />
-            <LigneInfo label="Emis par" value="Judicaël RANDRIANAIVO" />
-            <LigneInfo label="Contact" value="+261 38 77 419 60" />
-            <LigneInfo label="E-Mail" value="judicael.randrianaivo@unifoods.mg" />
+            <LigneInfo label="Emis par" value={emetteur.nom} />
+            <LigneInfo label="Contact" value={emetteur.telephone} />
+            <LigneInfo label="E-Mail" value={emetteur.email} />
             <div style={{ height: 8 }} />
             <LigneInfo label="Date DA" value={demande ? formatDate(demande.created_at) : ""} />
             <LigneInfo label="DA N°" value={demande?.numero || ""} />
