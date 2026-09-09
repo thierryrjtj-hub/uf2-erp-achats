@@ -734,13 +734,17 @@ export default function TCODetailPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: 24 }} /><col /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
+                  <col style={{ width: 7 }} />
                   <col style={{ width: 118 }} />
+                  <col style={{ width: 7 }} />
                   {page.map((o) => (<Fragment key={o.id}><col style={{ width: 68 }} /><col style={{ width: 52 }} /><col style={{ width: 78 }} /></Fragment>))}
                 </colgroup>
                 <thead>
                   <tr>
                     <th style={thBlank}></th><th style={thBlank}></th><th style={thBlank}></th><th style={thBlank}></th>
-                    <th style={{ ...thBlank, ...precoColStyle, fontSize: 13, fontWeight: 700, textAlign: "center" }}>Préconisation</th>
+                    <th style={thBlank}></th>
+                    <th style={{ ...thBlank, ...precoColStyle, fontSize: 16, fontWeight: 700, textAlign: "center", verticalAlign: "middle" }}>Préconisation</th>
+                    <th style={thBlank}></th>
                     {page.map((o) => {
                       const wins = [];
                       lignesDemande.forEach((ld, i) => { if (moinsCherParLigne[ld.id] === o.id) wins.push(i + 1); });
@@ -764,7 +768,9 @@ export default function TCODetailPage() {
                     <th style={{ ...thTco, textAlign: "center" }}>Article</th>
                     <th style={{ ...thTco, textAlign: "center" }}>Qté</th>
                     <th style={{ ...thTco, textAlign: "center" }}>Unité</th>
+                    <th style={thBlank}></th>
                     <th style={{ ...thTco, ...precoColStyle }}></th>
+                    <th style={thBlank}></th>
                     {page.map((o) => {
                       const defaut = fournisseursDetailMap[o.fournisseur_id]?.remise_par_defaut_pct;
                       return (
@@ -787,6 +793,7 @@ export default function TCODetailPage() {
                         <td style={{ ...tdTco, padding: padCellule }}>{ld.designation}</td>
                         <td style={{ ...tdTco, textAlign: "center", padding: padCellule }}>{Number(ld.quantite).toLocaleString("fr-FR")}</td>
                         <td style={{ ...tdTco, textAlign: "center", padding: padCellule }}>{ld.unite}</td>
+                        <td style={{ ...tdTco, border: "none" }}></td>
                         <td style={{ ...tdTco, ...precoColStyle, textAlign: "center", verticalAlign: "middle", padding: "8px 6px" }}>
                           {offreRetenue ? (
                             <>
@@ -795,6 +802,7 @@ export default function TCODetailPage() {
                             </>
                           ) : "—"}
                         </td>
+                        <td style={{ ...tdTco, border: "none" }}></td>
                         {page.map((o) => {
                           const lo = o.lignesOffre.find((x) => x.ligne_demande_id === ld.id) || {};
                           const m = montantLigne(o, ld);
@@ -825,7 +833,9 @@ export default function TCODetailPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: 24 }} /><col /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
+                  <col style={{ width: 7 }} />
                   <col style={{ width: 118 }} />
+                  <col style={{ width: 7 }} />
                   {page.map((o) => (<Fragment key={o.id}><col style={{ width: 68 }} /><col style={{ width: 52 }} /><col style={{ width: 78 }} /></Fragment>))}
                 </colgroup>
                 <tbody>
@@ -838,7 +848,7 @@ export default function TCODetailPage() {
                         </div>
                       )}
                     </td>
-                    <td rowSpan={rowSpanMotif} style={{ ...tdTco, ...precoColStyle, verticalAlign: "top", padding: 10 }}>
+                    <td rowSpan={rowSpanMotif} colSpan={3} style={{ ...tdTco, ...precoColStyle, verticalAlign: "top", padding: 10 }}>
                       <div style={lblStyle}>Total au prix le moins cher (HT)</div>
                       <div style={{ fontWeight: 700, fontSize: 11 }}>{totalPreconisation.ht.toLocaleString("fr-FR")} Ar</div>
                       <div style={{ ...lblStyle, marginTop: 6 }}>TVA</div>
@@ -932,7 +942,7 @@ function MetaItem({ label, value }) {
 }
 
 const cadreStyle = { border: "1.5px solid #1a1a1a", borderRadius: 10, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,.06)" };
-const precoColStyle = { background: "#EAF7EE", color: "#1B7A4C", borderLeft: "2px solid #3E7A52", borderRight: "2px solid #3E7A52" };
+const precoColStyle = { background: "#EAF7EE", color: "#1B7A4C", borderLeft: "1.5px solid #1a1a1a", borderRight: "1.5px solid #1a1a1a" };
 const lblStyle = { fontSize: 8.5, color: "#888", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 };
 const thBlank = { borderBottom: "none", padding: 0 };
 const thGroupStart = { borderLeft: "1.25px solid #1a1a1a", borderBottom: "none" };
