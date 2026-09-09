@@ -38,6 +38,13 @@ export default function RootLayout({ children }) {
           }
           a { color: inherit; }
 
+          /* ---- Impression : le menu ne doit jamais apparaître, et le contenu doit occuper toute la page ---- */
+          .no-print { }
+          @media print {
+            .no-print { display: none !important; }
+            .content-pane { max-width: none !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+          }
+
           /* ---- Adaptation mobile ---- */
           @media (max-width: 680px) {
             .nav-sidebar { width: 60px !important; }
