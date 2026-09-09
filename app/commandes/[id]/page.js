@@ -678,15 +678,15 @@ export default function CommandeDetailPage() {
             <LigneInfo label="Adresse de livraison" value="Lot AZ 122 AI ZI SANTILO ANOSIZATO OUEST" />
             <LigneInfo label="Réceptionnaire" value="Magasin" />
           </div>
-          <div style={infoBoxPlate}>
+          <div style={infoBoxVert}>
             <LigneInfo label="Type de règlement" value={fournisseurDetail?.type_reglement || ""} />
             <LigneInfo label="Modalité de paiement" value={fournisseurDetail?.conditions_paiement_jours ? `${fournisseurDetail.conditions_paiement_jours} Jours` : ""} />
           </div>
         </div>
 
-        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginBottom: 24 }}>
+        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginBottom: 10 }}>
           <thead>
-            <tr style={{ background: "#3E7A52", color: "#fff" }}>
+            <tr>
               <th style={thPrint}>Réf. Devis n°</th><th style={thPrint}>Description</th><th style={thPrint}>Quantité</th>
               <th style={thPrint}>Unité</th><th style={thPrint}>PU</th><th style={thPrint}>Remise</th>
               <th style={thPrint}>PU Net</th><th style={thPrint}>Total HT</th>
@@ -698,7 +698,10 @@ export default function CommandeDetailPage() {
                 {offreLiee.numero_devis}{offreLiee.date_devis ? ` du ${formatDate(offreLiee.date_devis)}` : ""}
               </td></tr>
             )}
-            {lignes.map((l) => {
+            {avecLignesVides(lignes).map((l) => {
+              if (l.__vide) return (
+                <tr key={l.id}><td style={tdPrint}>&nbsp;</td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td></tr>
+              );
               const puNet = (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100);
               return (
                 <tr key={l.id}>
@@ -716,7 +719,9 @@ export default function CommandeDetailPage() {
           </tbody>
         </table>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 50 }}>
+        <div style={doubleLigneVerte} />
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 20 }}>
           <div style={{ fontSize: 12 }}>Signature :</div>
           <div style={{ width: 290, background: "#ECECEA", borderRadius: 10, padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
@@ -726,7 +731,7 @@ export default function CommandeDetailPage() {
               <span>Tva {bc.assujetti_tva === false ? "0%" : "20%"}</span>
               <strong>{bc.assujetti_tva === false ? "-" : `${Number(bc.montant_tva).toLocaleString("fr-FR")} Ar`}</strong>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, marginTop: 8, borderTop: "1px solid #bbb", paddingTop: 8 }}>
+            <div style={{ marginTop: 8, background: "#fff", borderRadius: 6, padding: "6px 10px", display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700 }}>
               <span>NET A PAYER TTC</span><span>{Number(bc.montant_ttc).toLocaleString("fr-FR")} Ar</span>
             </div>
           </div>
@@ -736,82 +741,113 @@ export default function CommandeDetailPage() {
           Arrêter le présent Bon de Commande à la somme de : {montantEnLettresAriary(bc.montant_ttc)}
         </p>
 
-        <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #3E7A52", paddingTop: 10, marginTop: 36, fontSize: 10 }}>
-          <div>
-            <strong>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
+        <div style={{ borderTop: "3px double #3E7A52", paddingTop: 10, marginTop: 24, fontSize: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div>
+              <strong>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <strong>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
+            </div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <strong>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
-          </div>
+          <div style={{ borderBottom: "3px double #3E7A52", marginTop: 10 }} />
         </div>
       </div>
 
       <div className={`pv-template ${modeImpression === "pv" ? "print-area" : ""}`} style={{ padding: 20 }}>
-        <h1 style={{ fontSize: 18, display: "flex", alignItems: "center", gap: 10 }}>
-          <img src="/logo.png" alt="UNIFOODS" style={{ height: 28 }} /> — PV de Réception
-        </h1>
-        <p style={{ fontSize: 13 }}>N° {receptions[receptions.length - 1]?.numero || "—"} — Date : {new Date().toLocaleDateString("fr-FR")}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
+          <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
+          <div style={{ flex: 1, background: "#ECECEA", borderRadius: 10, padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 19, fontWeight: 700, color: "#3E7A52" }}>PV de Réception</span>
+            <span style={{ fontSize: 12 }}><strong>N°</strong> &nbsp; {receptions[receptions.length - 1]?.numero || "—"}</span>
+          </div>
+        </div>
 
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 16 }}>
-          <tbody>
-            <tr><td style={pvLabel}>Fournisseur</td><td style={pvVal}>{bc.fournisseur_nom}</td>
-                <td style={pvLabel}>Adresse</td><td style={pvVal}>{fournisseurDetail?.adresse || ""}</td></tr>
-            <tr><td style={pvLabel}>NIF</td><td style={pvVal}>{fournisseurDetail?.nif || ""}</td>
-                <td style={pvLabel}>STAT</td><td style={pvVal}>{fournisseurDetail?.stat || ""}</td></tr>
-            <tr><td style={pvLabel}>Contact</td><td style={pvVal}>{fournisseurDetail?.contact || ""}</td>
-                <td style={pvLabel}>Tél</td><td style={pvVal}>{fournisseurDetail?.telephone || ""}</td></tr>
-            <tr><td style={pvLabel}>N° BC UF2</td><td style={pvVal}>{bc.numero}</td>
-                <td style={pvLabel}>Demande liée</td><td style={pvVal}>{demande ? `${demande.numero} — ${demande.service}` : "BC direct"}</td></tr>
-            <tr><td style={pvLabel}>Type de livraison</td><td style={pvVal}>{saisie.typeLivraison}</td>
-                <td style={pvLabel}>N° BL</td><td style={pvVal}>{saisie.numeroBl}</td></tr>
-            <tr><td style={pvLabel}>Date de livraison</td><td style={pvVal}>{saisie.dateLivraisonTerrain || "____________"}</td>
-                <td style={pvLabel}>Nom Réceptionnaire du Magasin</td><td style={pvVal}>{saisie.receptionnaire === "Autre" ? saisie.receptionnaireAutre : "____________"}</td></tr>
-          </tbody>
-        </table>
+        <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>
+          <div style={infoBox}>
+            <LigneInfo label="Date" value={formatDate(new Date().toISOString())} />
+            <LigneInfo label="Emis par" value={emetteur.nom} />
+            <LigneInfo label="Contact" value={emetteur.telephone} />
+            <LigneInfo label="E-Mail" value={emetteur.email} />
+            <div style={{ height: 8 }} />
+            <LigneInfo label="Date DA" value={demande ? formatDate(demande.created_at) : ""} />
+            <LigneInfo label="DA N°" value={demande?.numero || ""} />
+            <LigneInfo label="Destinataire" value={bc.fournisseur_nom} />
+            <LigneInfo label="Utilisateur Final" value={demande?.demandeur || ""} />
+          </div>
+          <div style={infoBoxVert}>
+            <LigneInfo label="Fournisseur" value={bc.fournisseur_nom} accent />
+            <LigneInfo label="Adresse" value={fournisseurDetail?.adresse || ""} />
+            <LigneInfo label="Code postal" value={fournisseurDetail?.code_postal || ""} />
+            <LigneInfo label="NIF" value={fournisseurDetail?.nif || ""} />
+            <LigneInfo label="STAT" value={fournisseurDetail?.stat || ""} />
+            <LigneInfo label="RCS" value={fournisseurDetail?.rcs || ""} />
+            <LigneInfo label="Contact" value={fournisseurDetail?.contact || ""} />
+            <LigneInfo label="Tél" value={fournisseurDetail?.telephone || ""} />
+            <LigneInfo label="E-Mail" value={fournisseurDetail?.email || ""} />
+          </div>
+        </div>
 
-        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, marginTop: 16 }}>
+        <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
+          <div style={infoBoxPlate}>
+            <LigneInfo label="Date de livraison" value="____________" />
+            <LigneInfo label="Nom Réceptionnaire du Magasin" value="____________" />
+          </div>
+          <div style={infoBoxVert}>
+            <LigneInfo label="Type de règlement" value={fournisseurDetail?.type_reglement || ""} />
+            <LigneInfo label="Modalité de paiement" value={fournisseurDetail?.conditions_paiement_jours ? `${fournisseurDetail.conditions_paiement_jours} Jours` : ""} />
+          </div>
+        </div>
+
+        <table className="tableau-zebre" style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginBottom: 10 }}>
           <thead>
             <tr>
-              <th style={pvTh}>BC UF2 n°</th><th style={pvTh}>Description</th><th style={pvTh}>Quantité</th>
-              <th style={pvTh}>Unité</th><th style={pvTh}>Déjà livré</th><th style={pvTh}>Quantité livré (ce jour)</th>
-              <th style={pvTh}>Reste à Livrer</th><th style={pvTh}>Remarque</th>
+              <th style={thPrint}>BC UF2 n°</th><th style={thPrint}>Description</th><th style={thPrint}>Quantité</th>
+              <th style={thPrint}>Unité</th><th style={thPrint}>Quantité livré</th><th style={thPrint}>Unité</th>
+              <th style={thPrint}>Reste à Livrer</th><th style={thPrint}>Remarque</th>
             </tr>
           </thead>
           <tbody>
-            {lignes.map((l, i) => {
-              const deja = cumulLivre(l.id);
-              const maintenant = quantitesSaisie[l.id] ?? "";
-              const reste = Math.max(0, Number(l.quantite) - deja - (Number(maintenant) || 0));
+            {avecLignesVides(lignes).map((l, i) => {
+              if (l.__vide) return (
+                <tr key={l.id}><td style={tdPrint}>&nbsp;</td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td></tr>
+              );
               return (
                 <tr key={l.id}>
-                  <td style={pvTd}>{i === 0 ? bc.numero : ""}</td>
-                  <td style={pvTd}>{l.designation}</td>
-                  <td style={pvTd}>{l.quantite}</td>
-                  <td style={pvTd}>{l.unite}</td>
-                  <td style={pvTd}>{deja}</td>
-                  <td style={pvTd}>{maintenant}</td>
-                  <td style={pvTd}>{reste}</td>
-                  <td style={pvTd}></td>
+                  <td style={tdPrint}>{i === 0 ? bc.numero : ""}</td>
+                  <td style={tdPrint}>{l.designation}</td>
+                  <td style={{ ...tdPrint, textAlign: "center" }}>{l.quantite}</td>
+                  <td style={tdPrint}>{l.unite}</td>
+                  <td style={tdPrint}></td>
+                  <td style={tdPrint}></td>
+                  <td style={tdPrint}></td>
+                  <td style={tdPrint}></td>
                 </tr>
               );
             })}
           </tbody>
         </table>
 
-        <div style={{ marginTop: 50, fontSize: 12 }}>Signatures, Date, Nom :</div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 40 }}>
+        <div style={doubleLigneVerte} />
+
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 14, marginTop: 20 }}>
           {["RESPONSABLE MAGASIN", "MAGASINIER", "AGENT DE SECURITE", "LIVREUR ou TRANSPORTEUR"].map((s) => (
-            <div key={s} style={{ width: "22%", borderTop: "1px solid #333", paddingTop: 6, textAlign: "center", fontSize: 11 }}>{s}</div>
+            <div key={s} style={{ flex: 1, border: "1px solid #ccc", borderRadius: 10, minHeight: 80, padding: "10px 10px 6px", textAlign: "center", fontSize: 10.5, fontWeight: 700 }}>
+              {s}
+            </div>
           ))}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", borderTop: "2px solid #3E7A52", paddingTop: 10, marginTop: 36, fontSize: 10 }}>
-          <div>
-            <strong>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
+        <div style={{ borderTop: "3px double #3E7A52", paddingTop: 10, marginTop: 24, fontSize: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div>
+              <strong>UNIFOODS</strong><br />Siège Sociale<br />27, Rue Radama 1er Tsaralalana<br />101 Antananarivo<br />Madagascar
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <strong>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
+            </div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <strong>Coordonnées fiscaux</strong><br />NIF : 3001453076<br />STAT : 10505 11 2013 1 11066<br />RCS : 21013 B 00860 2018 B 01049
-          </div>
+          <div style={{ borderBottom: "3px double #3E7A52", marginTop: 10 }} />
         </div>
       </div>
     </AuthGuard>
@@ -820,10 +856,6 @@ export default function CommandeDetailPage() {
 
 const rowTotal = { display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13 };
 const miniLabel = { display: "block", fontSize: 11, color: "#999", marginBottom: 2 };
-const pvLabel = { padding: "4px 6px", color: "#666", fontWeight: 600, border: "1px solid #eee", width: "15%" };
-const pvVal = { padding: "4px 6px", border: "1px solid #eee", width: "35%" };
-const pvTh = { border: "1px solid #ccc", padding: "6px 4px", background: "#F0F7F2" };
-const pvTd = { border: "1px solid #ddd", padding: "6px 4px" };
 
 function LigneInfo({ label, value, accent }) {
   return (
@@ -836,5 +868,13 @@ function LigneInfo({ label, value, accent }) {
 
 const infoBox = { flex: 1, background: "#ECECEA", borderRadius: 10, padding: "12px 16px" };
 const infoBoxPlate = { flex: 1, border: "1px solid #ccc", borderRadius: 8, padding: "8px 14px" };
-const thPrint = { padding: "6px 4px", fontSize: 10.5, textAlign: "left", fontWeight: 700 };
+const infoBoxVert = { flex: 1, background: "#E3F1E7", borderRadius: 8, padding: "8px 14px" };
+const thPrint = { padding: "6px 4px", fontSize: 10.5, textAlign: "left", fontWeight: 700, background: "#EDEDED", color: "#1a1a1a" };
 const tdPrint = { padding: "5px 4px", fontSize: 11, borderBottom: "1px solid #eee" };
+const doubleLigneVerte = { borderTop: "3px double #3E7A52", margin: "18px 0" };
+// Complète une liste de lignes avec des lignes vides pour garder un tableau
+// à hauteur fixe (effet visuel du modèle réel), même s'il y a peu d'articles.
+function avecLignesVides(lignes, minimum = 8) {
+  const vides = Math.max(0, minimum - lignes.length);
+  return [...lignes, ...Array.from({ length: vides }, (_, i) => ({ __vide: true, id: `vide-${i}` }))];
+}
