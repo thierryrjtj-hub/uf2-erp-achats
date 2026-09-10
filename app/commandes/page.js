@@ -1,18 +1,32 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
 import { IconTrash, IconBan } from "../components/Icons";
+import { formatDate } from "../../lib/format";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 export default function CommandesPage() {
+  return (
+    <Suspense fallback={<AuthGuard><p>Chargement...</p></AuthGuard>}>
+      <CommandesInner />
+    </Suspense>
+  );
+}
+
+function CommandesInner() {
   const role = useRole();
+  const searchParams = useSearchParams();
+  const filtreDepuisTableauDeBord = searchParams.get("filtre") === "en_attente_reception";
   const [liste, setListe] = useState([]);
   const [receptions, setReceptions] = useState([]);
+  const [demandes, setDemandes] = useState([]);
+  const [prestationParBc, setPrestationParBc] = useState({});
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
@@ -21,23 +35,51 @@ export default function CommandesPage() {
   const charger = async () => {
     const { data: c } = await supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000);
     const { data: r } = await supabase.from("receptions").select("*").limit(10000);
+    const { data: d } = await supabase.from("demandes").select("id, service, demandeur, motif_projet").limit(10000);
+    const { data: lb } = await supabase.from("lignes_bc").select("bc_id, designation").limit(10000);
+    const { data: art } = await supabase.from("articles").select("designation, categorie").limit(10000);
     setListe(c || []);
     setReceptions(r || []);
+    setDemandes(d || []);
+    // Un BC est considéré "prestation" si toutes ses lignes correspondent à des articles catégorie "Services & Prestations"
+    const catParDesignation = {};
+    (art || []).forEach((a) => { catParDesignation[a.designation.toLowerCase()] = a.categorie; });
+    const map = {};
+    (lb || []).forEach((l) => {
+      if (!map[l.bc_id]) map[l.bc_id] = [];
+      map[l.bc_id].push(catParDesignation[l.designation.toLowerCase()] === "Services & Prestations");
+    });
+    const prestation = {};
+    Object.entries(map).forEach(([bcId, arr]) => { prestation[bcId] = arr.length > 0 && arr.every(Boolean); });
+    setPrestationParBc(prestation);
     setLoading(false);
   };
 
   useEffect(() => { charger(); }, []);
 
+  const demandeParId = useMemo(() => {
+    const m = {};
+    demandes.forEach((d) => { m[d.id] = d; });
+    return m;
+  }, [demandes]);
+
   const statutsDistincts = useMemo(() => [...new Set(liste.map((c) => c.statut).filter(Boolean))].sort(), [liste]);
   const filtrees = useMemo(() => {
     const q = recherche.trim().toLowerCase();
     const base = liste.filter((c) => {
-      const okRecherche = !q || [c.numero, c.fournisseur_nom].some((v) => (v || "").toLowerCase().includes(q));
+      const dmd = demandeParId[c.demande_id];
+      const okRecherche = !q || [c.numero, c.fournisseur_nom, dmd?.service, dmd?.demandeur].some((v) => (v || "").toLowerCase().includes(q));
       const okStatut = !filtreStatut || c.statut === filtreStatut;
+      if (filtreDepuisTableauDeBord) {
+        const receptionsOfC = receptions.filter((r) => r.bc_id === c.id);
+        const dejaComplet = receptionsOfC.some((r) => r.statut === "Totale");
+        const enAttente = !dejaComplet && c.statut !== "Annulée" && !c.statut?.startsWith("Clôturée");
+        if (!enAttente) return false;
+      }
       return okRecherche && okStatut;
     });
     return appliquerTri(base, tri);
-  }, [liste, recherche, filtreStatut, tri]);
+  }, [liste, recherche, filtreStatut, tri, demandeParId, filtreDepuisTableauDeBord, receptions]);
 
   const changerStatut = async (id, statut) => {
     setListe((prev) => prev.map((c) => (c.id === id ? { ...c, statut } : c)));
@@ -139,6 +181,13 @@ export default function CommandesPage() {
           </div>
         </div>
 
+        {filtreDepuisTableauDeBord && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#E8F0FA", color: "#1B4C7A", borderRadius: 8, padding: "8px 14px", marginBottom: 12, fontSize: 13, flexShrink: 0 }}>
+            <span>Filtré depuis le Tableau de bord : seuls les {filtrees.length} BC en attente de réception sont affichés.</span>
+            <Link href="/commandes" style={{ color: "#1B4C7A", textDecoration: "underline" }}>Voir tous les BC</Link>
+          </div>
+        )}
+
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
             <h2 style={{ fontSize: 15 }}>Liste ({filtrees.length} / {liste.length})</h2>
@@ -172,12 +221,15 @@ export default function CommandesPage() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={thStyle}>N° BC</th>
+              <th style={thStyle}>Date BC</th>
+              <th style={{ ...thStyle, minWidth: 190 }}>N° BC</th>
               <th style={thStyle}>Fournisseur</th>
               <th style={thStyle}>Total TTC</th>
+              <th style={thStyle}>Service / Demandeur</th>
               <th style={thStyle}>Statut</th>
               <th style={thStyle}>Réception</th>
               <th style={thStyle}>Paiement</th>
+              <th style={thStyle}>Observation</th>
               <th style={thStyle}></th>
             </tr>
           </thead>
@@ -186,15 +238,24 @@ export default function CommandesPage() {
               const reception = receptions.find((r) => r.bc_id === c.id);
               const echeance = echeanceInfo(c);
               const enRetard = echeance && c.statut_paiement !== "Payé" && new Date() > echeance;
+              const dmd = demandeParId[c.demande_id];
+              const estPrestation = !!prestationParBc[c.id];
               const couleurLigne = c.statut?.startsWith("Clôturée (rupture)") ? "#B3261E"
                 : reception?.statut === "Totale" ? "#1B7A4C"
                 : enRetard ? "#B3261E"
                 : "#242322";
               return (
                 <tr key={c.id} style={{ borderBottom: "1px solid #f0f0f0", color: couleurLigne }}>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}><Link href={`/commandes/${c.id}`} style={{ color: "#1E3A34", textDecoration: "underline" }}>{c.numero}</Link></td>
+                  <td style={tdStyle}>{formatDate(c.date)}</td>
+                  <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "nowrap" }}>
+                    <Link href={`/commandes/${c.id}`} style={{ color: "#1E3A34", textDecoration: "underline" }}>{c.numero}</Link>
+                    {dmd?.motif_projet && <div style={{ fontSize: 12, color: "#888", fontWeight: 400, whiteSpace: "normal" }}>{dmd.motif_projet}</div>}
+                  </td>
                   <td style={tdStyle}>{c.fournisseur_nom}</td>
                   <td style={tdStyle}>{Number(c.montant_ttc).toLocaleString("fr-FR")} Ar</td>
+                  <td style={tdStyle}>
+                    {dmd ? <>{dmd.service || "-"}<div style={{ fontSize: 12, color: "#888" }}>{dmd.demandeur || ""}</div></> : "-"}
+                  </td>
                   <td style={tdStyle}>
                     <select value={c.statut} onChange={(e) => changerStatut(c.id, e.target.value)} style={inputStyle}>
                       <option>A faire</option>
@@ -208,11 +269,13 @@ export default function CommandesPage() {
                   <td style={tdStyle}>
                     {reception ? (
                       <span style={{ fontSize: 12, color: reception.statut === "Totale" ? "#1B7A4C" : "#8A6100" }}>
-                        {reception.statut === "Totale" ? "Livré" : "Livré partiellement"}<br />
+                        {estPrestation
+                          ? (reception.statut === "Totale" ? "Prestation effectuée" : "Prestation partielle")
+                          : (reception.statut === "Totale" ? "Livré" : "Livré partiellement")}<br />
                         <span style={{ color: "#999" }}>par {reception.receptionnaire || reception.confirme_par}</span>
                       </span>
                     ) : (
-                      <span style={{ fontSize: 12, color: "#999" }}>Non livré</span>
+                      <span style={{ fontSize: 12, color: "#999" }}>{estPrestation ? "Prestation non effectuée" : "Non livré"}</span>
                     )}
                   </td>
                   <td style={tdStyle}>
@@ -224,6 +287,7 @@ export default function CommandesPage() {
                       {c.statut_paiement === "Payé" ? "Payé" : enRetard ? "Échéance dépassée" : "Impayé"}
                     </span>
                   </td>
+                  <td style={{ ...tdStyle, color: "#666" }}>{c.observation || "-"}</td>
                   <td style={tdStyle}>
                     <button onClick={() => annulerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: c.statut === "Annulée" ? "#1B7A4C" : "#8A6100", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, marginRight: 8 }} title={c.statut === "Annulée" ? "Réactiver" : "Annuler"}><IconBan /></button>
                     <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", display: role === "acheteur" ? "inline-flex" : "none", alignItems: "center", gap: 5 }} title="Supprimer"><IconTrash /></button>
