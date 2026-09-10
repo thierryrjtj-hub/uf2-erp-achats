@@ -39,7 +39,7 @@ export default function PVViergePage() {
   return (
     <AuthGuard>
       <style>{`
-        @page { size: A4 portrait; margin: 12.5mm 7.5mm; }
+        @page { size: A4 portrait; margin: 10mm; }
         .pv-vierge-template { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         @media print {
           body * { visibility: hidden; }
@@ -60,7 +60,7 @@ export default function PVViergePage() {
         Pour les livraisons qui ne passent pas par une demande créée dans l'appli — à remplir entièrement à la main. Toutes les lignes du tableau ont une bordure visible, même vides, pour guider l'écriture.
       </p>
 
-      <div className="pv-vierge-template print-area" style={{ padding: "0 8px", fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "calc(297mm - 25mm)" }}>
+      <div className="pv-vierge-template print-area" style={{ padding: "0 8px", fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "calc(297mm - 20mm)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 48, marginBottom: 16 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
           <div style={{ ...encadreDouble(), flex: "0 0 auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "10px 22px" }}>
