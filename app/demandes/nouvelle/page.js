@@ -7,6 +7,17 @@ import Autocomplete from "../../components/Autocomplete";
 import { inputStyle, buttonStyle, linkBtn } from "../../components/ui";
 
 const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs" });
+const aujourdHui = () => new Date().toISOString().slice(0, 10);
+
+// Préfixe par défaut à partir du service (4 lettres, sans accents/espaces) — reste
+// entièrement modifiable dans le champ N° DA, pour les abréviations internes
+// spécifiques à un service (ex. MNTC pour Maintenance).
+function prefixeParDefaut(service) {
+  return (service || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z]/g, "")
+    .slice(0, 4).toUpperCase();
+}
 
 export default function NouvelleDemandePage() {
   const router = useRouter();
@@ -15,8 +26,11 @@ export default function NouvelleDemandePage() {
   const [demandeur, setDemandeur] = useState("");
   const [motif, setMotif] = useState("");
   const [priorite, setPriorite] = useState("Moyenne");
+  const [dateDa, setDateDa] = useState(aujourdHui());
+  const [numeroDa, setNumeroDa] = useState("");
   const [lignes, setLignes] = useState([ligneVide()]);
   const [envoi, setEnvoi] = useState(false);
+  const [genererNumero, setGenererNumero] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -45,14 +59,40 @@ export default function NouvelleDemandePage() {
   const updateLigne = (key, field, val) => setLignes((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
   const removeLigne = (key) => setLignes(lignes.filter((l) => l.key !== key));
 
+  // Génère un numéro DA du type MNTC-0115-26 : préfixe déduit du service (modifiable),
+  // compteur qui se souvient du dernier numéro par préfixe, remis à zéro chaque année.
+  const genererNumeroDa = async () => {
+    const prefixe = prefixeParDefaut(service);
+    if (!prefixe) { alert("Renseigne d'abord le service demandeur pour générer un numéro."); return; }
+    setGenererNumero(true);
+    const annee = Number(new Date().getFullYear().toString().slice(-2));
+    const { data: n } = await supabase.rpc("next_numero_da", { p_prefixe: prefixe, p_annee: annee });
+    setGenererNumero(false);
+    if (n != null) setNumeroDa(`${prefixe}-${String(n).padStart(4, "0")}-${annee}`);
+  };
+
   const creer = async () => {
     const lignesValides = lignes.filter((l) => l.designation.trim());
     if (lignesValides.length === 0) return;
+
+    let numeroDaFinal = numeroDa.trim();
+    if (numeroDaFinal) {
+      const { data: existant } = await supabase.from("demandes").select("id").ilike("numero_da", numeroDaFinal).maybeSingle();
+      if (existant && !confirm(`Le numéro DA "${numeroDaFinal}" est déjà utilisé par une autre demande. Continuer quand même ?`)) return;
+    } else {
+      const prefixe = prefixeParDefaut(service);
+      if (prefixe) {
+        const annee = Number(new Date().getFullYear().toString().slice(-2));
+        const { data: n } = await supabase.rpc("next_numero_da", { p_prefixe: prefixe, p_annee: annee });
+        if (n != null) numeroDaFinal = `${prefixe}-${String(n).padStart(4, "0")}-${annee}`;
+      }
+    }
+
     setEnvoi(true);
 
     const { data: demande, error } = await supabase
       .from("demandes")
-      .insert({ service, demandeur, motif_projet: motif, priorite })
+      .insert({ service, demandeur, motif_projet: motif, priorite, date_da: dateDa || null, numero_da: numeroDaFinal || null })
       .select()
       .single();
 
@@ -99,6 +139,22 @@ export default function NouvelleDemandePage() {
           </select>
         </div>
 
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+          <div>
+            <label style={{ fontSize: 11, color: "#999", display: "block", marginBottom: 2 }}>Date DA (date de réception physique)</label>
+            <input type="date" value={dateDa} onChange={(e) => setDateDa(e.target.value)} style={inputStyle} />
+          </div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <label style={{ fontSize: 11, color: "#999", display: "block", marginBottom: 2 }}>N° DA (numéro physique — laisser vide pour générer automatiquement)</label>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input placeholder="ex: MNTC-0115-26" value={numeroDa} onChange={(e) => setNumeroDa(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+              <button type="button" onClick={genererNumeroDa} disabled={genererNumero} style={{ ...buttonStyle, background: "#888", whiteSpace: "nowrap" }}>
+                {genererNumero ? "..." : "Générer"}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {lignes.map((l) => (
           <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <Autocomplete
@@ -130,4 +186,3 @@ export default function NouvelleDemandePage() {
     </AuthGuard>
   );
 }
-
