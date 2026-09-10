@@ -140,8 +140,10 @@ function CommandesInner() {
     });
     await exportExcel({
       filename: `bons-de-commande_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      titre: "UNIFOODS — Bons de commande",
       sheets: [{
         name: "Bons de commande",
+        sousTitre: "Liste complète des bons de commande",
         columns: [
           { header: "N° BC", key: "numero", width: 18 },
           { header: "Date", key: "date", width: 13 },
@@ -158,9 +160,56 @@ function CommandesInner() {
         ],
         rows,
         currencyKeys: ["montantHt", "montantTva", "montantTtc"],
+        totalsKeys: ["montantHt", "montantTva", "montantTtc"],
       }],
     });
     setExporting(false);
+  };
+
+  const [exportingImpayees, setExportingImpayees] = useState(false);
+  const exporterFacturesImpayees = async () => {
+    setExportingImpayees(true);
+    const impayees = liste.filter((c) => c.statut_paiement !== "Payé" && c.statut !== "Annulée" && c.numero_facture);
+    const rows = impayees.map((c) => {
+      const echeance = echeanceInfo(c);
+      const joursRetard = echeance ? Math.max(0, Math.floor((new Date() - echeance) / (1000 * 60 * 60 * 24))) : 0;
+      const dmd = demandeParId[c.demande_id];
+      return {
+        numero: c.numero,
+        fournisseur: c.fournisseur_nom,
+        numeroFacture: c.numero_facture || "",
+        dateFacture: c.date_facture || "",
+        echeance: echeance ? echeance.toLocaleDateString("fr-FR") : "",
+        joursRetard,
+        montantTtc: Number(c.montant_ttc) || 0,
+        service: dmd?.service || "",
+        observation: c.observation_facture || c.observation || "",
+      };
+    }).sort((a, b) => b.joursRetard - a.joursRetard);
+
+    await exportExcel({
+      filename: `factures-impayees_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      titre: "UNIFOODS — Factures fournisseurs impayées",
+      sheets: [{
+        name: "Factures impayées",
+        sousTitre: "À l'attention du service Finance",
+        columns: [
+          { header: "N° BC", key: "numero", width: 18 },
+          { header: "Fournisseur", key: "fournisseur", width: 24 },
+          { header: "N° facture", key: "numeroFacture", width: 18 },
+          { header: "Date facture", key: "dateFacture", width: 14 },
+          { header: "Échéance", key: "echeance", width: 14 },
+          { header: "Jours de retard", key: "joursRetard", width: 15 },
+          { header: "Montant TTC", key: "montantTtc", width: 16 },
+          { header: "Service demandeur", key: "service", width: 20 },
+          { header: "Observation", key: "observation", width: 28 },
+        ],
+        rows,
+        currencyKeys: ["montantTtc"],
+        totalsKeys: ["montantTtc"],
+      }],
+    });
+    setExportingImpayees(false);
   };
 
   return (
@@ -177,6 +226,9 @@ function CommandesInner() {
             </Link>
             <button onClick={exporter} disabled={exporting} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" }}>
               {exporting ? "Génération..." : "Exporter en Excel"}
+            </button>
+            <button onClick={exporterFacturesImpayees} disabled={exportingImpayees} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #B3261E", background: "#fff", color: "#B3261E", fontSize: 13, cursor: "pointer" }} title="Rapport à envoyer au service Finance">
+              {exportingImpayees ? "Génération..." : "Rapport factures impayées"}
             </button>
           </div>
         </div>
