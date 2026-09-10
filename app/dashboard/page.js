@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [alertesImport, setAlertesImport] = useState([]);
   const [alertesReappro, setAlertesReappro] = useState([]);
   const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0 });
+  const [tendance, setTendance] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -93,6 +94,19 @@ export default function DashboardPage() {
         facturesImpayees: (commandes || []).filter((c) => c.statut_paiement !== "Payé").length,
       });
 
+      // ---- Tendance des achats, 6 derniers mois ----
+      const MOIS_LABEL = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+      const points = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - i);
+        const cle = d.toISOString().slice(0, 7);
+        const montant = (commandes || []).filter((c) => (c.date || "").slice(0, 7) === cle && c.statut !== "Annulée").reduce((s, c) => s + Number(c.montant_ttc || 0), 0);
+        points.push({ label: MOIS_LABEL[d.getMonth()], montant });
+      }
+      setTendance(points);
+
       setLoading(false);
     })();
   }, []);
@@ -114,6 +128,8 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          {tendance.some((p) => p.montant > 0) && <GraphiqueTendance points={tendance} />}
+
           {total === 0 && (
             <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, textAlign: "center" }}>
               <p style={{ fontSize: 14, color: "#1B7A4C" }}>✓ Rien à signaler pour l'instant — tout est à jour.</p>
@@ -212,5 +228,49 @@ function LigneAlerte({ href, children }) {
     <Link href={href} style={{ display: "block", fontSize: 13, padding: "8px 10px", borderRadius: 6, background: "#FAFAF8", marginBottom: 6, color: "#1B2430", textDecoration: "none" }}>
       {children}
     </Link>
+  );
+}
+
+// Courbe en aire lissée (dégradé vert), pour la tendance des achats des 6
+// derniers mois — un aperçu visuel plus parlant qu'un simple tableau de chiffres.
+function GraphiqueTendance({ points }) {
+  const largeur = 600, hauteur = 150, marge = 26;
+  const max = Math.max(...points.map((p) => p.montant), 1);
+  const pas = points.length > 1 ? (largeur - marge * 2) / (points.length - 1) : 0;
+  const coords = points.map((p, i) => ({
+    x: marge + i * pas,
+    y: hauteur - marge - (p.montant / max) * (hauteur - marge * 2 - 14),
+    ...p,
+  }));
+
+  let chemin = `M ${coords[0].x} ${coords[0].y}`;
+  for (let i = 1; i < coords.length; i++) {
+    const p0 = coords[i - 1], p1 = coords[i];
+    const milieuX = (p0.x + p1.x) / 2;
+    chemin += ` C ${milieuX} ${p0.y}, ${milieuX} ${p1.y}, ${p1.x} ${p1.y}`;
+  }
+  const cheminAire = `${chemin} L ${coords[coords.length - 1].x} ${hauteur - marge} L ${coords[0].x} ${hauteur - marge} Z`;
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
+      <h2 style={{ fontSize: 14, marginBottom: 10, color: "#1E3A34" }}>Tendance des achats (6 derniers mois, TTC)</h2>
+      <svg viewBox={`0 0 ${largeur} ${hauteur}`} style={{ width: "100%", height: 150 }}>
+        <defs>
+          <linearGradient id="degradeTendance" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#74BC1F" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#74BC1F" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        <path d={cheminAire} fill="url(#degradeTendance)" />
+        <path d={chemin} fill="none" stroke="#1E3A34" strokeWidth="2.5" />
+        {coords.map((c, i) => (
+          <g key={i}>
+            <circle cx={c.x} cy={c.y} r="4" fill="#1E3A34" />
+            <text x={c.x} y={hauteur - 6} fontSize="10" fill="#888" textAnchor="middle">{c.label}</text>
+            {c.montant > 0 && <text x={c.x} y={c.y - 10} fontSize="10" fill="#1E3A34" textAnchor="middle">{Math.round(c.montant / 1000).toLocaleString("fr-FR")}k</text>}
+          </g>
+        ))}
+      </svg>
+    </div>
   );
 }
