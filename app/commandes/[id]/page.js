@@ -34,7 +34,12 @@ export default function CommandeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", echeance_jours: 30, statut_paiement: "Impayé", date_paiement: "", mode_paiement: "", observation_facture: "" });
   const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", telephone: "+261 38 77 419 60", email: "judicael.randrianaivo@unifoods.mg" });
-  const [transmission, setTransmission] = useState({ dateEnvoiSignature: "", dateRetourSignature: "", destinataireSignature: "", dateEnvoiPaiement: "", dateDisponibilitePaiement: "", destinatairePaiement: "" });
+  const [transmission, setTransmission] = useState({
+    dateEnvoiSignature: "", dateRetourSignature: "", destinataireSignature: "",
+    dateEnvoiFournisseur: "", modeEnvoiFournisseur: "Livraison fournisseur", nomCoursier: "",
+    dateEnvoiPaiement: "", dateDisponibilitePaiement: "", destinatairePaiement: "",
+    docBcSigne: false, docPvReception: false, docBl: false, docFactureFournisseur: false,
+  });
   const [accuses, setAccuses] = useState([]);
   const [nouvelAccuse, setNouvelAccuse] = useState({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", observation: "" });
   const [dateSignature, setDateSignature] = useState("");
@@ -100,6 +105,9 @@ export default function CommandeDetailPage() {
         dateEnvoiSignature: c.date_envoi_signature || "", dateRetourSignature: c.date_retour_signature || "",
         destinataireSignature: c.destinataire_signature || "", dateEnvoiPaiement: c.date_envoi_paiement || "",
         dateDisponibilitePaiement: c.date_disponibilite_paiement || "", destinatairePaiement: c.destinataire_paiement || "",
+        dateEnvoiFournisseur: c.date_envoi_fournisseur || "", modeEnvoiFournisseur: c.mode_envoi_fournisseur || "Livraison fournisseur",
+        nomCoursier: c.nom_coursier || "", docBcSigne: !!c.doc_bc_signe, docPvReception: !!c.doc_pv_reception,
+        docBl: !!c.doc_bl, docFactureFournisseur: !!c.doc_facture_fournisseur,
       });
     }
     const { data: acc } = await supabase.from("accuses_reception_facture").select("*").eq("bc_id", id).order("date_accuse", { ascending: false });
@@ -195,11 +203,39 @@ export default function CommandeDetailPage() {
       date_envoi_signature: transmission.dateEnvoiSignature || null,
       date_retour_signature: transmission.dateRetourSignature || null,
       destinataire_signature: transmission.destinataireSignature,
+      date_envoi_fournisseur: transmission.dateEnvoiFournisseur || null,
+      mode_envoi_fournisseur: transmission.modeEnvoiFournisseur,
+      nom_coursier: transmission.nomCoursier || null,
       date_envoi_paiement: transmission.dateEnvoiPaiement || null,
       date_disponibilite_paiement: transmission.dateDisponibilitePaiement || null,
       destinataire_paiement: transmission.destinatairePaiement,
+      doc_bc_signe: transmission.docBcSigne, doc_pv_reception: transmission.docPvReception,
+      doc_bl: transmission.docBl, doc_facture_fournisseur: transmission.docFactureFournisseur,
+      statut: bc.statut, date_signature: dateSignature || null, observation,
     }).eq("id", id);
     charger();
+  };
+
+  // Date d'envoi pour signature saisie : passe le BC "En cours" et suggère une observation
+  // (uniquement si elle est encore vide, pour ne jamais écraser un texte déjà personnalisé).
+  const majDateEnvoiSignature = (date) => {
+    setTransmission((prev) => ({ ...prev, dateEnvoiSignature: date }));
+    if (bc?.statut === "A faire") setBc((prev) => (prev ? { ...prev, statut: "En cours" } : prev));
+    if (!observation.trim()) setObservation("BC en cours de signature — envoyé pour signature à la direction");
+  };
+
+  // Date de retour signé saisie : pré-remplit (sans écraser si déjà rempli) la date d'envoi
+  // fournisseur avec la même date, marque la date de signature officielle du BC, et suggère
+  // une observation de suivi.
+  const majDateRetourSignature = (date) => {
+    setTransmission((prev) => ({
+      ...prev, dateRetourSignature: date,
+      dateEnvoiFournisseur: prev.dateEnvoiFournisseur || date,
+    }));
+    setDateSignature(date);
+    if (!observation.trim() || observation.startsWith("BC en cours de signature")) {
+      setObservation("BC signé, envoyé au fournisseur — en attente de livraison ou d'enlèvement par nos soins");
+    }
   };
 
   const ajouterAccuse = async () => {
@@ -336,6 +372,7 @@ export default function CommandeDetailPage() {
         {[
           { id: "bc", label: "Bon de commande" },
           { id: "reception", label: `Réception${resteGlobal ? "" : " ✓"}` },
+          { id: "suivi", label: "Suivi & Transmission" },
           { id: "facture", label: "Facture & Paiement" },
         ].map((o) => (
           <button
@@ -383,12 +420,6 @@ export default function CommandeDetailPage() {
           </p>
         )}
 
-        <div className="no-print" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
-          <label style={{ fontSize: 12, color: "#666" }}>Date de signature du BC :</label>
-          <input type="date" value={dateSignature} onChange={(e) => setDateSignature(e.target.value)} style={inputStyle} />
-          <input placeholder="Observation" value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
-          <button onClick={enregistrerSignatureObservation} style={{ ...buttonStyle, background: "#888" }}>Enregistrer</button>
-        </div>
         <div className="no-print" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
           <label style={{ fontSize: 12, color: "#666" }} title="Utilisé pour le BC imprimé. Pré-rempli depuis la demande liée si elle existe, sinon à saisir ici (BC direct).">Objet (pour le BC imprimé) :</label>
           <input placeholder={demande?.motif_projet || "Objet"} value={objet} onChange={(e) => setObjet(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
@@ -549,51 +580,96 @@ export default function CommandeDetailPage() {
       </div>
       )}
 
-      {/* ---- Suivi transmission signature / paiement ---- */}
-      {onglet === "facture" && (
-      <>
-      <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Suivi de transmission</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-          <div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Pour signature</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <div>
-                <label style={miniLabel}>Date d'envoi</label>
-                <input type="date" value={transmission.dateEnvoiSignature} onChange={(e) => setTransmission({ ...transmission, dateEnvoiSignature: e.target.value })} style={inputStyle} />
-              </div>
-              <div>
-                <label style={miniLabel}>Date de retour signé</label>
-                <input type="date" value={transmission.dateRetourSignature} onChange={(e) => setTransmission({ ...transmission, dateRetourSignature: e.target.value })} style={inputStyle} />
-              </div>
-              <div>
-                <label style={miniLabel}>Destinataire</label>
-                <input placeholder="ex: Mayuri" value={transmission.destinataireSignature} onChange={(e) => setTransmission({ ...transmission, destinataireSignature: e.target.value })} style={{ ...inputStyle, width: 130 }} />
-              </div>
-            </div>
+      {/* ---- Suivi & Transmission ---- */}
+      {onglet === "suivi" && (
+      <div className="no-print">
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <h2 style={{ fontSize: 15 }}>1. Signature du BC</h2>
+            <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{bc.statut}</span>
           </div>
-          <div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Pour paiement</div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <div>
-                <label style={miniLabel}>Date d'envoi compta</label>
-                <input type="date" value={transmission.dateEnvoiPaiement} onChange={(e) => setTransmission({ ...transmission, dateEnvoiPaiement: e.target.value })} style={inputStyle} />
-              </div>
-              <div>
-                <label style={miniLabel}>Date disponibilité paiement</label>
-                <input type="date" value={transmission.dateDisponibilitePaiement} onChange={(e) => setTransmission({ ...transmission, dateDisponibilitePaiement: e.target.value })} style={inputStyle} />
-              </div>
-              <div>
-                <label style={miniLabel}>Destinataire</label>
-                <input placeholder="ex: Compta" value={transmission.destinatairePaiement} onChange={(e) => setTransmission({ ...transmission, destinatairePaiement: e.target.value })} style={{ ...inputStyle, width: 130 }} />
-              </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div>
+              <label style={miniLabel}>Date d'envoi pour signature</label>
+              <input type="date" value={transmission.dateEnvoiSignature} onChange={(e) => majDateEnvoiSignature(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={miniLabel}>Date de retour signé</label>
+              <input type="date" value={transmission.dateRetourSignature} onChange={(e) => majDateRetourSignature(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={miniLabel}>Destinataire (direction)</label>
+              <input placeholder="ex: Mayuri" value={transmission.destinataireSignature} onChange={(e) => setTransmission({ ...transmission, destinataireSignature: e.target.value })} style={{ ...inputStyle, width: 130 }} />
             </div>
           </div>
         </div>
-        <button onClick={enregistrerTransmission} style={{ ...buttonStyle, marginTop: 12 }}>Enregistrer</button>
+
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 12 }}>2. Envoi au fournisseur</h2>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div>
+              <label style={miniLabel}>Date d'envoi du BC signé</label>
+              <input type="date" value={transmission.dateEnvoiFournisseur} onChange={(e) => setTransmission({ ...transmission, dateEnvoiFournisseur: e.target.value })} style={inputStyle} />
+            </div>
+            <div>
+              <label style={miniLabel}>Mode</label>
+              <select value={transmission.modeEnvoiFournisseur} onChange={(e) => setTransmission({ ...transmission, modeEnvoiFournisseur: e.target.value })} style={inputStyle}>
+                <option>Livraison fournisseur</option>
+                <option>Enlèvement par nos soins</option>
+              </select>
+            </div>
+            {transmission.modeEnvoiFournisseur === "Enlèvement par nos soins" && (
+              <div>
+                <label style={miniLabel}>Nom du coursier</label>
+                <input placeholder="Nom" value={transmission.nomCoursier} onChange={(e) => setTransmission({ ...transmission, nomCoursier: e.target.value })} style={{ ...inputStyle, width: 150 }} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 12 }}>3. Transmission à la comptabilité pour paiement</h2>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <div>
+              <label style={miniLabel}>Date d'envoi compta</label>
+              <input type="date" value={transmission.dateEnvoiPaiement} onChange={(e) => setTransmission({ ...transmission, dateEnvoiPaiement: e.target.value })} style={inputStyle} />
+            </div>
+            <div>
+              <label style={miniLabel}>Date disponibilité paiement</label>
+              <input type="date" value={transmission.dateDisponibilitePaiement} onChange={(e) => setTransmission({ ...transmission, dateDisponibilitePaiement: e.target.value })} style={inputStyle} />
+            </div>
+            <div>
+              <label style={miniLabel}>Destinataire</label>
+              <input placeholder="ex: Compta" value={transmission.destinatairePaiement} onChange={(e) => setTransmission({ ...transmission, destinatairePaiement: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Documents complets joints</div>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {[
+              ["docBcSigne", "BC signé"], ["docPvReception", "PV de réception"],
+              ["docBl", "Bon de livraison (BL)"], ["docFactureFournisseur", "Facture fournisseur"],
+            ].map(([champ, label]) => (
+              <label key={champ} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                <input type="checkbox" checked={transmission[champ]} onChange={(e) => setTransmission({ ...transmission, [champ]: e.target.checked })} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
+          <h2 style={{ fontSize: 15, marginBottom: 8 }}>Observation (visible dans l'Historique)</h2>
+          <input placeholder="Observation" value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+          <p style={{ fontSize: 11, color: "#999", marginTop: 6 }}>Se remplit automatiquement à chaque étape (si vide), mais reste modifiable — plus jamais écrasée une fois que tu l'as personnalisée.</p>
+        </div>
+
+        <button onClick={enregistrerTransmission} style={buttonStyle}>Enregistrer le suivi</button>
       </div>
+      )}
 
       {/* ---- Accusés de réception facture ---- */}
+      {onglet === "facture" && (
+      <>
       <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Accusés de réception facture</h2>
         {accuses.length > 0 && (
