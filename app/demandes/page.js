@@ -4,7 +4,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
-import { linkBtn, inputStyle } from "../components/ui";
+import { linkBtn, inputStyle, thStyle, tdStyle } from "../components/ui";
 import { IconCopy, IconBan, IconTrash } from "../components/Icons";
 import { useRole } from "../../lib/useRole";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
@@ -158,33 +158,59 @@ export default function DemandesListePage() {
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
           {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour ces filtres.</p>}
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-            {filtrees.map((d) => (
-              <div key={d.id} style={rowStyle}>
-                <div style={{ flex: 1 }}>
-                  <Link href={`/demandes/${d.id}`} style={{ fontWeight: 600, fontSize: 13, color: "#1E3A34", textDecoration: "underline" }}>{d.numero}</Link>
-                  {d.numero_da && <span style={{ fontSize: 11, color: "#8A6100", marginLeft: 6 }}>DA {d.numero_da}</span>}
-                  <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
-                </div>
-                <div style={{ fontSize: 13, color: "#666", width: 150 }}>{d.service || "-"}</div>
-                <div style={{ fontSize: 13, color: "#666", width: 110 }}>{formatDate(d.date)}</div>
-                <span title={`Priorité : ${d.priorite || "Moyenne"}`} style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: prioriteCouleur(d.priorite), flexShrink: 0, cursor: "help" }} />
-                {demandesAvecNonDispo.has(d.id) && (
-                  <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
-                )}
-                <button onClick={() => setFiltreStatut(d.statut)} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100", border: "none", cursor: "pointer" }} title="Filtrer sur ce statut">{d.statut}</button>
-                <button onClick={() => copierPourDevis(d)} style={linkBtnBleu} title="Copier pour demande de devis">
-                  <IconCopy /> Devis
-                </button>
-                <button onClick={() => annulerDemande(d)} style={{ ...linkBtn, color: d.statut === "Annulée" ? "#1B7A4C" : "#8A6100", display: "inline-flex", alignItems: "center" }} title={d.statut === "Annulée" ? "Réactiver" : "Annuler"}>
-                  <IconBan />
-                </button>
-                {role === "acheteur" && (
-                  <button onClick={() => supprimerDemande(d)} style={{ ...linkBtn, color: "#B3261E", display: "inline-flex", alignItems: "center" }} title="Supprimer">
-                    <IconTrash />
-                  </button>
-                )}
-              </div>
-            ))}
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Date DA</th>
+                  <th style={thStyle}>N° DA</th>
+                  <th style={thStyle}>Service demandeur</th>
+                  <th style={thStyle}>Nom demandeur</th>
+                  <th style={thStyle}>Statut</th>
+                  <th style={thStyle}>Demande</th>
+                  <th style={thStyle}>Observation</th>
+                  <th style={thStyle}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtrees.map((d) => (
+                  <tr key={d.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                    <td style={tdStyle}>{formatDate(d.date_da || d.created_at)}</td>
+                    <td style={tdStyle}>{d.numero_da || "-"}</td>
+                    <td style={tdStyle}>{d.service || "-"}</td>
+                    <td style={tdStyle}>{d.demandeur || "-"}</td>
+                    <td style={tdStyle}>
+                      <button onClick={() => setFiltreStatut(d.statut)} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100", border: "none", cursor: "pointer" }} title="Filtrer sur ce statut">{d.statut}</button>
+                    </td>
+                    <td style={tdStyle}>
+                      <Link href={`/demandes/${d.id}`} style={{ fontWeight: 600, color: "#1E3A34", textDecoration: "underline" }}>{d.numero}</Link>
+                      <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                        <span title={`Priorité : ${d.priorite || "Moyenne"}`} style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: prioriteCouleur(d.priorite), flexShrink: 0, cursor: "help" }} />
+                        {demandesAvecNonDispo.has(d.id) && (
+                          <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 5, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ ...tdStyle, color: "#666" }}>{d.observation || "-"}</td>
+                    <td style={tdStyle}>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button onClick={() => copierPourDevis(d)} style={linkBtnBleu} title="Copier pour demande de devis">
+                          <IconCopy /> Devis
+                        </button>
+                        <button onClick={() => annulerDemande(d)} style={{ ...linkBtn, color: d.statut === "Annulée" ? "#1B7A4C" : "#8A6100", display: "inline-flex", alignItems: "center" }} title={d.statut === "Annulée" ? "Réactiver" : "Annuler"}>
+                          <IconBan />
+                        </button>
+                        {role === "acheteur" && (
+                          <button onClick={() => supprimerDemande(d)} style={{ ...linkBtn, color: "#B3261E", display: "inline-flex", alignItems: "center" }} title="Supprimer">
+                            <IconTrash />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
