@@ -101,7 +101,7 @@ export default function DashboardPage() {
 
         <div style={{ display: "flex", gap: 12, marginBottom: 18, flexShrink: 0, flexWrap: "wrap" }}>
           <ResumeCard href="/demandes" valeur={resume.demandesATraiter} label="demande(s) à traiter" couleur="#F5A623" />
-          <ResumeCard href="/commandes" valeur={resume.bcEnLivraison} label="BC en cours de livraison" couleur="#1B4C7A" />
+          <ResumeCard href="/commandes?filtre=en_attente_reception" valeur={resume.bcEnLivraison} label="BC en cours de livraison" couleur="#1B4C7A" />
           <ResumeCard href="/commandes" valeur={resume.facturesImpayees} label="facture(s) impayée(s)" couleur="#B3261E" />
         </div>
 
