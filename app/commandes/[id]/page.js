@@ -32,11 +32,11 @@ export default function CommandeDetailPage() {
   const [saisie, setSaisie] = useState(nouvelleSaisie());
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
-  const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", echeance_jours: 30, statut_paiement: "Impayé", date_paiement: "", mode_paiement: "" });
+  const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", echeance_jours: 30, statut_paiement: "Impayé", date_paiement: "", mode_paiement: "", observation_facture: "" });
   const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", telephone: "+261 38 77 419 60", email: "judicael.randrianaivo@unifoods.mg" });
   const [transmission, setTransmission] = useState({ dateEnvoiSignature: "", dateRetourSignature: "", destinataireSignature: "", dateEnvoiPaiement: "", dateDisponibilitePaiement: "", destinatairePaiement: "" });
   const [accuses, setAccuses] = useState([]);
-  const [nouvelAccuse, setNouvelAccuse] = useState({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", demandeur: "", observation: "" });
+  const [nouvelAccuse, setNouvelAccuse] = useState({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", observation: "" });
   const [dateSignature, setDateSignature] = useState("");
   const [observation, setObservation] = useState("");
   const [objet, setObjet] = useState("");
@@ -59,6 +59,11 @@ export default function CommandeDetailPage() {
     setLignes(l || []);
     setReceptions(receptionsAvecLignes);
     setDateEstimeeReste(c?.date_estimee_reste || "");
+
+    if (c && !c.numero_pvr) {
+      const { data: numeroReserve } = await supabase.rpc("get_or_creer_numero_pvr", { p_bc_id: c.id });
+      if (numeroReserve) setBc((prev) => (prev ? { ...prev, numero_pvr: numeroReserve } : prev));
+    }
 
     if (c?.demande_id) {
       const { data: d } = await supabase.from("demandes").select("*").eq("id", c.demande_id).maybeSingle();
@@ -85,6 +90,7 @@ export default function CommandeDetailPage() {
         statut_paiement: c.statut_paiement || "Impayé",
         date_paiement: c.date_paiement || "",
         mode_paiement: c.mode_paiement || "",
+        observation_facture: c.observation_facture || "",
       });
       setDateSignature(c.date_signature || "");
       setObservation(c.observation || "");
@@ -157,7 +163,7 @@ export default function CommandeDetailPage() {
     const { data: nouvelle } = await supabase.from("receptions").insert({
       bc_id: id, receptionnaire: receptionnaireFinal, numero_bl: saisie.numeroBl, type_livraison: saisie.typeLivraison,
       date_livraison_terrain: saisie.dateLivraisonTerrain || null, confirme_par: email,
-      statut: toutLivreApres ? "Totale" : "Partielle",
+      statut: toutLivreApres ? "Totale" : "Partielle", numero: bc.numero_pvr,
     }).select().single();
 
     if (nouvelle) {
@@ -204,10 +210,14 @@ export default function CommandeDetailPage() {
       date_facture: nouvelAccuse.date_facture || null,
       numero_facture: nouvelAccuse.numero_facture,
       montant: nouvelAccuse.montant === "" ? null : Number(nouvelAccuse.montant),
-      demandeur: nouvelAccuse.demandeur,
       observation: nouvelAccuse.observation,
     });
-    setNouvelAccuse({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", demandeur: "", observation: "" });
+    // Report automatique du N° et de la date de facture sur "Facture et paiement", pour ne pas ressaisir
+    await supabase.from("commandes").update({
+      numero_facture: nouvelAccuse.numero_facture,
+      date_facture: nouvelAccuse.date_facture || null,
+    }).eq("id", id);
+    setNouvelAccuse({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", observation: "" });
     charger();
   };
 
@@ -246,6 +256,7 @@ export default function CommandeDetailPage() {
       statut_paiement: facture.statut_paiement,
       mode_paiement: facture.statut_paiement === "Payé" ? facture.mode_paiement || null : null,
       date_paiement: facture.statut_paiement === "Payé" ? (facture.date_paiement || new Date().toISOString().slice(0, 10)) : null,
+      observation_facture: facture.observation_facture || null,
     }).eq("id", id);
     charger();
   };
@@ -304,7 +315,7 @@ export default function CommandeDetailPage() {
   return (
     <AuthGuard>
       <style>{`
-        @page { size: A4 portrait; margin: 12.5mm 7.5mm; }
+        @page { size: A4 portrait; margin: 10mm; }
         .bc-template, .pv-template { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
         @media print {
           body * { visibility: hidden; }
@@ -352,7 +363,7 @@ export default function CommandeDetailPage() {
             <h1 style={{ fontSize: 20, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
               <img src="/logo.png" alt="UNIFOODS" style={{ height: 32 }} /> — Bon de commande
             </h1>
-            <p style={{ fontSize: 14, color: "#666" }}>{bc.numero} — {bc.date}</p>
+            <p style={{ fontSize: 14, color: "#666" }}>{bc.numero} — {formatDate(bc.date)}</p>
           </div>
           <div style={{ display: "flex", gap: 8 }} className="no-print">
             {role === "acheteur" && !modeEdition && (
@@ -590,7 +601,7 @@ export default function CommandeDetailPage() {
             <thead>
               <tr>
                 <th style={thStyle}>Date accusé</th><th style={thStyle}>Date facture</th><th style={thStyle}>N° facture</th>
-                <th style={thStyle}>Montant</th><th style={thStyle}>Demandeur</th><th style={thStyle}>Observation</th><th style={thStyle}></th>
+                <th style={thStyle}>Montant</th><th style={thStyle}>Observation</th><th style={thStyle}></th>
               </tr>
             </thead>
             <tbody>
@@ -600,7 +611,6 @@ export default function CommandeDetailPage() {
                   <td style={tdStyle}>{a.date_facture || "-"}</td>
                   <td style={tdStyle}>{a.numero_facture}</td>
                   <td style={tdStyle}>{a.montant ? `${Number(a.montant).toLocaleString("fr-FR")} Ar` : "-"}</td>
-                  <td style={tdStyle}>{a.demandeur || "-"}</td>
                   <td style={tdStyle}>{a.observation || "-"}</td>
                   <td style={tdStyle}><button onClick={() => supprimerAccuse(a.id)} style={{ ...linkBtn, display: "inline-flex", alignItems: "center" }} title="Supprimer"><IconTrash /></button></td>
                 </tr>
@@ -613,7 +623,6 @@ export default function CommandeDetailPage() {
           <input type="date" placeholder="Date facture" value={nouvelAccuse.date_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, date_facture: e.target.value })} style={inputStyle} />
           <input placeholder="N° facture" value={nouvelAccuse.numero_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, numero_facture: e.target.value })} style={{ ...inputStyle, width: 140 }} />
           <input type="number" placeholder="Montant" value={nouvelAccuse.montant} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, montant: e.target.value })} style={{ ...inputStyle, width: 130 }} />
-          <input placeholder="Demandeur" value={nouvelAccuse.demandeur} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, demandeur: e.target.value })} style={{ ...inputStyle, width: 130 }} />
           <input placeholder="Observation" value={nouvelAccuse.observation} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, observation: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <button onClick={ajouterAccuse} style={buttonStyle}>+ Ajouter</button>
         </div>
@@ -626,6 +635,7 @@ export default function CommandeDetailPage() {
           <input placeholder="N° de facture" value={facture.numero_facture} onChange={(e) => setFacture({ ...facture, numero_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <input type="date" value={facture.date_facture} onChange={(e) => setFacture({ ...facture, date_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <input type="number" placeholder="Échéance (jours)" value={facture.echeance_jours} onChange={(e) => setFacture({ ...facture, echeance_jours: e.target.value })} style={{ ...inputStyle, width: 150 }} />
+          <input placeholder="Observation" value={facture.observation_facture} onChange={(e) => setFacture({ ...facture, observation_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <select value={facture.statut_paiement} onChange={(e) => setFacture({ ...facture, statut_paiement: e.target.value })} style={inputStyle}>
             <option>Impayé</option>
             <option>Payé</option>
@@ -645,7 +655,7 @@ export default function CommandeDetailPage() {
       )}
 
       {/* ---- PV de réception (imprimable) ---- */}
-      <div className={`bc-template ${modeImpression === "bc" ? "print-area" : ""}`} style={{ padding: "0 8px", fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "calc(297mm - 25mm)" }}>
+      <div className={`bc-template ${modeImpression === "bc" ? "print-area" : ""}`} style={{ padding: "0 8px", fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "calc(297mm - 20mm)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 48, marginBottom: 16 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
           <div style={{ ...encadreDouble(), flex: "0 0 auto", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "10px 22px" }}>
@@ -766,14 +776,20 @@ export default function CommandeDetailPage() {
         </div>
       </div>
 
-      <div className={`pv-template ${modeImpression === "pv" ? "print-area" : ""}`} style={{ padding: "0 8px", fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "calc(297mm - 25mm)" }}>
+      <div className={`pv-template ${modeImpression === "pv" ? "print-area" : ""}`} style={{ padding: "0 8px", fontFamily: "Arial, sans-serif", color: "#1a1a1a", fontSize: 12, background: "#fff", display: "flex", flexDirection: "column", minHeight: "calc(297mm - 20mm)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 48, marginBottom: 16 }}>
           <img src="/logo.png" alt="UNIFOODS" style={{ height: 46 }} />
           <div style={{ flex: 1, ...encadreDouble("#E3F1E7"), padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: 19, fontWeight: 700, color: VERT }}>PV de Réception</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: GRIS_LABEL }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {receptions[receptions.length - 1]?.numero || "—"}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: GRIS_LABEL }}><strong style={{ color: GRIS_LABEL }}>N°</strong> &nbsp; {bc.numero_pvr || "—"}</span>
           </div>
         </div>
+
+        {receptions.length > 0 && (
+          <div style={{ fontSize: 10, color: GRIS_LABEL, marginBottom: 10 }}>
+            Historique des réceptions : {receptions.map((r) => formatDate(r.date_reception_reelle)).join(", ")}
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
           <div style={infoBoxVert}>
@@ -824,15 +840,17 @@ export default function CommandeDetailPage() {
               );
               const grise = i % 2 === 1;
               const tdGris = grise ? { ...tdPrint, background: "#F5F5F5", borderBottom: "1px solid #EAEAEA" } : tdPrint;
+              const deja = receptions.length > 0 ? cumulLivre(l.id) : null;
+              const reste = deja != null ? Math.max(0, Number(l.quantite) - deja) : null;
               return (
                 <tr key={l.id}>
                   <td style={tdPrint}>{i === 0 ? bc.numero : ""}</td>
                   <td style={tdGris}>{l.designation}</td>
                   <td style={{ ...tdGris, textAlign: "center" }}>{l.quantite}</td>
                   <td style={tdGris}>{l.unite}</td>
-                  <td style={tdGris}></td>
-                  <td style={tdGris}></td>
-                  <td style={tdGris}></td>
+                  <td style={{ ...tdGris, textAlign: "center" }}>{deja != null ? deja : ""}</td>
+                  <td style={tdGris}>{deja != null ? l.unite : ""}</td>
+                  <td style={{ ...tdGris, textAlign: "center" }}>{reste != null ? reste : ""}</td>
                   <td style={tdGris}></td>
                 </tr>
               );
@@ -842,21 +860,19 @@ export default function CommandeDetailPage() {
         <div style={ombrePortee()} />
         <div style={{ textAlign: "right", fontSize: 8, color: GRIS_LABEL, marginTop: 3 }}>Page 1/1</div>
 
-        <div style={{ flex: 1 }} />
-
-        <div style={doubleLigneVerte} />
-
-        <div style={{ ...encadreDouble("#E3F1E7"), display: "inline-block", padding: "6px 16px", marginBottom: 10, fontSize: 12, fontWeight: 700, color: VERT }}>
+        <div style={{ ...encadreDouble("#E3F1E7"), display: "inline-block", padding: "6px 16px", margin: "14px 0 10px", fontSize: 12, fontWeight: 700, color: VERT }}>
           Signatures, Date, Nom :
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 14, marginTop: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
           {["RESPONSABLE MAGASIN", "MAGASINIER", "AGENT DE SECURITE", "LIVREUR ou TRANSPORTEUR"].map((s) => (
-            <div key={s} style={{ flex: 1, ...encadreDouble("#E3F1E7"), minHeight: 80, padding: "10px 10px 6px", textAlign: "center", fontSize: 10.5, fontWeight: 700, color: NOIR_VALEUR }}>
+            <div key={s} style={{ flex: 1, ...encadreDouble("#E3F1E7"), minHeight: 165, padding: "10px 10px 6px", textAlign: "center", fontSize: 10.5, fontWeight: 700, color: NOIR_VALEUR }}>
               {s}
             </div>
           ))}
         </div>
+
+        <div style={{ flex: 1 }} />
 
         <div style={{ marginTop: 24, fontSize: 10, color: GRIS_LABEL }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -910,7 +926,14 @@ const doubleLigneVerte = { borderTop: `2.5px double ${VERT}`, margin: "18px 0" }
 const ombrePortee = () => ({ height: 2.5, background: VERT });
 // Complète une liste de lignes avec des lignes vides pour garder un tableau
 // à hauteur fixe (effet visuel du modèle réel), même s'il y a peu d'articles.
-function avecLignesVides(lignes, minimum = 8) {
-  const vides = Math.max(0, minimum - lignes.length);
+// Complète une liste de lignes avec des lignes vides pour garder un tableau
+// à hauteur fixe (16 "emplacements" de hauteur normale). Une désignation trop
+// longue qui se met sur 2-3 lignes consomme plusieurs emplacements — on retire
+// alors autant de lignes vides pour que la page 1/1 reste vraie tant que le
+// nombre réel d'articles ne dépasse pas 16.
+function avecLignesVides(lignes, minimum = 16) {
+  const CARACTERES_PAR_LIGNE = 42;
+  const emplacementsUtilises = lignes.reduce((total, l) => total + Math.max(1, Math.ceil((l.designation || "").length / CARACTERES_PAR_LIGNE)), 0);
+  const vides = Math.max(0, minimum - emplacementsUtilises);
   return [...lignes, ...Array.from({ length: vides }, (_, i) => ({ __vide: true, id: `vide-${i}` }))];
 }
