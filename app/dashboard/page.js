@@ -4,6 +4,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
+import { calculerFrequenceAchats, articlesAReapprovisionner } from "../../lib/frequenceAchats";
 
 function joursDepuis(dateStr) {
   if (!dateStr) return null;
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [alertesPaiement, setAlertesPaiement] = useState([]);
   const [alertesEstimation, setAlertesEstimation] = useState([]);
   const [alertesImport, setAlertesImport] = useState([]);
+  const [alertesReappro, setAlertesReappro] = useState([]);
   const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -39,8 +41,8 @@ export default function DashboardPage() {
       setAlertesDevis(devis);
 
       // ---- BC en attente de livraison ----
-      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, date_signature, statut, statut_paiement, date_facture, echeance_jours, date_estimee_reste").limit(10000);
-      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, quantite").limit(10000);
+      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, date, date_signature, statut, statut_paiement, date_facture, echeance_jours, date_estimee_reste").limit(10000);
+      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, quantite").limit(10000);
       const { data: receptions } = await supabase.from("receptions").select("id, bc_id").limit(10000);
       const { data: lignesReception } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
 
@@ -77,6 +79,12 @@ export default function DashboardPage() {
       // ---- Demandeurs à aviser (articles non disponibles localement) ----
       const { data: aAviser } = await supabase.from("demandes").select("id, numero, service, demandeur, observation").eq("demandeur_avise", false).not("observation", "is", null).limit(10000);
       setAlertesImport(aAviser || []);
+
+      // ---- Réapprovisionnement à prévoir (articles au cycle habituel qui approche) ----
+      const commandesParId = {};
+      (commandes || []).forEach((c) => { commandesParId[c.id] = c; });
+      const frequences = calculerFrequenceAchats(lignesBc || [], commandesParId);
+      setAlertesReappro(articlesAReapprovisionner(frequences));
 
       // ---- Résumé "à faire" en un coup d'œil ----
       setResume({
@@ -157,6 +165,17 @@ export default function DashboardPage() {
               {alertesImport.map((d) => (
                 <LigneAlerte key={d.id} href={`/demandes/${d.id}`}>
                   <strong>{d.numero}</strong> ({d.service || d.demandeur || "-"}) — {d.observation}
+                </LigneAlerte>
+              ))}
+            </Section>
+          )}
+
+          {alertesReappro.length > 0 && (
+            <Section titre="Réapprovisionnement à prévoir (cycle d'achat habituel qui approche)" couleur="#8A6100" fond="#FFF3D6">
+              {alertesReappro.map((a) => (
+                <LigneAlerte key={a.designation} href="/kpi">
+                  <strong>{a.designation}</strong> — commandé habituellement tous les {a.cycleJours} jours, dernière commande il y a {a.joursDepuisDernier} jours
+                  {a.joursAvantProchaine <= 0 ? " — délai dépassé" : ` — prochaine échéance dans ${a.joursAvantProchaine} jour(s)`}
                 </LigneAlerte>
               ))}
             </Section>
