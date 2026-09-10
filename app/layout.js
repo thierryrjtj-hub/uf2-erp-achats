@@ -38,6 +38,11 @@ export default function RootLayout({ children }) {
           }
           a { color: inherit; }
 
+          /* ---- Boutons : retour visuel clair au survol et au clic, partout ---- */
+          button:not(:disabled) { cursor: pointer; transition: filter 0.12s ease, transform 0.05s ease; }
+          button:not(:disabled):hover { filter: brightness(0.92); }
+          button:not(:disabled):active { filter: brightness(0.8); transform: translateY(1px); }
+
           /* ---- Impression : le menu ne doit jamais apparaître, et le contenu doit occuper toute la page ---- */
           .no-print { }
           @media print {
