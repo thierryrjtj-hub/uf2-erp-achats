@@ -122,21 +122,19 @@ export default function PVViergePage() {
         <div style={ombrePortee} />
         <div style={{ textAlign: "right", fontSize: 8, color: GRIS_LABEL, marginTop: 3 }}>Page 1/1</div>
 
-        <div style={{ flex: 1 }} />
-
-        <div style={doubleLigneVerte} />
-
-        <div style={{ ...encadreDouble(), display: "inline-block", padding: "6px 16px", marginBottom: 10, fontSize: 12, fontWeight: 700, color: VERT }}>
+        <div style={{ ...encadreDouble(), display: "inline-block", padding: "6px 16px", margin: "14px 0 10px", fontSize: 12, fontWeight: 700, color: VERT }}>
           Signatures, Date, Nom :
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 14, marginTop: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
           {["RESPONSABLE MAGASIN", "MAGASINIER", "AGENT DE SECURITE", "LIVREUR ou TRANSPORTEUR"].map((s) => (
-            <div key={s} style={{ flex: 1, ...encadreDouble(), minHeight: 80, padding: "10px 10px 6px", textAlign: "center", fontSize: 10.5, fontWeight: 700, color: NOIR_VALEUR }}>
+            <div key={s} style={{ flex: 1, ...encadreDouble(), minHeight: 165, padding: "10px 10px 6px", textAlign: "center", fontSize: 10.5, fontWeight: 700, color: NOIR_VALEUR }}>
               {s}
             </div>
           ))}
         </div>
+
+        <div style={{ flex: 1 }} />
 
         <div style={{ marginTop: 24, fontSize: 10, color: GRIS_LABEL }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
