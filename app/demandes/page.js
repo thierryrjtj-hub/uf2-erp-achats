@@ -162,6 +162,7 @@ export default function DemandesListePage() {
               <div key={d.id} style={rowStyle}>
                 <div style={{ flex: 1 }}>
                   <Link href={`/demandes/${d.id}`} style={{ fontWeight: 600, fontSize: 13, color: "#1E3A34", textDecoration: "underline" }}>{d.numero}</Link>
+                  {d.numero_da && <span style={{ fontSize: 11, color: "#8A6100", marginLeft: 6 }}>DA {d.numero_da}</span>}
                   <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
                 </div>
                 <div style={{ fontSize: 13, color: "#666", width: 150 }}>{d.service || "-"}</div>
