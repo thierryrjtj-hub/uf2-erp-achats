@@ -44,6 +44,11 @@ export default function HistoriquePage() {
         let etatLivraison = "Non livré";
         if (cumulLivre >= Number(l.quantite) && cumulLivre > 0) etatLivraison = "Livré";
         else if (cumulLivre > 0) etatLivraison = "Livré partiellement";
+        if (art?.categorie === "Services & Prestations") {
+          etatLivraison = etatLivraison === "Livré" ? "Prestation effectuée"
+            : etatLivraison === "Livré partiellement" ? "Prestation partielle"
+            : "Prestation non effectuée";
+        }
 
         return {
           id: `bc-${l.id}`,
@@ -194,16 +199,16 @@ export default function HistoriquePage() {
 
   const badgeEtat = (etat) => ({
     fontSize: 11, padding: "2px 7px", borderRadius: 5,
-    background: etat === "Livré" ? "#EAF7EE" : etat === "Livré partiellement" ? "#FFF3D6" : "#F0EFEA",
-    color: etat === "Livré" ? "#1B7A4C" : etat === "Livré partiellement" ? "#8A6100" : "#999",
+    background: (etat === "Livré" || etat === "Prestation effectuée") ? "#EAF7EE" : (etat === "Livré partiellement" || etat === "Prestation partielle") ? "#FFF3D6" : "#F0EFEA",
+    color: (etat === "Livré" || etat === "Prestation effectuée") ? "#1B7A4C" : (etat === "Livré partiellement" || etat === "Prestation partielle") ? "#8A6100" : "#999",
   });
 
   // Couleur de la ligne entière selon le statut, pour un repérage visuel rapide
   const couleurLigne = (l) => {
     if (l.statut === "Annulée") return "#B0AEA6";
     if (l.statut && l.statut.startsWith("Clôturée (rupture)")) return "#B3261E";
-    if (l.etat_livraison === "Livré") return "#1B7A4C";
-    if (l.etat_livraison === "Livré partiellement") return "#8A6100";
+    if (l.etat_livraison === "Livré" || l.etat_livraison === "Prestation effectuée") return "#1B7A4C";
+    if (l.etat_livraison === "Livré partiellement" || l.etat_livraison === "Prestation partielle") return "#8A6100";
     if (l.statut === "A faire" || l.statut === "Partiellement traitée") return "#4A5A72";
     return "#242322";
   };
