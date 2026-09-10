@@ -747,8 +747,8 @@ export default function CommandeDetailPage() {
             <LigneInfo label="Contact" value={emetteur.telephone} />
             <LigneInfo label="E-Mail" value={emetteur.email} />
             <div style={{ height: 8 }} />
-            <LigneInfo label="Date DA" value={demande ? formatDate(demande.created_at) : ""} />
-            <LigneInfo label="DA N°" value={demande?.numero || ""} />
+            <LigneInfo label="Date DA" value={demande ? formatDate(demande.date_da || demande.created_at) : ""} />
+            <LigneInfo label="DA N°" value={demande?.numero_da || demande?.numero || ""} />
             <LigneInfo label="Objet" value={bc.objet || demande?.motif_projet || ""} />
             <LigneInfo label="Utilisateur Final" value={bc.utilisateur_final || demande?.service || ""} />
           </div>
@@ -874,8 +874,8 @@ export default function CommandeDetailPage() {
             <LigneInfo label="Contact" value={emetteur.telephone} />
             <LigneInfo label="E-Mail" value={emetteur.email} />
             <div style={{ height: 8 }} />
-            <LigneInfo label="Date DA" value={demande ? formatDate(demande.created_at) : ""} />
-            <LigneInfo label="DA N°" value={demande?.numero || ""} />
+            <LigneInfo label="Date DA" value={demande ? formatDate(demande.date_da || demande.created_at) : ""} />
+            <LigneInfo label="DA N°" value={demande?.numero_da || demande?.numero || ""} />
             <LigneInfo label="Destinataire" value={bc.fournisseur_nom} />
             <LigneInfo label="Utilisateur Final" value={bc.utilisateur_final || demande?.service || ""} />
           </div>
