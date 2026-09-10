@@ -48,6 +48,7 @@ export default function RootLayout({ children }) {
           @media print {
             .no-print { display: none !important; }
             .content-pane { max-width: none !important; padding: 0 !important; margin: 0 !important; overflow: visible !important; }
+            html, body { background: #fff !important; }
           }
 
           /* ---- Adaptation mobile ---- */
