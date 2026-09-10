@@ -703,10 +703,10 @@ export default function TCODetailPage() {
 
             <div style={{ display: "flex", alignItems: "center", background: "#FAFAF9", borderRadius: 8, padding: "8px 14px", marginBottom: 12, gap: 18 }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
-                <MetaItem label="Date DA" value={formatDate(demande.created_at)} />
+                <MetaItem label="Date DA" value={formatDate(demande.date_da || demande.created_at)} />
                 <MetaItem label="Service demandeur" value={demande.service || "—"} />
                 <MetaItem label="Nom demandeur" value={demande.demandeur || "—"} />
-                <MetaItem label="N° DA" value={demande.numero} />
+                <MetaItem label="N° DA" value={demande.numero_da || demande.numero} />
               </div>
               <div style={{ flex: 1, textAlign: "center", padding: "0 12px" }}>
                 <div style={lblStyle}>Motif de la demande</div>
