@@ -24,7 +24,7 @@ export default function CadreExtensible({ titre, children, style, contentStyle, 
           </button>
         </div>
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 20, ...contentStyle }}>
-          {children}
+          {typeof children === "function" ? children(true) : children}
         </div>
       </div>
     );
@@ -35,7 +35,7 @@ export default function CadreExtensible({ titre, children, style, contentStyle, 
       <button onClick={() => setEtendu(true)} title="Agrandir en plein écran" style={{ ...boutonPetit }} className="no-print">
         <IconAgrandir />
       </button>
-      {children}
+      {typeof children === "function" ? children(false) : children}
     </div>
   );
 }
@@ -63,4 +63,3 @@ const boutonStyle = {
   display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 7,
   border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer",
 };
-
