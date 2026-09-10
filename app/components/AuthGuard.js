@@ -22,6 +22,26 @@ export default function AuthGuard({ children }) {
     return () => listener.subscription.unsubscribe();
   }, [router]);
 
+  // Standard app entière : Entrée dans un champ = valider la saisie et lever la
+  // sélection (comme Tabulation pour naviguer, mais Entrée pour "j'ai terminé").
+  // Ça déclenche simplement l'événement onBlur déjà branché sur la plupart des
+  // champs (enregistrement automatique), sans avoir à toucher chaque page.
+  useEffect(() => {
+    const surAppuiTouche = (e) => {
+      if (e.key !== "Enter") return;
+      const el = document.activeElement;
+      if (!el) return;
+      const estZoneTexte = el.tagName === "TEXTAREA";
+      if (estZoneTexte && !e.ctrlKey && !e.metaKey) return; // Entrée = retour à la ligne dans un textarea, sauf Ctrl/Cmd+Entrée
+      if (el.tagName === "INPUT" || estZoneTexte) {
+        e.preventDefault();
+        el.blur();
+      }
+    };
+    document.addEventListener("keydown", surAppuiTouche);
+    return () => document.removeEventListener("keydown", surAppuiTouche);
+  }, []);
+
   if (!ready) return <p style={{ padding: 24 }}>Chargement...</p>;
 
   return (
