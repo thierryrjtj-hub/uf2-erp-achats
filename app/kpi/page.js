@@ -2,8 +2,10 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
+import CadreExtensible from "../components/CadreExtensible";
 import { exportExcel } from "../../lib/exportExcel";
 import { buttonStyle } from "../components/ui";
+import { calculerFrequenceAchats } from "../../lib/frequenceAchats";
 
 export default function KpiPage() {
   const [commandes, setCommandes] = useState([]);
@@ -38,16 +40,23 @@ export default function KpiPage() {
 
     const parFournisseur = {};
     commandes.forEach((c) => { parFournisseur[c.fournisseur_nom] = (parFournisseur[c.fournisseur_nom] || 0) + Number(c.montant_ttc || 0); });
-    const topFournisseurs = Object.entries(parFournisseur).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const topFournisseurs = Object.entries(parFournisseur).sort((a, b) => b[1] - a[1]);
 
     const parArticle = {};
     lignesBc.forEach((l) => { parArticle[l.designation] = (parArticle[l.designation] || 0) + Number(l.montant_ht || 0); });
-    const topArticles = Object.entries(parArticle).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const topArticles = Object.entries(parArticle).sort((a, b) => b[1] - a[1]);
 
-    // ---- Fréquence d'achat par article (nombre de fois commandé) ----
-    const frequenceArticle = {};
-    lignesBc.forEach((l) => { frequenceArticle[l.designation] = (frequenceArticle[l.designation] || 0) + 1; });
-    const topFrequenceArticles = Object.entries(frequenceArticle).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    // ---- Fréquence d'achat par article : nombre de BC distincts (pas de lignes) ----
+    const commandesParId = {};
+    commandes.forEach((c) => { commandesParId[c.id] = c; });
+    const frequences = calculerFrequenceAchats(lignesBc, commandesParId);
+    const topFrequenceArticles = frequences.map((f) => [f.designation, f.nombreAchats]);
+
+    // ---- Cycle de réapprovisionnement : durée moyenne entre deux commandes, pour les
+    // articles achetés au moins 3 fois (pour avoir un cycle fiable) ----
+    const topCycles = frequences
+      .filter((f) => f.cycleJours != null && f.nombreAchats >= 3)
+      .sort((a, b) => a.cycleJours - b.cycleJours);
 
     const impayes = commandes.filter((c) => c.statut_paiement !== "Payé");
     const totalImpaye = impayes.reduce((s, c) => s + Number(c.montant_ttc || 0), 0);
@@ -55,7 +64,7 @@ export default function KpiPage() {
     const demandesEnAttente = demandes.filter((d) => d.statut !== "Basculée en commande").length;
     const bcNonRecus = commandes.filter((c) => !receptions.some((r) => r.bc_id === c.id)).length;
 
-    // ---- Délais de traitement (point 28) ----
+    // ---- Délais de traitement ----
     const joursEntre = (d1, d2) => Math.round((new Date(d2) - new Date(d1)) / (1000 * 60 * 60 * 24));
 
     const delaisBc = [];
@@ -84,7 +93,7 @@ export default function KpiPage() {
     });
     const delaiMoyenReception = delaisReception.length ? Math.round(delaisReception.reduce((a, b) => a + b, 0) / delaisReception.length) : null;
 
-    // ---- Achats par mois, 12 derniers mois (point 7) ----
+    // ---- Achats par mois, 12 derniers mois ----
     const parMois = [];
     const MOIS_LABEL = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
     for (let i = 11; i >= 0; i--) {
@@ -96,8 +105,20 @@ export default function KpiPage() {
       parMois.push({ mois: cle, label: MOIS_LABEL[d.getMonth()], montant });
     }
 
-    return { totalTTC, totalMois, nbCommandesMois: commandesMois.length, topFournisseurs, topArticles, topFrequenceArticles, impayesCount: impayes.length, totalImpaye, demandesEnAttente, bcNonRecus, delaiMoyenBc, delaiMoyenReception, parMois };
+    return { totalTTC, totalMois, nbCommandesMois: commandesMois.length, topFournisseurs, topArticles, topFrequenceArticles, topCycles, impayesCount: impayes.length, totalImpaye, demandesEnAttente, bcNonRecus, delaiMoyenBc, delaiMoyenReception, parMois };
   }, [commandes, lignesBc, demandes, receptions, lignesReception]);
+
+  const exporterClassement = async (titre, nomFichier, colonneLabel, lignes, suffixe) => {
+    await exportExcel({
+      filename: `${nomFichier}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      titre: `UNIFOODS — ${titre}`,
+      sheets: [{
+        name: titre.slice(0, 30),
+        columns: [{ header: colonneLabel, key: "label", width: 42 }, { header: "Valeur", key: "valeur", width: 20 }],
+        rows: lignes.map(([label, valeur], i) => ({ label: `${i + 1}. ${label}`, valeur: `${valeur}${suffixe || ""}` })),
+      }],
+    });
+  };
 
   const exporter = async () => {
     setExporting(true);
@@ -111,24 +132,17 @@ export default function KpiPage() {
       { label: "Montant total impayé", valeur: stats.totalImpaye },
       { label: "Délai moyen jusqu'au BC (jours)", valeur: stats.delaiMoyenBc ?? "" },
       { label: "Délai moyen jusqu'à réception (jours)", valeur: stats.delaiMoyenReception ?? "" },
-      { label: "", valeur: "" },
-      { label: "Top fournisseurs (montant TTC)", valeur: "" },
-      ...stats.topFournisseurs.map(([nom, montant]) => ({ label: nom, valeur: montant })),
-      { label: "", valeur: "" },
-      { label: "Top articles (montant HT)", valeur: "" },
-      ...stats.topArticles.map(([nom, montant]) => ({ label: nom, valeur: montant })),
-      { label: "", valeur: "" },
-      { label: "Articles les plus achetés (fréquence)", valeur: "" },
-      ...stats.topFrequenceArticles.map(([nom, nb]) => ({ label: nom, valeur: nb })),
     ];
     await exportExcel({
       filename: `kpi-achats_${new Date().toISOString().slice(0, 10)}.xlsx`,
-      sheets: [{
-        name: "KPI",
-        columns: [{ header: "Indicateur", key: "label", width: 42 }, { header: "Valeur", key: "valeur", width: 26 }],
-        rows: kpiRows,
-        currencyKeys: ["valeur"],
-      }],
+      titre: "UNIFOODS — KPI Achats",
+      sheets: [
+        { name: "Vue d'ensemble", sousTitre: "Indicateurs clés", columns: [{ header: "Indicateur", key: "label", width: 42 }, { header: "Valeur", key: "valeur", width: 26 }], rows: kpiRows, currencyKeys: ["valeur"] },
+        { name: "Top fournisseurs", sousTitre: "Par montant TTC", columns: [{ header: "Fournisseur", key: "label", width: 32 }, { header: "Montant TTC", key: "valeur", width: 20 }], rows: stats.topFournisseurs.map(([nom, montant]) => ({ label: nom, valeur: montant })), currencyKeys: ["valeur"], totalsKeys: ["valeur"] },
+        { name: "Top articles (montant)", sousTitre: "Par montant HT", columns: [{ header: "Article", key: "label", width: 42 }, { header: "Montant HT", key: "valeur", width: 20 }], rows: stats.topArticles.map(([nom, montant]) => ({ label: nom, valeur: montant })), currencyKeys: ["valeur"], totalsKeys: ["valeur"] },
+        { name: "Fréquence d'achat", sousTitre: "Nombre de BC distincts par article", columns: [{ header: "Article", key: "label", width: 42 }, { header: "Nombre d'achats", key: "valeur", width: 18 }], rows: stats.topFrequenceArticles.map(([nom, nb]) => ({ label: nom, valeur: nb })) },
+        { name: "Cycle réapprovisionnement", sousTitre: "Durée moyenne entre deux commandes (jours)", columns: [{ header: "Article", key: "label", width: 42 }, { header: "Cycle moyen (jours)", key: "valeur", width: 18 }, { header: "Nombre d'achats", key: "nb", width: 16 }], rows: stats.topCycles.map((f) => ({ label: f.designation, valeur: f.cycleJours, nb: f.nombreAchats })) },
+      ],
     });
     setExporting(false);
   };
@@ -145,7 +159,7 @@ export default function KpiPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
           <h1 style={{ fontSize: 18 }}>KPI Achats</h1>
           <button onClick={exporter} disabled={exporting} style={buttonStyle}>
-            {exporting ? "Génération..." : "Exporter en Excel"}
+            {exporting ? "Génération..." : "Exporter tout en Excel"}
           </button>
         </div>
 
@@ -161,30 +175,71 @@ export default function KpiPage() {
           </div>
 
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
-            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
-              <h2 style={{ fontSize: 15, marginBottom: 12 }}>Top fournisseurs (montant TTC)</h2>
-              {stats.topFournisseurs.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>}
-              {stats.topFournisseurs.map(([nom, montant]) => (
-                <BarRow key={nom} label={nom} value={montant} max={maxFournisseur} suffix=" Ar" />
-              ))}
-            </div>
+            <CadreExtensible titre="Top fournisseurs (montant TTC)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
+              {(etendu) => (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <h2 style={{ fontSize: 15 }}>Top fournisseurs (montant TTC)</h2>
+                    <button className="no-print" onClick={() => exporterClassement("Top fournisseurs", "top-fournisseurs", "Fournisseur", stats.topFournisseurs, " Ar")} style={miniExportBtn}>Exporter</button>
+                  </div>
+                  {stats.topFournisseurs.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>}
+                  {(etendu ? stats.topFournisseurs : stats.topFournisseurs.slice(0, 6)).map(([nom, montant]) => (
+                    <BarRow key={nom} label={nom} value={montant} max={maxFournisseur} suffix=" Ar" />
+                  ))}
+                </>
+              )}
+            </CadreExtensible>
 
-            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
-              <h2 style={{ fontSize: 15, marginBottom: 12 }}>Top articles (montant HT)</h2>
-              {stats.topArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
-              {stats.topArticles.map(([nom, montant]) => (
-                <BarRow key={nom} label={nom} value={montant} max={maxArticle} suffix=" Ar" />
-              ))}
-            </div>
+            <CadreExtensible titre="Top articles (montant HT)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
+              {(etendu) => (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <h2 style={{ fontSize: 15 }}>Top articles (montant HT)</h2>
+                    <button className="no-print" onClick={() => exporterClassement("Top articles", "top-articles", "Article", stats.topArticles, " Ar")} style={miniExportBtn}>Exporter</button>
+                  </div>
+                  {stats.topArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
+                  {(etendu ? stats.topArticles : stats.topArticles.slice(0, 6)).map(([nom, montant]) => (
+                    <BarRow key={nom} label={nom} value={montant} max={maxArticle} suffix=" Ar" />
+                  ))}
+                </>
+              )}
+            </CadreExtensible>
 
-            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
-              <h2 style={{ fontSize: 15, marginBottom: 12 }}>Articles les plus achetés (fréquence)</h2>
-              {stats.topFrequenceArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
-              {stats.topFrequenceArticles.map(([nom, nb]) => (
-                <BarRow key={nom} label={nom} value={nb} max={maxFrequence} suffix={nb > 1 ? " fois" : " fois"} />
-              ))}
-            </div>
+            <CadreExtensible titre="Articles les plus achetés (fréquence)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
+              {(etendu) => (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <h2 style={{ fontSize: 15 }}>Articles les plus achetés (fréquence)</h2>
+                    <button className="no-print" onClick={() => exporterClassement("Fréquence d'achat", "frequence-achat", "Article", stats.topFrequenceArticles, " achats")} style={miniExportBtn}>Exporter</button>
+                  </div>
+                  <p style={{ fontSize: 11, color: "#999", marginBottom: 10 }}>Compté par bon de commande distinct (pas par ligne).</p>
+                  {stats.topFrequenceArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
+                  {(etendu ? stats.topFrequenceArticles : stats.topFrequenceArticles.slice(0, 6)).map(([nom, nb]) => (
+                    <BarRow key={nom} label={nom} value={nb} max={maxFrequence} suffix=" achats" />
+                  ))}
+                </>
+              )}
+            </CadreExtensible>
           </div>
+
+          <CadreExtensible titre="Cycle de réapprovisionnement (durée moyenne entre deux commandes)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
+            {(etendu) => (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <h2 style={{ fontSize: 15 }}>Cycle de réapprovisionnement</h2>
+                  <button className="no-print" onClick={() => exporterClassement("Cycle de réapprovisionnement", "cycle-reappro", "Article", stats.topCycles.map((f) => [f.designation, f.cycleJours]), " jours")} style={miniExportBtn}>Exporter</button>
+                </div>
+                <p style={{ fontSize: 11, color: "#999", marginBottom: 10 }}>Articles achetés au moins 3 fois — durée moyenne entre deux commandes. Les alertes de réapprovisionnement approchant apparaissent au Tableau de bord.</p>
+                {stats.topCycles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore assez d'historique pour établir un cycle.</p>}
+                {(etendu ? stats.topCycles : stats.topCycles.slice(0, 10)).map((f) => (
+                  <div key={f.designation} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f4f4f0", fontSize: 13 }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }} title={f.designation}>{f.designation}</span>
+                    <span style={{ color: "#666", marginLeft: 12, whiteSpace: "nowrap" }}>tous les <strong style={{ color: "#1E3A34" }}>{f.cycleJours} j</strong> ({f.nombreAchats} achats)</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </CadreExtensible>
 
           <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
             <h2 style={{ fontSize: 15, marginBottom: 12 }}>Achats par mois (12 derniers mois, TTC)</h2>
@@ -232,4 +287,6 @@ function BarRow({ label, value, max, suffix = "" }) {
     </div>
   );
 }
+
+const miniExportBtn = { fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", cursor: "pointer" };
 
