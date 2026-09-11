@@ -140,7 +140,7 @@ function NouveauBCDirectInner() {
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Fournisseur</h2>
         {fournisseurChoisi ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <strong>{fournisseurChoisi.nom}</strong>
             <button onClick={() => setFournisseurChoisi(null)} style={linkBtn}>Changer</button>
             <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#666" }}>
@@ -149,14 +149,14 @@ function NouveauBCDirectInner() {
             </label>
           </div>
         ) : (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Autocomplete
               placeholder="Taper le nom du fournisseur..."
               value={rechercheFournisseur}
               onChange={setRechercheFournisseur}
               onSelect={choisirFournisseur}
               suggestions={fournisseurs.map((f) => f.nom)}
-              style={{ width: 320 }}
+              style={{ width: 320, maxWidth: "100%" }}
             />
             <button onClick={() => choisirFournisseur(fournisseurs.find((x) => x.nom.toLowerCase() === rechercheFournisseur.trim().toLowerCase())?.nom)} style={buttonStyle}>Choisir</button>
           </div>
@@ -166,13 +166,13 @@ function NouveauBCDirectInner() {
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Articles</h2>
         {lignes.map((l) => (
-          <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
             <Autocomplete
               placeholder="Désignation"
               value={l.designation}
               onChange={(val) => onDesignationChange(l.key, val)}
               suggestions={articlesBase.map((a) => a.designation)}
-              style={{ flex: 2 }}
+              style={{ flex: 2, minWidth: 160 }}
             />
             <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
             <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 80 }} />
