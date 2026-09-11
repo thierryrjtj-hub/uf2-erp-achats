@@ -50,7 +50,7 @@ export default function LoginPage() {
       const { data, error: lookupError } = await supabase
         .from("app_usernames")
         .select("email")
-        .eq("username", email.toLowerCase())
+        .ilike("username", email)
         .maybeSingle();
       if (lookupError || !data) {
         setLoading(false);
