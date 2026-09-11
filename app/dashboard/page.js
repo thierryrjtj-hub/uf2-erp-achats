@@ -84,8 +84,11 @@ export default function DashboardPage() {
       // ---- Réapprovisionnement à prévoir (articles au cycle habituel qui approche) ----
       const commandesParId = {};
       (commandes || []).forEach((c) => { commandesParId[c.id] = c; });
+      const { data: articlesCategories } = await supabase.from("articles").select("designation, categorie").limit(10000);
+      const categorieParDesignation = {};
+      (articlesCategories || []).forEach((a) => { categorieParDesignation[a.designation] = a.categorie; });
       const frequences = calculerFrequenceAchats(lignesBc || [], commandesParId);
-      setAlertesReappro(articlesAReapprovisionner(frequences));
+      setAlertesReappro(articlesAReapprovisionner(frequences, 3, categorieParDesignation));
 
       // ---- Résumé "à faire" en un coup d'œil ----
       setResume({
