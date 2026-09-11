@@ -6,24 +6,9 @@ import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import { useRole } from "../../../lib/useRole";
 import { inputStyle, buttonStyle } from "../../components/ui";
+import { CATEGORIES_BASE } from "../../../lib/categoriesArticles";
 
 const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
-const CATEGORIES_BASE = [
-  "Produits Chimiques",
-  "Produits de Nettoyage / Hygiène",
-  "Équipements de Protection (EPI)",
-  "Consommables de Production",
-  "Emballages & Conditionnement",
-  "Pièces Détachées / Maintenance",
-  "Équipements Électriques",
-  "Matériaux de Construction",
-  "Carburants & Lubrifiants",
-  "Fournitures de Bureau",
-  "Bois de Chauffage",
-  "Matériel Informatique",
-  "Services & Prestations",
-  "Autre",
-];
 const empty = { designation: "", unite_defaut: "pcs", categorie: "", dernier_prix_ht: "" };
 
 export default function NouvelArticlePage() {
@@ -109,4 +94,3 @@ export default function NouvelArticlePage() {
     </AuthGuard>
   );
 }
-
