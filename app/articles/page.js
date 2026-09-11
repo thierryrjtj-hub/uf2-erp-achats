@@ -7,6 +7,7 @@ import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
 import { inputStyle, buttonStyle } from "../components/ui";
+import { CATEGORIES_BASE } from "../../lib/categoriesArticles";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 function matchRecherche(a, q) {
@@ -22,6 +23,7 @@ export default function ArticlesListePage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [recherche, setRecherche] = useState("");
+  const [filtreCategorie, setFiltreCategorie] = useState("");
   const [tri, setTri] = useState({ colonne: "designation", sens: "asc" });
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState(null);
@@ -39,7 +41,11 @@ export default function ArticlesListePage() {
 
   useEffect(() => { charger(); }, []);
 
-  const filtrees = useMemo(() => appliquerTri(liste.filter((a) => matchRecherche(a, recherche)), tri), [liste, recherche, tri]);
+  const filtrees = useMemo(() => {
+    const base = liste.filter((a) => matchRecherche(a, recherche));
+    const parCategorie = filtreCategorie ? base.filter((a) => (filtreCategorie === "(vide)" ? !a.categorie : a.categorie === filtreCategorie)) : base;
+    return appliquerTri(parCategorie, tri);
+  }, [liste, recherche, filtreCategorie, tri]);
 
   const historiqueParArticle = useMemo(() => {
     const map = {};
@@ -59,7 +65,8 @@ export default function ArticlesListePage() {
   }, [liste, lignesBc]);
 
   const uniteOptions = useMemo(() => [...new Set(liste.map((a) => a.unite_defaut).filter(Boolean))].sort(), [liste]);
-  const categorieOptions = useMemo(() => [...new Set(liste.map((a) => a.categorie).filter(Boolean))].sort(), [liste]);
+  const categorieOptions = useMemo(() => [...new Set([...CATEGORIES_BASE, ...liste.map((a) => a.categorie).filter(Boolean)])].sort(), [liste]);
+  const nbSansCategorie = useMemo(() => liste.filter((a) => !a.categorie).length, [liste]);
 
   const modifier = (a) => {
     setEditId(a.id);
@@ -139,6 +146,11 @@ export default function ArticlesListePage() {
               tri={tri}
               onChange={setTri}
             />
+            <select value={filtreCategorie} onChange={(e) => setFiltreCategorie(e.target.value)} style={inputStyle}>
+              <option value="">Toutes les catégories</option>
+              {categorieOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+              {nbSansCategorie > 0 && <option value="(vide)">— Sans catégorie ({nbSansCategorie}) —</option>}
+            </select>
           </div>
 
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
@@ -156,7 +168,10 @@ export default function ArticlesListePage() {
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
                         <input placeholder="Désignation" value={editForm.designation} onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
                         <Autocomplete placeholder="Unité" value={editForm.unite_defaut} onChange={(val) => setEditForm({ ...editForm, unite_defaut: val })} suggestions={uniteOptions} style={{ width: 160 }} />
-                        <Autocomplete placeholder="Catégorie" value={editForm.categorie} onChange={(val) => setEditForm({ ...editForm, categorie: val })} suggestions={categorieOptions} style={{ flex: 1 }} />
+                        <select value={editForm.categorie} onChange={(e) => setEditForm({ ...editForm, categorie: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
+                          <option value="">— Choisir une catégorie —</option>
+                          {categorieOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
                         <input type="number" placeholder="Dernier prix HT" value={editForm.dernier_prix_ht} onChange={(e) => setEditForm({ ...editForm, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 140 }} />
                       </div>
                       <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 8 }}>Enregistrer</button>
