@@ -366,7 +366,7 @@ export default function CommandeDetailPage() {
 
       <button onClick={() => router.push("/commandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux commandes</button>
 
-      <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {[
           { id: "bc", label: "Bon de commande" },
           { id: "reception", label: `Réception${resteGlobal ? "" : " ✓"}` },
@@ -400,7 +400,7 @@ export default function CommandeDetailPage() {
             </h1>
             <p style={{ fontSize: 14, color: "#666" }}>{bc.numero} — {formatDate(bc.date)}</p>
           </div>
-          <div style={{ display: "flex", gap: 8 }} className="no-print">
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} className="no-print">
             {role === "acheteur" && !modeEdition && (
               <button onClick={commencerEdition} style={{ ...buttonStyle, background: "#888" }}>Modifier le BC</button>
             )}
@@ -429,13 +429,13 @@ export default function CommandeDetailPage() {
         {modeEdition ? (
           <div className="no-print">
             {editLignes.map((l) => (
-              <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                 <Autocomplete
                   placeholder="Désignation"
                   value={l.designation}
                   onChange={(val) => onDesignationEditChange(l.key, val)}
                   suggestions={articlesBase.map((a) => a.designation)}
-                  style={{ flex: 2 }}
+                  style={{ flex: 2, minWidth: 160 }}
                 />
                 <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
                 <input placeholder="unité" value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, width: 90 }} />
@@ -444,7 +444,7 @@ export default function CommandeDetailPage() {
                 <button onClick={() => retirerEditLigne(l.key)} style={linkBtn}>Retirer</button>
               </div>
             ))}
-            <div style={{ display: "flex", gap: 8, marginTop: 8, marginBottom: 20 }}>
+            <div style={{ display: "flex", gap: 8, marginTop: 8, marginBottom: 20, flexWrap: "wrap" }}>
               <button onClick={ajouterEditLigne} style={{ ...buttonStyle, background: "#888" }}>+ Ajouter une ligne</button>
               <button onClick={enregistrerEdition} disabled={enregistrementEdition} style={buttonStyle}>
                 {enregistrementEdition ? "Enregistrement..." : "Enregistrer les modifications"}
