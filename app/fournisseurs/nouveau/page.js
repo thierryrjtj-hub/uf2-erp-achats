@@ -100,7 +100,7 @@ function NouveauFournisseurInner() {
           <input type="number" placeholder="Remise par défaut (%)" value={form.remise_par_defaut_pct} onChange={(e) => setForm({ ...form, remise_par_defaut_pct: e.target.value })} style={{ ...inputStyle, width: 180 }} />
         </div>
 
-        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={enregistrer} disabled={envoi} style={buttonStyle}>{envoi ? "Enregistrement..." : (editId ? "Enregistrer" : "Ajouter")}</button>
           <button onClick={() => router.push("/fournisseurs")} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
         </div>
