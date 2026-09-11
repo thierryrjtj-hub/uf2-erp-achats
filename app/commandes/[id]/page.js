@@ -6,6 +6,8 @@ import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import { useRole } from "../../../lib/useRole";
+import { useUserId } from "../../../lib/useUserId";
+import BandeauLectureSeule from "../../components/BandeauLectureSeule";
 import { thStyle, tdStyle, linkBtn, buttonStyle, inputStyle } from "../../components/ui";
 import { IconPrint, IconTrash } from "../../components/Icons";
 import { montantEnLettresAriary } from "../../../lib/nombreEnLettres";
@@ -19,6 +21,8 @@ export default function CommandeDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const role = useRole();
+  const userId = useUserId();
+  const [nomCreateurBc, setNomCreateurBc] = useState("");
   const [articlesBase, setArticlesBase] = useState([]);
   const [modeEdition, setModeEdition] = useState(false);
   const [editLignes, setEditLignes] = useState([]);
@@ -64,6 +68,13 @@ export default function CommandeDetailPage() {
     setLignes(l || []);
     setReceptions(receptionsAvecLignes);
     setDateEstimeeReste(c?.date_estimee_reste || "");
+
+    if (c?.created_by) {
+      const { data: profilCreateur } = await supabase.from("profiles").select("nom").eq("id", c.created_by).maybeSingle();
+      setNomCreateurBc(profilCreateur?.nom || "");
+    } else {
+      setNomCreateurBc("");
+    }
 
     if (c && !c.numero_pvr) {
       const { data: numeroReserve } = await supabase.rpc("get_or_creer_numero_pvr", { p_bc_id: c.id });
@@ -389,6 +400,10 @@ export default function CommandeDetailPage() {
           </button>
         ))}
       </div>
+
+      {role && role !== "acheteur" && bc?.created_by && bc.created_by !== userId && (
+        <BandeauLectureSeule nomCreateur={nomCreateurBc} />
+      )}
 
       {/* ---- Bon de commande ---- */}
       {onglet === "bc" && (
