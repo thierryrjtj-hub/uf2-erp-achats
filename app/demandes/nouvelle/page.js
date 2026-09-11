@@ -156,21 +156,21 @@ export default function NouvelleDemandePage() {
         </div>
 
         {lignes.map((l) => (
-          <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
             <Autocomplete
               placeholder="Désignation de l'article (tape pour voir les suggestions)"
               value={l.designation}
               onChange={(val) => onDesignationChange(l.key, val)}
               suggestions={articlesBase.map((a) => a.designation)}
-              style={{ flex: 3 }}
+              style={{ flex: 3, minWidth: 160 }}
             />
-            <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+            <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 70 }} />
             <input
               placeholder="unité"
               value={l.unite}
               onChange={(e) => updateLigne(l.key, "unite", e.target.value)}
               onBlur={(e) => onUniteBlur(l.key, l.designation, e.target.value)}
-              style={{ ...inputStyle, flex: 1 }}
+              style={{ ...inputStyle, flex: 1, minWidth: 70 }}
             />
             <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
           </div>
