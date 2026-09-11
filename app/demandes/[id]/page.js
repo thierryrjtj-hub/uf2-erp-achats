@@ -8,6 +8,9 @@ import Autocomplete from "../../components/Autocomplete";
 import CadreExtensible from "../../components/CadreExtensible";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../../components/ui";
 import { formatDate } from "../../../lib/format";
+import { useRole } from "../../../lib/useRole";
+import { useUserId } from "../../../lib/useUserId";
+import BandeauLectureSeule from "../../components/BandeauLectureSeule";
 
 function computeTotal(lignesOffre, lignesDemande, assujettiTva) {
   let totalHT = 0;
@@ -66,6 +69,9 @@ const FOURNISSEURS_PAR_PAGE = 4;
 export default function TCODetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const role = useRole();
+  const userId = useUserId();
+  const [nomCreateurDemande, setNomCreateurDemande] = useState("");
   const [demande, setDemande] = useState(null);
   const [lignesDemande, setLignesDemande] = useState([]);
   const [fournisseurs, setFournisseurs] = useState([]);
@@ -92,6 +98,12 @@ export default function TCODetailPage() {
       lo = data || [];
     }
     setDemande(d);
+    if (d?.created_by) {
+      const { data: profilCreateur } = await supabase.from("profiles").select("nom").eq("id", d.created_by).maybeSingle();
+      setNomCreateurDemande(profilCreateur?.nom || "");
+    } else {
+      setNomCreateurDemande("");
+    }
     setNotesTco({ remarque: d?.tco_remarque || "" });
     setLignesDemande(ld || []);
     setFournisseurs(f || []);
@@ -386,6 +398,10 @@ export default function TCODetailPage() {
 
       <div className="no-print">
       <button onClick={() => router.push("/demandes")} style={{ ...linkBtn, marginBottom: 16 }}>&larr; Retour aux demandes</button>
+
+      {role && role !== "acheteur" && demande?.created_by && demande.created_by !== userId && (
+        <BandeauLectureSeule nomCreateur={nomCreateurDemande} />
+      )}
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
