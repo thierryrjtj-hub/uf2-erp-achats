@@ -155,8 +155,6 @@ export default function CommandeDetailPage() {
 
   const enregistrerReception = async () => {
     setEnregistrement(true);
-    const { data: userData } = await supabase.auth.getUser();
-    const email = userData?.user?.email || "utilisateur";
     const receptionnaireFinal = saisie.receptionnaire === "Autre" ? saisie.receptionnaireAutre : saisie.receptionnaire;
 
     const lignesAvecSaisie = lignes.filter((l) => quantitesSaisie[l.id] !== undefined && quantitesSaisie[l.id] !== "");
@@ -170,7 +168,7 @@ export default function CommandeDetailPage() {
 
     const { data: nouvelle } = await supabase.from("receptions").insert({
       bc_id: id, receptionnaire: receptionnaireFinal, numero_bl: saisie.numeroBl, type_livraison: saisie.typeLivraison,
-      date_livraison_terrain: saisie.dateLivraisonTerrain || null, confirme_par: email,
+      date_livraison_terrain: saisie.dateLivraisonTerrain || null, confirme_par: emetteur.nom || emetteur.email,
       statut: toutLivreApres ? "Totale" : "Partielle", numero: bc.numero_pvr,
     }).select().single();
 
