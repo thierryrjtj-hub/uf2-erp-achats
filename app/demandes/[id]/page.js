@@ -463,7 +463,7 @@ export default function TCODetailPage() {
       <CadreExtensible titre="Tableau comparatif (TCO)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Tableau comparatif (TCO)</h2>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           <Autocomplete
             placeholder="Taper le nom du fournisseur à comparer..."
             value={rechercheFournisseur}
@@ -473,7 +473,7 @@ export default function TCODetailPage() {
               if (f) { ajouterFournisseur(f.id); setRechercheFournisseur(""); }
             }}
             suggestions={fournisseurs.filter((f) => !offres.some((o) => o.fournisseur_id === f.id)).map((f) => f.nom)}
-            style={{ width: 320 }}
+            style={{ width: 320, maxWidth: "100%" }}
           />
           <button
             onClick={() => {
