@@ -6,6 +6,7 @@ import CadreExtensible from "../components/CadreExtensible";
 import { exportExcel } from "../../lib/exportExcel";
 import { buttonStyle } from "../components/ui";
 import { calculerFrequenceAchats } from "../../lib/frequenceAchats";
+import { CATEGORIES_MATIERES_PREMIERES } from "../../lib/categoriesArticles";
 
 export default function KpiPage() {
   const [commandes, setCommandes] = useState([]);
@@ -13,6 +14,7 @@ export default function KpiPage() {
   const [demandes, setDemandes] = useState([]);
   const [receptions, setReceptions] = useState([]);
   const [lignesReception, setLignesReception] = useState([]);
+  const [categorieParDesignation, setCategorieParDesignation] = useState({});
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
@@ -23,11 +25,15 @@ export default function KpiPage() {
       const { data: d } = await supabase.from("demandes").select("*").limit(10000);
       const { data: r } = await supabase.from("receptions").select("*").limit(10000);
       const { data: lr } = await supabase.from("lignes_reception").select("*").limit(10000);
+      const { data: art } = await supabase.from("articles").select("designation, categorie").limit(10000);
       setCommandes(c || []);
       setLignesBc(l || []);
       setDemandes(d || []);
       setReceptions(r || []);
       setLignesReception(lr || []);
+      const catMap = {};
+      (art || []).forEach((a) => { catMap[a.designation] = a.categorie; });
+      setCategorieParDesignation(catMap);
       setLoading(false);
     })();
   }, []);
@@ -47,9 +53,11 @@ export default function KpiPage() {
     const topArticles = Object.entries(parArticle).sort((a, b) => b[1] - a[1]);
 
     // ---- Fréquence d'achat par article : nombre de BC distincts (pas de lignes) ----
+    // Uniquement les catégories "matières premières" — voir lib/categoriesArticles.js
     const commandesParId = {};
     commandes.forEach((c) => { commandesParId[c.id] = c; });
-    const frequences = calculerFrequenceAchats(lignesBc, commandesParId);
+    const frequences = calculerFrequenceAchats(lignesBc, commandesParId)
+      .filter((f) => CATEGORIES_MATIERES_PREMIERES.includes(categorieParDesignation[f.designation]));
     const topFrequenceArticles = frequences.map((f) => [f.designation, f.nombreAchats]);
 
     // ---- Cycle de réapprovisionnement : durée moyenne entre deux commandes, pour les
@@ -106,7 +114,7 @@ export default function KpiPage() {
     }
 
     return { totalTTC, totalMois, nbCommandesMois: commandesMois.length, topFournisseurs, topArticles, topFrequenceArticles, topCycles, impayesCount: impayes.length, totalImpaye, demandesEnAttente, bcNonRecus, delaiMoyenBc, delaiMoyenReception, parMois };
-  }, [commandes, lignesBc, demandes, receptions, lignesReception]);
+  }, [commandes, lignesBc, demandes, receptions, lignesReception, categorieParDesignation]);
 
   const exporterClassement = async (titre, nomFichier, colonneLabel, lignes, suffixe) => {
     await exportExcel({
