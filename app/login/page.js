@@ -40,7 +40,7 @@ export default function LoginPage() {
     const tentativesActuelles = Number(localStorage.getItem(cle) || 0);
     if (tentativesActuelles >= MAX_TENTATIVES) {
       setBloque(true);
-      setError("Trop de tentatives échouées. Contacte l'administrateur (Judicaël) pour réinitialiser ton mot de passe.");
+      setError("Trop de tentatives échouées. Contactez l'administrateur (Judicaël) pour réinitialiser votre mot de passe.");
       return;
     }
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
       localStorage.setItem(cle, String(nouveauTotal));
       if (nouveauTotal >= MAX_TENTATIVES) {
         setBloque(true);
-        setError("Trop de tentatives échouées. Contacte l'administrateur (Judicaël) pour réinitialiser ton mot de passe.");
+        setError("Trop de tentatives échouées. Contactez l'administrateur (Judicaël) pour réinitialiser votre mot de passe.");
       } else {
         setError(`Identifiant ou mot de passe incorrect (${nouveauTotal}/${MAX_TENTATIVES} tentatives).`);
       }
@@ -117,7 +117,7 @@ export default function LoginPage() {
           </div>
           <h1 style={{ fontSize: 18, marginBottom: 4, textAlign: "center" }}>Première connexion</h1>
           <p style={{ fontSize: 13, color: "#666", marginBottom: 20, textAlign: "center" }}>
-            Merci de choisir ton propre mot de passe — lui seul le connaîtra à partir de maintenant.
+            Merci de choisir votre propre mot de passe — vous seul le connaîtrez à partir de maintenant.
           </p>
 
           <label style={{ fontSize: 13, display: "block", marginBottom: 4 }}>Nouveau mot de passe</label>
