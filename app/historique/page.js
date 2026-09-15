@@ -26,7 +26,7 @@ export default function HistoriquePage() {
       const { data: lignesReceptionList } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
       const { data: demandesList } = await supabase.from("demandes").select("id, service, demandeur, motif_projet, statut, created_at").limit(10000);
       const { data: lignesDemandeList } = await supabase.from("lignes_demande").select("id, demande_id, designation, quantite, unite").limit(10000);
-      const { data: articlesList } = await supabase.from("articles").select("designation, categorie").limit(10000);
+      const { data: articlesList } = await supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000);
 
       // ---- Lignes déjà passées en BC ----
       const rowsBc = (lignesBc || []).map((l) => {
@@ -44,7 +44,7 @@ export default function HistoriquePage() {
         let etatLivraison = "Non livré";
         if (cumulLivre >= Number(l.quantite) && cumulLivre > 0) etatLivraison = "Livré";
         else if (cumulLivre > 0) etatLivraison = "Livré partiellement";
-        if (art?.categorie === "Services & Prestations") {
+        if (art?.categorie?.nom === "Services & Prestations") {
           etatLivraison = etatLivraison === "Livré" ? "Prestation effectuée"
             : etatLivraison === "Livré partiellement" ? "Prestation partielle"
             : "Prestation non effectuée";
@@ -59,7 +59,7 @@ export default function HistoriquePage() {
           date_signature: bc?.date_signature || "-",
           date_reception: derniereReception?.date_reception_reelle ? derniereReception.date_reception_reelle.slice(0, 10) : "-",
           receptionnaire: derniereReception?.receptionnaire || "-",
-          categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
+          categorie: art?.categorie?.nom || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
           demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
           prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct, montant_ht: montantHt, montant_ttc: montantTtc,
           bc_total_ttc: Number(bc?.montant_ttc) || 0, etat_livraison: etatLivraison,
@@ -80,7 +80,7 @@ export default function HistoriquePage() {
             date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
             designation: ld.designation, quantite: ld.quantite, unite: ld.unite,
             fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-", receptionnaire: "-",
-            categorie: art?.categorie || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
+            categorie: art?.categorie?.nom || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
             demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
             prix_unitaire_ht: null, remise_pct: null, montant_ht: 0, montant_ttc: 0, bc_total_ttc: 0, etat_livraison: "-",
             statut: dmd?.statut === "Partiellement traitée" ? "Partiellement traitée" : "A faire",
