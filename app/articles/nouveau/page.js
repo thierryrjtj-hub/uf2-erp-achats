@@ -1,26 +1,27 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
-import { useRole } from "../../../lib/useRole";
-import { inputStyle, buttonStyle } from "../../components/ui";
-import { CATEGORIES_BASE } from "../../../lib/categoriesArticles";
+import { inputStyle, buttonStyle, linkBtn } from "../../components/ui";
 
 const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
-const empty = { designation: "", unite_defaut: "pcs", categorie: "", dernier_prix_ht: "" };
+const empty = { designation: "", unite_defaut: "pcs", categorie_id: "", dernier_prix_ht: "" };
 
 export default function NouvelArticlePage() {
   const router = useRouter();
-  const role = useRole();
   const [liste, setListe] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(empty);
   const [envoi, setEnvoi] = useState(false);
 
   const charger = async () => {
-    const { data } = await supabase.from("articles").select("id, unite_defaut, categorie").limit(10000);
+    const { data } = await supabase.from("articles").select("id, unite_defaut").limit(10000);
     setListe(data || []);
+    const { data: cats } = await supabase.from("categories").select("id, nom").order("nom");
+    setCategories(cats || []);
   };
 
   useEffect(() => { charger(); }, []);
@@ -30,21 +31,15 @@ export default function NouvelArticlePage() {
     return [...new Set([...UNITES_BASE, ...depuisArticles])].sort((a, b) => a.localeCompare(b));
   }, [liste]);
 
-  const categorieOptions = useMemo(() => {
-    const depuisArticles = liste.map((a) => a.categorie).filter(Boolean);
-    return [...new Set([...CATEGORIES_BASE, ...depuisArticles])].sort((a, b) => a.localeCompare(b));
-  }, [liste]);
-
-  const supprimerCategorie = async (cat) => {
-    if (!confirm(`Supprimer la catégorie "${cat}" ? Elle sera retirée de tous les articles qui l'utilisent (ils redeviendront sans catégorie).`)) return;
-    await supabase.from("articles").update({ categorie: null }).eq("categorie", cat);
-    charger();
-  };
-
   const enregistrer = async () => {
     if (!form.designation.trim()) return;
     setEnvoi(true);
-    const payload = { ...form, dernier_prix_ht: form.dernier_prix_ht === "" ? null : Number(form.dernier_prix_ht) };
+    const payload = {
+      designation: form.designation,
+      unite_defaut: form.unite_defaut,
+      categorie_id: form.categorie_id || null,
+      dernier_prix_ht: form.dernier_prix_ht === "" ? null : Number(form.dernier_prix_ht),
+    };
     await supabase.from("articles").insert(payload);
     setEnvoi(false);
     router.push("/articles");
@@ -64,31 +59,15 @@ export default function NouvelArticlePage() {
             suggestions={uniteOptions}
             style={{ width: 190 }}
           />
-          <Autocomplete
-            placeholder="Catégorie (tape pour voir les suggestions)"
-            value={form.categorie}
-            onChange={(val) => setForm({ ...form, categorie: val })}
-            suggestions={categorieOptions}
-            style={{ flex: 1 }}
-          />
+          <select value={form.categorie_id} onChange={(e) => setForm({ ...form, categorie_id: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
+            <option value="">— Choisir une catégorie —</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+          </select>
           <input type="number" placeholder="Dernier prix HT" value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
         </div>
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
           <button onClick={enregistrer} disabled={envoi} style={buttonStyle}>{envoi ? "Création..." : "Ajouter"}</button>
-        </div>
-      </div>
-
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Catégories existantes</h2>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", maxHeight: 200, overflow: "auto" }}>
-          {categorieOptions.map((c) => (
-            <span key={c} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, background: "#F5F4F1", borderRadius: 6, padding: "4px 8px" }}>
-              {c}
-              {role === "acheteur" && (
-                <button onClick={() => supprimerCategorie(c)} style={{ border: "none", background: "none", color: "#B3261E", cursor: "pointer", fontSize: 13, padding: 0 }} title="Supprimer cette catégorie">×</button>
-              )}
-            </span>
-          ))}
+          <Link href="/articles/categories" style={linkBtn}>Gérer les catégories</Link>
         </div>
       </div>
     </AuthGuard>
