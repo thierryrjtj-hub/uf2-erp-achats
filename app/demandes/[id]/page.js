@@ -295,6 +295,32 @@ export default function TCODetailPage() {
     }
   };
 
+  const majLigneDemande = async (ligneId, field, value) => {
+    if (lectureSeule) return;
+    setLignesDemande((prev) => prev.map((l) => (l.id === ligneId ? { ...l, [field]: value } : l)));
+    const payload = field === "quantite" ? { quantite: Number(value) || 0 } : { [field]: value };
+    await supabase.from("lignes_demande").update(payload).eq("id", ligneId);
+  };
+
+  const supprimerLigneDemande = async (ligne) => {
+    if (lectureSeule) return;
+    if (!confirm(`Retirer "${ligne.designation}" de la demande ?`)) return;
+    await supabase.from("lignes_offre").delete().eq("ligne_demande_id", ligne.id);
+    await supabase.from("lignes_demande").delete().eq("id", ligne.id);
+    setLignesDemande((prev) => prev.filter((l) => l.id !== ligne.id));
+    setLignesOffre((prev) => prev.filter((x) => x.ligne_demande_id !== ligne.id));
+  };
+
+  const ajouterLigneDemande = async () => {
+    if (lectureSeule) return;
+    const { data, error } = await supabase
+      .from("lignes_demande")
+      .insert({ demande_id: id, designation: "", quantite: 1, unite: "pcs" })
+      .select()
+      .single();
+    if (!error && data) setLignesDemande((prev) => [...prev, data]);
+  };
+
   const genererBC = async () => {
     const groupes = {};
     for (const ld of lignesDemande) {
@@ -418,6 +444,25 @@ export default function TCODetailPage() {
             {demande.numero_tco && <p style={{ fontSize: 12, color: "#1B7A4C", marginBottom: 12 }}>N° {demande.numero_tco}</p>}
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+              <div style={{ width: 150 }}>
+                <div style={lblStyle}>Date DA</div>
+                <input
+                  type="date"
+                  defaultValue={demande.date_da ? demande.date_da.slice(0, 10) : ""}
+                  disabled={lectureSeule}
+                  onBlur={(e) => majDemande({ date_da: e.target.value || null })}
+                  style={{ ...inputStyle, width: "100%" }}
+                />
+              </div>
+              <div style={{ width: 170 }}>
+                <div style={lblStyle}>N° DA</div>
+                <input
+                  defaultValue={demande.numero_da || ""}
+                  disabled={lectureSeule}
+                  onBlur={(e) => majDemande({ numero_da: e.target.value.trim() || null })}
+                  style={{ ...inputStyle, width: "100%" }}
+                />
+              </div>
               <div style={{ flex: 1, minWidth: 160 }}>
                 <div style={lblStyle}>Service demandeur</div>
                 <input
@@ -506,6 +551,7 @@ export default function TCODetailPage() {
               <th style={thStyle}>Qté</th>
               <th style={thStyle}>Unité</th>
               <th style={thStyle}>Non dispo. localement</th>
+              {!lectureSeule && <th style={thStyle}></th>}
             </tr>
           </thead>
           <tbody>
@@ -513,22 +559,57 @@ export default function TCODetailPage() {
               <tr key={l.id}>
                 <td style={tdStyle}>{i + 1}</td>
                 <td style={tdStyle}>
-                  {l.designation}
-                  {l.non_disponible_localement && <span style={{ marginLeft: 8, fontSize: 11, color: "#B3261E" }}>— à rechercher à l'import</span>}
+                  {lectureSeule ? (
+                    <>
+                      {l.designation}
+                      {l.non_disponible_localement && <span style={{ marginLeft: 8, fontSize: 11, color: "#B3261E" }}>— à rechercher à l'import</span>}
+                    </>
+                  ) : (
+                    <input
+                      defaultValue={l.designation}
+                      onBlur={(e) => majLigneDemande(l.id, "designation", e.target.value)}
+                      style={{ ...inputStyle, width: "100%" }}
+                    />
+                  )}
                 </td>
-                <td style={tdStyle}>{l.quantite.toLocaleString("fr-FR")}</td>
-                <td style={tdStyle}>{l.unite}</td>
+                <td style={tdStyle}>
+                  {lectureSeule ? l.quantite.toLocaleString("fr-FR") : (
+                    <input
+                      type="number" min="0" defaultValue={l.quantite}
+                      onBlur={(e) => majLigneDemande(l.id, "quantite", e.target.value)}
+                      style={{ ...inputStyle, width: 80 }}
+                    />
+                  )}
+                </td>
+                <td style={tdStyle}>
+                  {lectureSeule ? l.unite : (
+                    <input
+                      defaultValue={l.unite}
+                      onBlur={(e) => majLigneDemande(l.id, "unite", e.target.value)}
+                      style={{ ...inputStyle, width: 90 }}
+                    />
+                  )}
+                </td>
                 <td style={tdStyle}>
                   <input
                     type="checkbox"
                     checked={!!l.non_disponible_localement}
+                    disabled={lectureSeule}
                     onChange={(e) => { if (e.target.checked) marquerNonDisponible(l); }}
                   />
                 </td>
+                {!lectureSeule && (
+                  <td style={tdStyle}>
+                    <button onClick={() => supprimerLigneDemande(l)} style={{ ...linkBtn, color: "#B3261E" }}>Retirer</button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
+        {!lectureSeule && (
+          <button onClick={ajouterLigneDemande} style={{ ...buttonStyle, marginTop: 10 }}>+ Ajouter un article</button>
+        )}
       </div>
 
       <CadreExtensible titre="Tableau comparatif (TCO)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
