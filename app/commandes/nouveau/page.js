@@ -6,7 +6,11 @@ import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import { inputStyle, buttonStyle, linkBtn } from "../../components/ui";
 
-const ligneVide = () => ({ key: Math.random().toString(36).slice(2), ligne_demande_id: null, designation: "", quantite: 1, unite: "pcs", prix_unitaire_ht: "", remise_pct: 0 });
+const ligneVide = () => ({ key: Math.random().toString(36).slice(2), ligne_demande_id: null, designation: "", quantite: 1, unite: "pcs", prix_unitaire_ht: "", remise_pct: 0, date_livraison: "" });
+const estBoisDeChauffage = (designation) => {
+  const d = (designation || "").toLowerCase();
+  return d.includes("bois de chauffage") || d.includes("bois chauffage");
+};
 
 export default function NouveauBCDirectPage() {
   return (
@@ -26,6 +30,7 @@ function NouveauBCDirectInner() {
   const [rechercheFournisseur, setRechercheFournisseur] = useState("");
   const [fournisseurChoisi, setFournisseurChoisi] = useState(null);
   const [assujettiTva, setAssujettiTva] = useState(true);
+  const [referenceDevis, setReferenceDevis] = useState("");
   const [lignes, setLignes] = useState([ligneVide()]);
   const [envoi, setEnvoi] = useState(false);
 
@@ -45,7 +50,7 @@ function NouveauBCDirectInner() {
             const art = (a || []).find((x) => x.designation.toLowerCase() === l.designation.toLowerCase());
             return {
               key: l.id, ligne_demande_id: l.id, designation: l.designation, quantite: l.quantite, unite: l.unite,
-              prix_unitaire_ht: art?.dernier_prix_ht || "", remise_pct: 0,
+              prix_unitaire_ht: art?.dernier_prix_ht || "", remise_pct: 0, date_livraison: l.date_livraison || "",
             };
           }));
         }
@@ -97,6 +102,7 @@ function NouveauBCDirectInner() {
 
     let montantHT = 0;
     const lignesBcPayload = [];
+    let auMoinsUnBois = false;
     for (const l of lignesValides) {
       let article = articlesBase.find((a) => a.designation.toLowerCase() === l.designation.toLowerCase());
       if (!article) {
@@ -105,9 +111,11 @@ function NouveauBCDirectInner() {
       }
       const m = (Number(l.quantite) || 0) * (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100);
       montantHT += m;
+      if (estBoisDeChauffage(l.designation)) auMoinsUnBois = true;
       lignesBcPayload.push({
         ligne_demande_id: l.ligne_demande_id, designation: l.designation, quantite: Number(l.quantite) || 1, unite: l.unite,
         prix_unitaire_ht: Number(l.prix_unitaire_ht) || 0, remise_pct: Number(l.remise_pct) || 0, montant_ht: m,
+        date_livraison: l.date_livraison || null,
       });
     }
     const tvaFinal = assujettiTva ? montantHT * 0.2 : 0;
@@ -117,13 +125,28 @@ function NouveauBCDirectInner() {
       .insert({
         demande_id: demandeId || null, fournisseur_id: fournisseurChoisi.id, fournisseur_nom: fournisseurChoisi.nom,
         assujetti_tva: assujettiTva, montant_ht: montantHT, montant_tva: tvaFinal, montant_ttc: montantHT + tvaFinal,
+        reference_devis: referenceDevis.trim() || null,
       })
       .select()
       .single();
 
     if (bc) {
-      await supabase.from("lignes_bc").insert(lignesBcPayload.map((l) => ({ ...l, bc_id: bc.id })));
+      const { data: lignesInserees } = await supabase.from("lignes_bc").insert(lignesBcPayload.map((l) => ({ ...l, bc_id: bc.id }))).select();
       if (demandeId) await supabase.from("demandes").update({ statut: "Basculée en commande" }).eq("id", demandeId);
+      // Le bois de chauffage n'est jamais facturé par le fournisseur avant livraison :
+      // toute ligne bois est donc automatiquement considérée comme totalement reçue.
+      if (auMoinsUnBois && lignesInserees?.length) {
+        const datesLivraison = lignesInserees.map((l) => l.date_livraison).filter(Boolean).sort();
+        const dateReception = datesLivraison.length ? datesLivraison[datesLivraison.length - 1] : new Date().toISOString().slice(0, 10);
+        const { data: reception } = await supabase.from("receptions").insert({
+          bc_id: bc.id, statut: "Totale", date_reception_reelle: dateReception, receptionnaire: "Livraison directe (bois de chauffage)",
+        }).select().single();
+        if (reception) {
+          await supabase.from("lignes_reception").insert(
+            lignesInserees.map((l) => ({ reception_id: reception.id, ligne_bc_id: l.id, quantite_livree: l.quantite }))
+          );
+        }
+      }
       router.push(`/commandes/${bc.id}`);
     }
     setEnvoi(false);
@@ -164,9 +187,30 @@ function NouveauBCDirectInner() {
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Référence</h2>
+        <input
+          placeholder="Réf. devis fournisseur (visible sur le BC imprimé)"
+          value={referenceDevis}
+          onChange={(e) => setReferenceDevis(e.target.value)}
+          style={{ ...inputStyle, width: "100%" }}
+        />
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <h2 style={{ fontSize: 15, marginBottom: 12 }}>Articles</h2>
-        {lignes.map((l) => (
+        {lignes.map((l) => {
+          const bois = estBoisDeChauffage(l.designation);
+          return (
           <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+            {bois && (
+              <input
+                type="date"
+                value={l.date_livraison}
+                onChange={(e) => updateLigne(l.key, "date_livraison", e.target.value)}
+                title="Date de livraison réelle (un voyage = une ligne)"
+                style={{ ...inputStyle, width: 150 }}
+              />
+            )}
             <Autocomplete
               placeholder="Désignation"
               value={l.designation}
@@ -180,7 +224,8 @@ function NouveauBCDirectInner() {
             <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => updateLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
             <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
           </div>
-        ))}
+          );
+        })}
         <button onClick={addLigne} style={{ ...buttonStyle, background: "#888" }}>+ Ajouter une ligne</button>
 
         <div style={{ marginTop: 16, fontSize: 13 }}>
@@ -198,4 +243,3 @@ function NouveauBCDirectInner() {
     </AuthGuard>
   );
 }
-
