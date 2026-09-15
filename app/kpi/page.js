@@ -25,14 +25,14 @@ export default function KpiPage() {
       const { data: d } = await supabase.from("demandes").select("*").limit(10000);
       const { data: r } = await supabase.from("receptions").select("*").limit(10000);
       const { data: lr } = await supabase.from("lignes_reception").select("*").limit(10000);
-      const { data: art } = await supabase.from("articles").select("designation, categorie").limit(10000);
+      const { data: art } = await supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000);
       setCommandes(c || []);
       setLignesBc(l || []);
       setDemandes(d || []);
       setReceptions(r || []);
       setLignesReception(lr || []);
       const catMap = {};
-      (art || []).forEach((a) => { catMap[a.designation] = a.categorie; });
+      (art || []).forEach((a) => { catMap[a.designation] = a.categorie?.nom; });
       setCategorieParDesignation(catMap);
       setLoading(false);
     })();
@@ -61,9 +61,11 @@ export default function KpiPage() {
     const topFrequenceArticles = frequences.map((f) => [f.designation, f.nombreAchats]);
 
     // ---- Cycle de réapprovisionnement : durée moyenne entre deux commandes, pour les
-    // articles achetés au moins 3 fois (pour avoir un cycle fiable) ----
+    // articles achetés au moins 3 fois (pour avoir un cycle fiable). Bois de Chauffage
+    // exclu : livraisons quotidiennes/continues, un cycle n'a pas de sens ici.
     const topCycles = frequences
       .filter((f) => f.cycleJours != null && f.nombreAchats >= 3)
+      .filter((f) => categorieParDesignation[f.designation] !== "Bois de Chauffage")
       .sort((a, b) => a.cycleJours - b.cycleJours);
 
     const impayes = commandes.filter((c) => c.statut_paiement !== "Payé");
