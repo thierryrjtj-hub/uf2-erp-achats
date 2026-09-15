@@ -87,9 +87,11 @@ export default function CommandeDetailPage() {
     } else {
       setDemande(null);
     }
+    let fournisseurCharge = null;
     if (c?.fournisseur_id) {
       const { data: f } = await supabase.from("fournisseurs").select("*").eq("id", c.fournisseur_id).maybeSingle();
-      setFournisseurDetail(f || null);
+      fournisseurCharge = f || null;
+      setFournisseurDetail(fournisseurCharge);
     }
     if (c?.demande_id && c?.fournisseur_id) {
       const { data: off } = await supabase.from("offres").select("numero_devis, date_devis").eq("demande_id", c.demande_id).eq("fournisseur_id", c.fournisseur_id).maybeSingle();
@@ -102,7 +104,7 @@ export default function CommandeDetailPage() {
       setFacture({
         numero_facture: c.numero_facture || "",
         date_facture: c.date_facture || "",
-        echeance_jours: c.echeance_jours ?? 30,
+        echeance_jours: c.echeance_jours ?? fournisseurCharge?.conditions_paiement_jours ?? 30,
         statut_paiement: c.statut_paiement || "Impayé",
         date_paiement: c.date_paiement || "",
         mode_paiement: c.mode_paiement || "",
@@ -724,6 +726,16 @@ export default function CommandeDetailPage() {
           <input placeholder="N° de facture" value={facture.numero_facture} onChange={(e) => setFacture({ ...facture, numero_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <input type="date" value={facture.date_facture} onChange={(e) => setFacture({ ...facture, date_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <input type="number" placeholder="Échéance (jours)" value={facture.echeance_jours} onChange={(e) => setFacture({ ...facture, echeance_jours: e.target.value })} style={{ ...inputStyle, width: 150 }} />
+          {fournisseurDetail?.conditions_paiement_jours ? (
+            <button
+              type="button"
+              onClick={() => setFacture({ ...facture, echeance_jours: fournisseurDetail.conditions_paiement_jours })}
+              style={{ ...buttonStyle, background: "#F5F4F1", color: "#333", fontSize: 12, padding: "6px 10px" }}
+              title="Reprendre le délai de paiement standard du fournisseur"
+            >
+              Délai fournisseur : {fournisseurDetail.conditions_paiement_jours}j
+            </button>
+          ) : null}
           <input placeholder="Observation" value={facture.observation_facture} onChange={(e) => setFacture({ ...facture, observation_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <select value={facture.statut_paiement} onChange={(e) => setFacture({ ...facture, statut_paiement: e.target.value })} style={inputStyle}>
             <option>Impayé</option>
