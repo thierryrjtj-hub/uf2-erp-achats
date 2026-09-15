@@ -34,6 +34,7 @@ const LINKS = [
     children: [
       { href: "/articles", label: "Liste des articles" },
       { href: "/articles/nouveau", label: "Ajouter un article" },
+      { href: "/articles/categories", label: "Gérer les catégories" },
     ],
   },
   { href: "/journal", label: "Journal d'audit", icon: IconList },
