@@ -102,6 +102,12 @@ export default function DemandesListePage() {
     }
   };
 
+  const majObservation = async (id, valeur) => {
+    const observation = valeur.trim() || null;
+    setListe((prev) => prev.map((d) => (d.id === id ? { ...d, observation } : d)));
+    await supabase.from("demandes").update({ observation }).eq("id", id);
+  };
+
   const annulerDemande = async (d) => {
     if (d.statut === "Annulée") {
       if (!confirm(`Réactiver la demande ${d.numero} (retirer le statut Annulée) ?`)) return;
@@ -191,7 +197,14 @@ export default function DemandesListePage() {
                         )}
                       </div>
                     </td>
-                    <td style={{ ...tdStyle, color: "#666" }}>{d.observation || "-"}</td>
+                    <td style={tdStyle}>
+                      <input
+                        defaultValue={d.observation || ""}
+                        placeholder="—"
+                        onBlur={(e) => majObservation(d.id, e.target.value)}
+                        style={{ ...inputStyle, width: "100%", fontSize: 12.5, padding: "4px 6px" }}
+                      />
+                    </td>
                     <td style={tdStyle}>
                       <div style={{ display: "flex", gap: 4 }}>
                         <button onClick={() => copierPourDevis(d)} style={linkBtnBleu} title="Copier pour demande de devis">
