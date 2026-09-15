@@ -273,6 +273,14 @@ export default function TCODetailPage() {
     }).eq("id", id);
   };
 
+  const lectureSeule = !!(role && role !== "acheteur" && demande?.created_by && demande.created_by !== userId);
+
+  const majDemande = async (champs) => {
+    if (lectureSeule) return;
+    setDemande((prev) => (prev ? { ...prev, ...champs } : prev));
+    await supabase.from("demandes").update(champs).eq("id", id);
+  };
+
   const majPrix = async (offreId, ligneDemandeId, field, value) => {
     const existante = lignesOffre.find((x) => x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId);
     setLignesOffre((prev) =>
@@ -405,10 +413,71 @@ export default function TCODetailPage() {
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
+          <div style={{ width: "100%" }}>
             <h1 style={{ fontSize: 18, marginBottom: 4 }}>{demande.numero}</h1>
-            <p style={{ fontSize: 13, color: "#888", marginBottom: 12 }}>{demande.service} — {demande.motif_projet}</p>
-            {demande.numero_tco && <p style={{ fontSize: 12, color: "#1B7A4C", marginTop: -8, marginBottom: 12 }}>N° {demande.numero_tco}</p>}
+            {demande.numero_tco && <p style={{ fontSize: 12, color: "#1B7A4C", marginBottom: 12 }}>N° {demande.numero_tco}</p>}
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={lblStyle}>Service demandeur</div>
+                <input
+                  defaultValue={demande.service || ""}
+                  disabled={lectureSeule}
+                  onBlur={(e) => majDemande({ service: e.target.value.trim() || null })}
+                  style={{ ...inputStyle, width: "100%" }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={lblStyle}>Nom demandeur</div>
+                <input
+                  defaultValue={demande.demandeur || ""}
+                  disabled={lectureSeule}
+                  onBlur={(e) => majDemande({ demandeur: e.target.value.trim() || null })}
+                  style={{ ...inputStyle, width: "100%" }}
+                />
+              </div>
+              <div style={{ width: 140 }}>
+                <div style={lblStyle}>Priorité</div>
+                <select
+                  defaultValue={demande.priorite || "Moyenne"}
+                  disabled={lectureSeule}
+                  onChange={(e) => majDemande({ priorite: e.target.value })}
+                  style={{ ...inputStyle, width: "100%" }}
+                >
+                  <option value="Basse">Basse</option>
+                  <option value="Moyenne">Moyenne</option>
+                  <option value="Haute">Haute</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={lblStyle}>Motif de la demande</div>
+              <input
+                defaultValue={demande.motif_projet || ""}
+                disabled={lectureSeule}
+                onBlur={(e) => majDemande({ motif_projet: e.target.value.trim() || null })}
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={lblStyle}>Observation</div>
+              <textarea
+                defaultValue={demande.observation || ""}
+                disabled={lectureSeule}
+                onBlur={(e) => majDemande({ observation: e.target.value.trim() || null })}
+                rows={2}
+                style={{ ...inputStyle, width: "100%", resize: "vertical", fontFamily: "inherit" }}
+              />
+              {demande.observation && !demande.demandeur_avise && (
+                <button
+                  onClick={async () => { await supabase.from("demandes").update({ demandeur_avise: true }).eq("id", id); charger(); }}
+                  style={{ ...linkBtn, marginTop: 6, color: "#B3261E" }}
+                >
+                  Marquer le demandeur avisé
+                </button>
+              )}
+              {demande.observation && demande.demandeur_avise && <p style={{ marginTop: 6, color: "#1B7A4C", fontSize: 12.5 }}>✓ Demandeur avisé</p>}
+            </div>
             {bcGeneres.length > 0 && (
               <p style={{ fontSize: 13, marginBottom: 12 }}>
                 <strong>Bon(s) de commande généré(s) :</strong>{" "}
@@ -419,20 +488,6 @@ export default function TCODetailPage() {
                   </span>
                 ))}
               </p>
-            )}
-            {demande.observation && (
-              <div style={{ background: "#FDECEA", borderRadius: 8, padding: "10px 14px", marginBottom: 12, fontSize: 13 }}>
-                <strong>Observation :</strong> {demande.observation}
-                {!demande.demandeur_avise && (
-                  <button
-                    onClick={async () => { await supabase.from("demandes").update({ demandeur_avise: true }).eq("id", id); charger(); }}
-                    style={{ ...linkBtn, marginLeft: 12, color: "#B3261E" }}
-                  >
-                    Marquer le demandeur avisé
-                  </button>
-                )}
-                {demande.demandeur_avise && <span style={{ marginLeft: 12, color: "#1B7A4C" }}>✓ Demandeur avisé</span>}
-              </div>
             )}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
