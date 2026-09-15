@@ -37,13 +37,13 @@ function CommandesInner() {
     const { data: r } = await supabase.from("receptions").select("*").limit(10000);
     const { data: d } = await supabase.from("demandes").select("id, service, demandeur, motif_projet").limit(10000);
     const { data: lb } = await supabase.from("lignes_bc").select("bc_id, designation").limit(10000);
-    const { data: art } = await supabase.from("articles").select("designation, categorie").limit(10000);
+    const { data: art } = await supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000);
     setListe(c || []);
     setReceptions(r || []);
     setDemandes(d || []);
     // Un BC est considéré "prestation" si toutes ses lignes correspondent à des articles catégorie "Services & Prestations"
     const catParDesignation = {};
-    (art || []).forEach((a) => { catParDesignation[a.designation.toLowerCase()] = a.categorie; });
+    (art || []).forEach((a) => { catParDesignation[a.designation.toLowerCase()] = a.categorie?.nom; });
     const map = {};
     (lb || []).forEach((l) => {
       if (!map[l.bc_id]) map[l.bc_id] = [];
