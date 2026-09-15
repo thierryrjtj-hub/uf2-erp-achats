@@ -1,24 +1,25 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
-import { inputStyle, buttonStyle } from "../components/ui";
-import { CATEGORIES_BASE } from "../../lib/categoriesArticles";
+import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 function matchRecherche(a, q) {
   if (!q.trim()) return true;
   const s = q.toLowerCase();
-  return [a.designation, a.categorie].some((v) => (v || "").toLowerCase().includes(s));
+  return [a.designation, a.categorieNom].some((v) => (v || "").toLowerCase().includes(s));
 }
 
 export default function ArticlesListePage() {
   const role = useRole();
   const [liste, setListe] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [lignesBc, setLignesBc] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -29,8 +30,10 @@ export default function ArticlesListePage() {
   const [editForm, setEditForm] = useState(null);
 
   const charger = async () => {
-    const { data } = await supabase.from("articles").select("*").order("designation").limit(10000);
-    setListe(data || []);
+    const { data } = await supabase.from("articles").select("*, categorie:categories(id, nom)").order("designation").limit(10000);
+    setListe((data || []).map((a) => ({ ...a, categorieNom: a.categorie?.nom || "" })));
+    const { data: cats } = await supabase.from("categories").select("id, nom").order("nom");
+    setCategories(cats || []);
     const { data: lignes } = await supabase
       .from("lignes_bc")
       .select("*, commandes:bc_id(numero, date, fournisseur_nom, assujetti_tva)")
@@ -43,8 +46,10 @@ export default function ArticlesListePage() {
 
   const filtrees = useMemo(() => {
     const base = liste.filter((a) => matchRecherche(a, recherche));
-    const parCategorie = filtreCategorie ? base.filter((a) => (filtreCategorie === "(vide)" ? !a.categorie : a.categorie === filtreCategorie)) : base;
-    return appliquerTri(parCategorie, tri);
+    const parCategorie = filtreCategorie
+      ? base.filter((a) => (filtreCategorie === "(vide)" ? !a.categorie_id : a.categorie_id === filtreCategorie))
+      : base;
+    return appliquerTri(parCategorie, { ...tri, colonne: tri.colonne === "categorie" ? "categorieNom" : tri.colonne });
   }, [liste, recherche, filtreCategorie, tri]);
 
   const historiqueParArticle = useMemo(() => {
@@ -65,16 +70,20 @@ export default function ArticlesListePage() {
   }, [liste, lignesBc]);
 
   const uniteOptions = useMemo(() => [...new Set(liste.map((a) => a.unite_defaut).filter(Boolean))].sort(), [liste]);
-  const categorieOptions = useMemo(() => [...new Set([...CATEGORIES_BASE, ...liste.map((a) => a.categorie).filter(Boolean)])].sort(), [liste]);
-  const nbSansCategorie = useMemo(() => liste.filter((a) => !a.categorie).length, [liste]);
+  const nbSansCategorie = useMemo(() => liste.filter((a) => !a.categorie_id).length, [liste]);
 
   const modifier = (a) => {
     setEditId(a.id);
-    setEditForm({ designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie: a.categorie || "", dernier_prix_ht: a.dernier_prix_ht ?? "" });
+    setEditForm({ designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie_id: a.categorie_id || "", dernier_prix_ht: a.dernier_prix_ht ?? "" });
   };
 
   const enregistrerEdition = async () => {
-    const payload = { ...editForm, dernier_prix_ht: editForm.dernier_prix_ht === "" ? null : Number(editForm.dernier_prix_ht) };
+    const payload = {
+      designation: editForm.designation,
+      unite_defaut: editForm.unite_defaut,
+      categorie_id: editForm.categorie_id || null,
+      dernier_prix_ht: editForm.dernier_prix_ht === "" ? null : Number(editForm.dernier_prix_ht),
+    };
     await supabase.from("articles").update(payload).eq("id", editId);
     setEditId(null);
     setEditForm(null);
@@ -88,7 +97,7 @@ export default function ArticlesListePage() {
 
   const copierFiche = async (a, dernier) => {
     const texte = [
-      a.designation, a.unite_defaut && `Unité : ${a.unite_defaut}`, a.categorie && `Catégorie : ${a.categorie}`,
+      a.designation, a.unite_defaut && `Unité : ${a.unite_defaut}`, a.categorieNom && `Catégorie : ${a.categorieNom}`,
       a.dernier_prix_ht && `Dernier prix HT (référence) : ${Number(a.dernier_prix_ht).toLocaleString("fr-FR")} Ar`,
       dernier && `Dernier achat réel : ${dernier.fournisseur} — ${dernier.pu.toLocaleString("fr-FR")} Ar HT le ${dernier.date} (BC ${dernier.bc})`,
     ].filter(Boolean).join("\n");
@@ -100,7 +109,7 @@ export default function ArticlesListePage() {
     const rows = liste.map((a) => {
       const h = historiqueParArticle[a.id]?.[0];
       return {
-        designation: a.designation, unite: a.unite_defaut || "", categorie: a.categorie || "",
+        designation: a.designation, unite: a.unite_defaut || "", categorie: a.categorieNom || "",
         prix: Number(a.dernier_prix_ht) || 0,
         dernierFournisseur: h?.fournisseur || "", dernierBc: h?.bc || "", dernierePrixTtc: h?.puTtc || 0,
       };
@@ -130,7 +139,7 @@ export default function ArticlesListePage() {
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexShrink: 0, alignItems: "center" }}>
             <div style={{ position: "relative", width: 300 }}>
               <input placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
               {recherche && (
@@ -148,9 +157,10 @@ export default function ArticlesListePage() {
             />
             <select value={filtreCategorie} onChange={(e) => setFiltreCategorie(e.target.value)} style={inputStyle}>
               <option value="">Toutes les catégories</option>
-              {categorieOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
               {nbSansCategorie > 0 && <option value="(vide)">— Sans catégorie ({nbSansCategorie}) —</option>}
             </select>
+            <Link href="/articles/categories" style={linkBtn}>Gérer les catégories</Link>
           </div>
 
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
@@ -168,9 +178,9 @@ export default function ArticlesListePage() {
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
                         <input placeholder="Désignation" value={editForm.designation} onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
                         <Autocomplete placeholder="Unité" value={editForm.unite_defaut} onChange={(val) => setEditForm({ ...editForm, unite_defaut: val })} suggestions={uniteOptions} style={{ width: 160 }} />
-                        <select value={editForm.categorie} onChange={(e) => setEditForm({ ...editForm, categorie: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
+                        <select value={editForm.categorie_id} onChange={(e) => setEditForm({ ...editForm, categorie_id: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
                           <option value="">— Choisir une catégorie —</option>
-                          {categorieOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                          {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
                         </select>
                         <input type="number" placeholder="Dernier prix HT" value={editForm.dernier_prix_ht} onChange={(e) => setEditForm({ ...editForm, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 140 }} />
                       </div>
@@ -191,7 +201,7 @@ export default function ArticlesListePage() {
                       </div>
                       <div style={grid}>
                         <Champ label="Unité d'achat" value={a.unite_defaut} />
-                        <Champ label="Catégorie" value={a.categorie} />
+                        <Champ label="Catégorie" value={a.categorieNom} />
                         <Champ label="Dernier prix HT (référence)" value={a.dernier_prix_ht ? `${Number(a.dernier_prix_ht).toLocaleString("fr-FR")} Ar` : ""} />
                       </div>
                       {dernier ? (
