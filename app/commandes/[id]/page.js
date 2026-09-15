@@ -16,6 +16,10 @@ import { formatDate } from "../../../lib/format";
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
 const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins"];
 const nouvelleSaisie = () => ({ receptionnaire: "Magasin", receptionnaireAutre: "", numeroBl: "", typeLivraison: "Livraison fournisseur", dateLivraisonTerrain: "" });
+const estBoisDeChauffage = (designation) => {
+  const d = (designation || "").toLowerCase();
+  return d.includes("bois de chauffage") || d.includes("bois chauffage");
+};
 
 export default function CommandeDetailPage() {
   const { id } = useParams();
@@ -311,13 +315,13 @@ export default function CommandeDetailPage() {
   const commencerEdition = () => {
     setEditLignes(lignes.map((l) => ({
       key: l.id, designation: l.designation, quantite: l.quantite, unite: l.unite,
-      prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct || 0,
+      prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct || 0, date_livraison: l.date_livraison || "",
     })));
     setModeEdition(true);
   };
 
   const majEditLigne = (key, field, val) => setEditLignes((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
-  const ajouterEditLigne = () => setEditLignes((prev) => [...prev, { key: `nouvelle-${Date.now()}`, designation: "", quantite: 1, unite: "pcs", prix_unitaire_ht: "", remise_pct: 0 }]);
+  const ajouterEditLigne = () => setEditLignes((prev) => [...prev, { key: `nouvelle-${Date.now()}`, designation: "", quantite: 1, unite: "pcs", prix_unitaire_ht: "", remise_pct: 0, date_livraison: "" }]);
   const retirerEditLigne = (key) => setEditLignes((prev) => prev.filter((l) => l.key !== key));
 
   const onDesignationEditChange = (key, val) => {
@@ -345,6 +349,7 @@ export default function CommandeDetailPage() {
       bc_id: id, designation: l.designation, quantite: Number(l.quantite) || 1, unite: l.unite,
       prix_unitaire_ht: Number(l.prix_unitaire_ht) || 0, remise_pct: Number(l.remise_pct) || 0,
       montant_ht: (Number(l.quantite) || 0) * (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100),
+      date_livraison: l.date_livraison || null,
     })));
     await supabase.from("commandes").update({ montant_ht: montantHt, montant_tva: tva, montant_ttc: montantHt + tva }).eq("id", id);
 
@@ -447,6 +452,15 @@ export default function CommandeDetailPage() {
           <div className="no-print">
             {editLignes.map((l) => (
               <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                {estBoisDeChauffage(l.designation) && (
+                  <input
+                    type="date"
+                    value={l.date_livraison || ""}
+                    onChange={(e) => majEditLigne(l.key, "date_livraison", e.target.value)}
+                    title="Date de livraison réelle (un voyage = une ligne)"
+                    style={{ ...inputStyle, width: 150 }}
+                  />
+                )}
                 <Autocomplete
                   placeholder="Désignation"
                   value={l.designation}
@@ -813,6 +827,11 @@ export default function CommandeDetailPage() {
                 {offreLiee.numero_devis}{offreLiee.date_devis ? ` du ${formatDate(offreLiee.date_devis)}` : ""}
               </td></tr>
             )}
+            {!offreLiee?.numero_devis && bc?.reference_devis && (
+              <tr><td colSpan={8} style={{ padding: "6px 4px", fontWeight: 600, fontSize: 11 }}>
+                {bc.reference_devis}
+              </td></tr>
+            )}
             {avecLignesVides(lignes, 16).map((l, i) => {
               if (l.__vide) return (
                 <tr key={l.id}><td style={tdPrint}>&nbsp;</td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td><td style={tdPrint}></td></tr>
@@ -822,7 +841,7 @@ export default function CommandeDetailPage() {
               const puNet = (Number(l.prix_unitaire_ht) || 0) * (1 - (Number(l.remise_pct) || 0) / 100);
               return (
                 <tr key={l.id}>
-                  <td style={tdPrint}></td>
+                  <td style={{ ...tdGris, fontSize: 9.5 }}>{l.date_livraison ? formatDate(l.date_livraison) : ""}</td>
                   <td style={tdGris}>{l.designation}</td>
                   <td style={{ ...tdGris, textAlign: "center" }}>{Number(l.quantite).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</td>
                   <td style={tdGris}>{l.unite}</td>
