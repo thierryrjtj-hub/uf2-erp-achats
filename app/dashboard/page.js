@@ -5,6 +5,17 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
 import { calculerFrequenceAchats, articlesAReapprovisionner } from "../../lib/frequenceAchats";
+import { useRole } from "../../lib/useRole";
+
+async function enregistrerSignalementReappro(supabase, designation, joursAvantProchaine) {
+  const { data: { user } } = await supabase.auth.getUser();
+  await supabase.from("reappro_signalements").upsert({
+    designation,
+    jours_avant_prochaine: joursAvantProchaine,
+    signale_le: new Date().toISOString(),
+    signale_par: user?.id || null,
+  });
+}
 
 function joursDepuis(dateStr) {
   if (!dateStr) return null;
@@ -14,6 +25,7 @@ function joursDepuis(dateStr) {
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 export default function DashboardPage() {
+  const role = useRole();
   const [alertesDevis, setAlertesDevis] = useState([]);
   const [alertesLivraison, setAlertesLivraison] = useState([]);
   const [alertesPaiement, setAlertesPaiement] = useState([]);
@@ -84,11 +96,14 @@ export default function DashboardPage() {
       // ---- Réapprovisionnement à prévoir (articles au cycle habituel qui approche) ----
       const commandesParId = {};
       (commandes || []).forEach((c) => { commandesParId[c.id] = c; });
-      const { data: articlesCategories } = await supabase.from("articles").select("designation, categorie").limit(10000);
+      const { data: articlesCategories } = await supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000);
       const categorieParDesignation = {};
-      (articlesCategories || []).forEach((a) => { categorieParDesignation[a.designation] = a.categorie; });
+      (articlesCategories || []).forEach((a) => { categorieParDesignation[a.designation] = a.categorie?.nom; });
+      const { data: signalementsData } = await supabase.from("reappro_signalements").select("designation, jours_avant_prochaine").limit(10000);
+      const signalements = {};
+      (signalementsData || []).forEach((s) => { signalements[s.designation] = s.jours_avant_prochaine; });
       const frequences = calculerFrequenceAchats(lignesBc || [], commandesParId);
-      setAlertesReappro(articlesAReapprovisionner(frequences, 3, categorieParDesignation));
+      setAlertesReappro(articlesAReapprovisionner(frequences, 3, categorieParDesignation, signalements));
 
       // ---- Résumé "à faire" en un coup d'œil ----
       setResume({
@@ -192,10 +207,24 @@ export default function DashboardPage() {
           {alertesReappro.length > 0 && (
             <Section titre="Réapprovisionnement à prévoir (cycle d'achat habituel qui approche)" couleur="#8A6100" fond="#FFF3D6">
               {alertesReappro.map((a) => (
-                <LigneAlerte key={a.designation} href="/kpi">
-                  <strong>{a.designation}</strong> — commandé habituellement tous les {a.cycleJours} jours, dernière commande il y a {a.joursDepuisDernier} jours
-                  {a.joursAvantProchaine <= 0 ? " — délai dépassé" : ` — prochaine échéance dans ${a.joursAvantProchaine} jour(s)`}
-                </LigneAlerte>
+                <div key={a.designation} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", borderRadius: 6, background: "#FAFAF8", marginBottom: 6 }}>
+                  <Link href="/kpi" style={{ flex: 1, color: "#1B2430", textDecoration: "none" }}>
+                    <strong>{a.designation}</strong> — commandé habituellement tous les {a.cycleJours} jours, dernière commande il y a {a.joursDepuisDernier} jours
+                    {a.joursAvantProchaine <= 0 ? " — délai dépassé" : ` — prochaine échéance dans ${a.joursAvantProchaine} jour(s)`}
+                  </Link>
+                  {role === "acheteur" && (
+                    <button
+                      onClick={async () => {
+                        await enregistrerSignalementReappro(supabase, a.designation, a.joursAvantProchaine);
+                        setAlertesReappro((prev) => prev.filter((x) => x.designation !== a.designation));
+                      }}
+                      title="J'ai avisé les personnes concernées — masquer jusqu'à ce que le retard s'aggrave"
+                      style={{ border: "1px solid #8A6100", background: "#fff", color: "#8A6100", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
+                    >
+                      Traité
+                    </button>
+                  )}
+                </div>
               ))}
             </Section>
           )}
