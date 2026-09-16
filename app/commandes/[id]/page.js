@@ -348,6 +348,14 @@ export default function CommandeDetailPage() {
     }
   };
 
+  const onUniteEditBlur = async (designation, unite) => {
+    const match = articlesBase.find((a) => a.designation.toLowerCase() === designation.toLowerCase());
+    if (match && unite && unite !== match.unite_defaut) {
+      await supabase.from("articles").update({ unite_defaut: unite }).eq("id", match.id);
+      setArticlesBase((prev) => prev.map((a) => (a.id === match.id ? { ...a, unite_defaut: unite } : a)));
+    }
+  };
+
   const enregistrerEdition = async () => {
     const valides = editLignes.filter((l) => l.designation.trim() && l.prix_unitaire_ht !== "");
     if (valides.length === 0) return;
@@ -485,7 +493,7 @@ export default function CommandeDetailPage() {
                   style={{ flex: 2, minWidth: 160 }}
                 />
                 <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
-                <input placeholder="unité" value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, width: 90 }} />
+                <input placeholder="unité" value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteEditBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 90 }} />
                 <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => majEditLigne(l.key, "prix_unitaire_ht", v)} tvaPct={bc.assujetti_tva === false ? 0 : 20} style={{ ...inputStyle, width: 110 }} />
                 <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
                 <button onClick={() => retirerEditLigne(l.key)} style={linkBtn}>Retirer</button>
