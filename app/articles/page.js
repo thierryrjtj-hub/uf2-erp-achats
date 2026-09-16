@@ -42,7 +42,6 @@ export default function ArticlesListePage() {
     setLignesBc((lignes || []).filter((l) => l.commandes));
     setLoading(false);
   };
-
   useEffect(() => { charger(); }, []);
 
   const filtrees = useMemo(() => {
@@ -72,10 +71,18 @@ export default function ArticlesListePage() {
 
   const uniteOptions = useMemo(() => [...new Set(liste.map((a) => a.unite_defaut).filter(Boolean))].sort(), [liste]);
   const nbSansCategorie = useMemo(() => liste.filter((a) => !a.categorie_id).length, [liste]);
+  const designationParId = useMemo(() => {
+    const m = {};
+    liste.forEach((a) => { m[a.id] = a.designation; });
+    return m;
+  }, [liste]);
 
   const modifier = (a) => {
     setEditId(a.id);
-    setEditForm({ designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie_id: a.categorie_id || "", dernier_prix_ht: a.dernier_prix_ht ?? "" });
+    setEditForm({
+      designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie_id: a.categorie_id || "",
+      dernier_prix_ht: a.dernier_prix_ht ?? "", endormi: !!a.endormi, continue_par_id: a.continue_par_id || "",
+    });
   };
 
   const enregistrerEdition = async () => {
@@ -84,6 +91,8 @@ export default function ArticlesListePage() {
       unite_defaut: editForm.unite_defaut,
       categorie_id: editForm.categorie_id || null,
       dernier_prix_ht: editForm.dernier_prix_ht === "" ? null : Number(editForm.dernier_prix_ht),
+      endormi: editForm.endormi,
+      continue_par_id: editForm.continue_par_id || null,
     };
     await supabase.from("articles").update(payload).eq("id", editId);
     setEditId(null);
@@ -185,13 +194,29 @@ export default function ArticlesListePage() {
                         </select>
                         <ChampPrixHT value={editForm.dernier_prix_ht} onChange={(v) => setEditForm({ ...editForm, dernier_prix_ht: v })} placeholder="Dernier prix HT" style={{ ...inputStyle, width: 140 }} />
                       </div>
+                      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                          <input type="checkbox" checked={editForm.endormi} onChange={(e) => setEditForm({ ...editForm, endormi: e.target.checked })} />
+                          Article endormi (exclu de l'alerte réapprovisionnement)
+                        </label>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 13, color: "#666" }}>Continue par :</span>
+                          <select value={editForm.continue_par_id} onChange={(e) => setEditForm({ ...editForm, continue_par_id: e.target.value })} style={{ ...inputStyle, width: 260 }}>
+                            <option value="">— Aucun (article indépendant) —</option>
+                            {liste.filter((x) => x.id !== editId).map((x) => <option key={x.id} value={x.id}>{x.designation}</option>)}
+                          </select>
+                        </div>
+                      </div>
                       <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 8 }}>Enregistrer</button>
                       <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
                     </div>
                   ) : (
                     <>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ fontWeight: 700, fontSize: 15 }}>{a.designation}</div>
+                        <div style={{ fontWeight: 700, fontSize: 15 }}>
+                          {a.designation}
+                          {a.endormi && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: "#8A6100", background: "#FFF3D6", borderRadius: 4, padding: "2px 6px" }}>😴 Endormi</span>}
+                        </div>
                         <div>
                           <button onClick={() => copierFiche(a, dernier)} style={iconBtn} title="Copier toutes les infos"><IconCopy /></button>
                           <button onClick={() => modifier(a)} style={iconBtn} title="Modifier"><IconEdit /></button>
@@ -200,6 +225,9 @@ export default function ArticlesListePage() {
                           )}
                         </div>
                       </div>
+                      {a.continue_par_id && designationParId[a.continue_par_id] && (
+                        <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>Continué par : <strong>{designationParId[a.continue_par_id]}</strong></div>
+                      )}
                       <div style={grid}>
                         <Champ label="Unité d'achat" value={a.unite_defaut} />
                         <Champ label="Catégorie" value={a.categorieNom} />
