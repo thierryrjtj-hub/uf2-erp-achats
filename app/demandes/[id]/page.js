@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
+import ChampPrixHT from "../../components/ChampPrixHT";
 import CadreExtensible from "../../components/CadreExtensible";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../../components/ui";
 import { formatDate } from "../../../lib/format";
@@ -744,11 +745,10 @@ export default function TCODetailPage() {
                                 onChange={() => setSelection((prev) => ({ ...prev, [ld.id]: o.id }))}
                                 title="Retenir ce fournisseur pour cet article"
                               />
-                              <input
-                                type="number"
-                                placeholder="PU HT"
+                              <ChampPrixHT
                                 defaultValue={lo.prix_unitaire_ht ?? ""}
-                                onBlur={(e) => majPrix(o.id, ld.id, "prix_unitaire_ht", e.target.value)}
+                                onCommit={(v) => majPrix(o.id, ld.id, "prix_unitaire_ht", v)}
+                                tvaPct={o.assujetti_tva === false ? 0 : 20}
                                 disabled={couverte}
                                 style={{ ...inputStyle, width: 80 }}
                               />
