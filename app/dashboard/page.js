@@ -76,7 +76,10 @@ export default function DashboardPage() {
       setAlertesDevis(devis);
 
       // ---- BC en attente de livraison ----
-      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, date, date_signature, date_envoi_signature, date_envoi_fournisseur, statut, statut_paiement, date_facture, echeance_jours, date_estimee_reste").limit(10000);
+      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, fournisseur_id, date, date_signature, date_envoi_signature, date_envoi_fournisseur, statut, statut_paiement, date_facture, date_estimee_reste").limit(10000);
+      const { data: fournisseursData } = await supabase.from("fournisseurs").select("id, conditions_paiement_jours").limit(10000);
+      const delaiParFournisseur = {};
+      (fournisseursData || []).forEach((f) => { delaiParFournisseur[f.id] = f.conditions_paiement_jours || 30; });
       const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, quantite").limit(10000);
       const { data: receptions } = await supabase.from("receptions").select("id, bc_id").limit(10000);
       const { data: lignesReception } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
@@ -117,11 +120,15 @@ export default function DashboardPage() {
         .map((c) => ({ ...c, relance: relanceParBc[c.id] || null }));
       setAlertesLivraison(livraison);
 
-      // ---- Factures impayées en retard ----
+      // ---- Factures fournisseurs en retard de paiement ----
+      // Un BC n'est considéré "impayé" à afficher ici que s'il a déjà été
+      // réceptionné (livré) ET que la facture a été renseignée — pas avant.
+      const bcRecuId = {};
+      (receptions || []).forEach((r) => { bcRecuId[r.bc_id] = true; });
       const paiement = (commandes || []).filter((c) => {
-        if (c.statut_paiement === "Payé" || !c.date_facture) return false;
+        if (!bcRecuId[c.id] || c.statut_paiement === "Payé" || !c.date_facture) return false;
         const echeance = new Date(c.date_facture);
-        echeance.setDate(echeance.getDate() + (c.echeance_jours || 30));
+        echeance.setDate(echeance.getDate() + (delaiParFournisseur[c.fournisseur_id] || 30));
         return new Date() > echeance;
       });
       setAlertesPaiement(paiement);
@@ -163,7 +170,7 @@ export default function DashboardPage() {
       setResume({
         demandesATraiter: (demandes || []).length,
         bcEnLivraison: Object.keys(enAttenteLivraisonBcId).length,
-        facturesImpayees: (commandes || []).filter((c) => c.statut_paiement !== "Payé").length,
+        facturesImpayees: (commandes || []).filter((c) => bcRecuId[c.id] && c.statut_paiement !== "Payé").length,
         bcEnAttenteSignature,
       });
 
