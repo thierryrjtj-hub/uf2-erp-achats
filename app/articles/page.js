@@ -7,6 +7,7 @@ import { exportExcel } from "../../lib/exportExcel";
 import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
+import ChampPrixHT from "../components/ChampPrixHT";
 import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
@@ -182,7 +183,7 @@ export default function ArticlesListePage() {
                           <option value="">— Choisir une catégorie —</option>
                           {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
                         </select>
-                        <input type="number" placeholder="Dernier prix HT" value={editForm.dernier_prix_ht} onChange={(e) => setEditForm({ ...editForm, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 140 }} />
+                        <ChampPrixHT value={editForm.dernier_prix_ht} onChange={(v) => setEditForm({ ...editForm, dernier_prix_ht: v })} placeholder="Dernier prix HT" style={{ ...inputStyle, width: 140 }} />
                       </div>
                       <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 8 }}>Enregistrer</button>
                       <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
