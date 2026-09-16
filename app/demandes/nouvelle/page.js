@@ -35,6 +35,8 @@ export default function NouvelleDemandePage() {
   const [lignes, setLignes] = useState([ligneVide()]);
   const [envoi, setEnvoi] = useState(false);
   const [genererNumero, setGenererNumero] = useState(false);
+  const [collageTexte, setCollageTexte] = useState("");
+  const [collageOuvert, setCollageOuvert] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -62,6 +64,37 @@ export default function NouvelleDemandePage() {
   const addLigne = () => setLignes([...lignes, ligneVide()]);
   const updateLigne = (key, field, val) => setLignes((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: val } : l)));
   const removeLigne = (key) => setLignes(lignes.filter((l) => l.key !== key));
+
+  // Colle plusieurs articles d'un coup (copiés depuis Excel par exemple) : une ligne
+  // collée = un article. Colonnes séparées par tabulation : Désignation, puis
+  // en option Quantité, puis en option Unité. Complète l'unité automatiquement
+  // si l'article existe déjà et qu'aucune unité n'a été collée.
+  const traiterCollage = () => {
+    const rangees = collageTexte
+      .split(/\r?\n/)
+      .map((r) => r.trim())
+      .filter(Boolean);
+    if (rangees.length === 0) return;
+
+    const nouvelles = rangees.map((rangee) => {
+      const colonnes = rangee.split("\t").map((c) => c.trim());
+      const designation = colonnes[0] || "";
+      const quantite = colonnes[1] && !isNaN(Number(colonnes[1])) ? Number(colonnes[1]) : 1;
+      let unite = colonnes[2] || "";
+      if (!unite) {
+        const match = articlesBase.find((a) => a.designation.toLowerCase() === designation.toLowerCase());
+        unite = match?.unite_defaut || "pcs";
+      }
+      return { key: Math.random().toString(36).slice(2), designation, quantite, unite, date_livraison: "" };
+    }).filter((l) => l.designation);
+
+    setLignes((prev) => {
+      const base = prev.length === 1 && !prev[0].designation.trim() ? [] : prev;
+      return [...base, ...nouvelles];
+    });
+    setCollageTexte("");
+    setCollageOuvert(false);
+  };
 
   // Génère un numéro DA du type MNTC-0115-26 : préfixe déduit du service (modifiable),
   // compteur qui se souvient du dernier numéro par préfixe, remis à zéro chaque année.
@@ -158,6 +191,28 @@ export default function NouvelleDemandePage() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <button type="button" onClick={() => setCollageOuvert((o) => !o)} style={{ ...buttonStyle, background: "#888" }}>
+            {collageOuvert ? "Fermer le collage multiple" : "📋 Coller plusieurs articles (Excel)"}
+          </button>
+          {collageOuvert && (
+            <div style={{ marginTop: 8, border: "1px solid #ECEBE6", borderRadius: 8, padding: 12, background: "#FAFAF8" }}>
+              <p style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
+                Colle ici plusieurs lignes copiées depuis Excel : une ligne = un article, colonnes Désignation / Quantité / Unité séparées par tabulation
+                (la quantité et l'unité sont facultatives — 1 et l'unité habituelle de l'article seront utilisées si absentes).
+              </p>
+              <textarea
+                value={collageTexte}
+                onChange={(e) => setCollageTexte(e.target.value)}
+                placeholder={"COLLE DUNSON DJ64K - 23KG\t3\tseau\nRAME PAPIER A4\t10"}
+                rows={5}
+                style={{ ...inputStyle, width: "100%", fontFamily: "inherit", resize: "vertical" }}
+              />
+              <button type="button" onClick={traiterCollage} style={{ ...buttonStyle, marginTop: 8 }}>Répartir en lignes</button>
+            </div>
+          )}
         </div>
 
         {lignes.map((l) => (
