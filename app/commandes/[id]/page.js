@@ -830,6 +830,10 @@ export default function CommandeDetailPage() {
           <div style={infoBoxVert}>
             <LigneInfo label="Type de règlement" value={fournisseurDetail?.type_reglement || ""} />
             <LigneInfo label="Modalité de paiement" value={fournisseurDetail?.conditions_paiement_jours ? `${fournisseurDetail.conditions_paiement_jours} Jours` : ""} />
+            <LigneInfo label="Moment du paiement" value={fournisseurDetail?.moment_paiement || ""} />
+            {fournisseurDetail?.acompte_pct > 0 && (
+              <LigneInfo label="Acompte" value={`${fournisseurDetail.acompte_pct}% à la commande, solde ${fournisseurDetail.solde_a || "à la livraison"}`} />
+            )}
           </div>
         </div>
 
@@ -962,6 +966,10 @@ export default function CommandeDetailPage() {
           <div style={infoBoxVert}>
             <LigneInfo label="Type de règlement" value={fournisseurDetail?.type_reglement || ""} />
             <LigneInfo label="Modalité de paiement" value={fournisseurDetail?.conditions_paiement_jours ? `${fournisseurDetail.conditions_paiement_jours} Jours` : ""} />
+            <LigneInfo label="Moment du paiement" value={fournisseurDetail?.moment_paiement || ""} />
+            {fournisseurDetail?.acompte_pct > 0 && (
+              <LigneInfo label="Acompte" value={`${fournisseurDetail.acompte_pct}% à la commande, solde ${fournisseurDetail.solde_a || "à la livraison"}`} />
+            )}
           </div>
         </div>
 
