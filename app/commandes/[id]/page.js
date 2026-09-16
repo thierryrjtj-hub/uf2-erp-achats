@@ -148,13 +148,28 @@ export default function CommandeDetailPage() {
   }, []);
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht").limit(10000);
+      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, categorie:categories(nom)").limit(10000);
       setArticlesBase(data || []);
     })();
   }, []);
 
   // Cumul livré par ligne, toutes réceptions confondues
   const cumulLivre = (ligneBcId) => receptions.reduce((s, r) => s + (r.lignes.find((x) => x.ligne_bc_id === ligneBcId)?.quantite_livree ? Number(r.lignes.find((x) => x.ligne_bc_id === ligneBcId).quantite_livree) : 0), 0);
+
+  // Un BC est considéré "prestation/travaux" si tous ses articles sont catégorie
+  // "Services & Prestations" — dans ce cas, pas de réceptionnaire magasin : c'est
+  // le demandeur qui signe le bon d'intervention, et le vocabulaire change.
+  const estPrestation = lignes.length > 0 && lignes.every((l) => {
+    const art = articlesBase.find((a) => a.designation.toLowerCase() === l.designation.toLowerCase());
+    return art?.categorie?.nom === "Services & Prestations";
+  });
+
+  useEffect(() => {
+    if (estPrestation && demande?.demandeur && receptions.length === 0 && saisie.receptionnaire === "Magasin") {
+      setSaisie((prev) => ({ ...prev, receptionnaire: demande.demandeur }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estPrestation, demande?.demandeur]);
 
   const etatLivraison = () => {
     if (bc?.statut === "Clôturée (rupture)") return "Clôturé (rupture)";
@@ -164,9 +179,9 @@ export default function CommandeDetailPage() {
       if (c > 0) unLivre = true;
       if (c < Number(l.quantite)) toutLivre = false;
     });
-    if (toutLivre && unLivre) return "Livré";
-    if (unLivre) return "Livré partiellement";
-    return "Non livré";
+    if (toutLivre && unLivre) return estPrestation ? "Prestation effectuée" : "Livré";
+    if (unLivre) return estPrestation ? "Prestation partielle" : "Livré partiellement";
+    return estPrestation ? "Prestation non effectuée" : "Non livré";
   };
 
   const majQuantiteSaisie = (ligneBcId, val) => setQuantitesSaisie((prev) => ({ ...prev, [ligneBcId]: val }));
@@ -524,7 +539,7 @@ export default function CommandeDetailPage() {
       <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <h2 style={{ fontSize: 15 }}>Réception</h2>
-          <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: etatLivraison() === "Livré" ? "#EAF7EE" : etatLivraison().startsWith("Livré partiellement") ? "#FFF3D6" : etatLivraison().startsWith("Clôturé") ? "#F0EFEA" : "#F0EFEA", color: etatLivraison() === "Livré" ? "#1B7A4C" : etatLivraison().startsWith("Livré partiellement") ? "#8A6100" : "#888" }}>
+          <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#EAF7EE" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#FFF3D6" : etatLivraison().startsWith("Clôturé") ? "#F0EFEA" : "#F0EFEA", color: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#1B7A4C" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#8A6100" : "#888" }}>
             {etatLivraison()}
           </span>
         </div>
@@ -549,6 +564,9 @@ export default function CommandeDetailPage() {
             </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
               <select value={saisie.receptionnaire} onChange={(e) => setSaisie({ ...saisie, receptionnaire: e.target.value })} style={inputStyle}>
+                {estPrestation && demande?.demandeur && !RECEPTIONNAIRES.includes(demande.demandeur) && (
+                  <option value={demande.demandeur}>{demande.demandeur} (demandeur)</option>
+                )}
                 {RECEPTIONNAIRES.map((r) => <option key={r}>{r}</option>)}
               </select>
               {saisie.receptionnaire === "Autre" && (
