@@ -10,6 +10,7 @@ const empty = {
   nom: "", contact: "", telephone: "", email: "", adresse: "", code_postal: "",
   nif: "", stat: "", rcs: "", cin: "", type_reglement: "Chèque",
   tva_defaut_pct: 20, activite: "", conditions_paiement_jours: 30, remise_par_defaut_pct: 0,
+  moment_paiement: "À réception facture", acompte_pct: 0, solde_a: "À la livraison",
 };
 
 export default function NouveauFournisseurPage() {
@@ -39,6 +40,7 @@ function NouveauFournisseurInner() {
             rcs: f.rcs || "", cin: f.cin || "", type_reglement: f.type_reglement || "Chèque",
             tva_defaut_pct: f.tva_defaut_pct ?? 20, activite: f.activite || "",
             conditions_paiement_jours: f.conditions_paiement_jours || 30, remise_par_defaut_pct: f.remise_par_defaut_pct || 0,
+            moment_paiement: f.moment_paiement || "À réception facture", acompte_pct: f.acompte_pct || 0, solde_a: f.solde_a || "À la livraison",
           });
         }
         setCharge(true);
@@ -100,6 +102,30 @@ function NouveauFournisseurInner() {
           <input type="number" placeholder="Remise par défaut (%)" value={form.remise_par_defaut_pct} onChange={(e) => setForm({ ...form, remise_par_defaut_pct: e.target.value })} style={{ ...inputStyle, width: 180 }} />
         </div>
 
+        <div style={rowStyle}>
+          <div style={{ flex: 1 }}>
+            <div style={champLabel}>Moment du paiement</div>
+            <select value={form.moment_paiement} onChange={(e) => setForm({ ...form, moment_paiement: e.target.value })} style={{ ...inputStyle, width: "100%" }}>
+              <option>À réception facture</option>
+              <option>À la commande</option>
+              <option>À la livraison</option>
+            </select>
+          </div>
+          <div style={{ width: 180 }}>
+            <div style={champLabel}>Acompte à la commande (%)</div>
+            <input type="number" min="0" max="100" placeholder="0 = pas d'acompte" value={form.acompte_pct} onChange={(e) => setForm({ ...form, acompte_pct: e.target.value })} style={{ ...inputStyle, width: "100%" }} />
+          </div>
+          {Number(form.acompte_pct) > 0 && (
+            <div style={{ flex: 1 }}>
+              <div style={champLabel}>Solde payé à</div>
+              <select value={form.solde_a} onChange={(e) => setForm({ ...form, solde_a: e.target.value })} style={{ ...inputStyle, width: "100%" }}>
+                <option>À la livraison</option>
+                <option>À la fin des travaux</option>
+              </select>
+            </div>
+          )}
+        </div>
+
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={enregistrer} disabled={envoi} style={buttonStyle}>{envoi ? "Enregistrement..." : (editId ? "Enregistrer" : "Ajouter")}</button>
           <button onClick={() => router.push("/fournisseurs")} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
@@ -110,3 +136,4 @@ function NouveauFournisseurInner() {
 }
 
 const rowStyle = { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 };
+const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 3 };
