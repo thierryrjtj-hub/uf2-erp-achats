@@ -12,6 +12,7 @@ const LINKS = [
       { href: "/demandes", label: "Liste des demandes" },
       { href: "/demandes/nouvelle", label: "Nouvelle demande" },
       { href: "/petite-caisse", label: "Petite caisse" },
+      { href: "/carburant-gaz", label: "Carburant / Gaz" },
     ],
   },
   { href: "/commandes", label: "Commandes", icon: IconCart },
@@ -38,7 +39,6 @@ const LINKS = [
       { href: "/articles/categories", label: "Gérer les catégories" },
     ],
   },
-  { href: "/carburant-gaz", label: "Carburant / Gaz", icon: IconFuel },
   { href: "/journal", label: "Journal d'audit", icon: IconList },
   { href: "/sauvegarde", label: "Sauvegarde", icon: IconSave },
 ];
