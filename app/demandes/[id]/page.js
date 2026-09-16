@@ -75,6 +75,7 @@ export default function TCODetailPage() {
   const [nomCreateurDemande, setNomCreateurDemande] = useState("");
   const [demande, setDemande] = useState(null);
   const [lignesDemande, setLignesDemande] = useState([]);
+  const [articlesBase, setArticlesBase] = useState([]);
   const [fournisseurs, setFournisseurs] = useState([]);
   const [offres, setOffres] = useState([]);
   const [lignesOffre, setLignesOffre] = useState([]);
@@ -93,6 +94,7 @@ export default function TCODetailPage() {
     const { data: ld } = await supabase.from("lignes_demande").select("*").eq("demande_id", id).order("created_at");
     const { data: f } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
     const { data: o } = await supabase.from("offres").select("*").eq("demande_id", id);
+    const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut").limit(10000);
     let lo = [];
     if (o && o.length) {
       const { data } = await supabase.from("lignes_offre").select("*").in("offre_id", o.map((x) => x.id));
@@ -107,6 +109,7 @@ export default function TCODetailPage() {
     }
     setNotesTco({ remarque: d?.tco_remarque || "" });
     setLignesDemande(ld || []);
+    setArticlesBase(art || []);
     setFournisseurs(f || []);
     setOffres(o || []);
     setLignesOffre(lo);
@@ -301,6 +304,20 @@ export default function TCODetailPage() {
     setLignesDemande((prev) => prev.map((l) => (l.id === ligneId ? { ...l, [field]: value } : l)));
     const payload = field === "quantite" ? { quantite: Number(value) || 0 } : { [field]: value };
     await supabase.from("lignes_demande").update(payload).eq("id", ligneId);
+  };
+
+  const onDesignationLigneChange = (ligneId, val) => {
+    majLigneDemande(ligneId, "designation", val);
+    const match = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
+    if (match) majLigneDemande(ligneId, "unite", match.unite_defaut || "pcs");
+  };
+
+  const onUniteLigneBlur = async (designation, unite) => {
+    const match = articlesBase.find((a) => a.designation.toLowerCase() === (designation || "").toLowerCase());
+    if (match && unite && unite !== match.unite_defaut) {
+      await supabase.from("articles").update({ unite_defaut: unite }).eq("id", match.id);
+      setArticlesBase((prev) => prev.map((a) => (a.id === match.id ? { ...a, unite_defaut: unite } : a)));
+    }
   };
 
   const supprimerLigneDemande = async (ligne) => {
@@ -566,10 +583,11 @@ export default function TCODetailPage() {
                       {l.non_disponible_localement && <span style={{ marginLeft: 8, fontSize: 11, color: "#B3261E" }}>— à rechercher à l'import</span>}
                     </>
                   ) : (
-                    <input
-                      defaultValue={l.designation}
-                      onBlur={(e) => majLigneDemande(l.id, "designation", e.target.value)}
-                      style={{ ...inputStyle, width: "100%" }}
+                    <Autocomplete
+                      value={l.designation}
+                      onChange={(val) => onDesignationLigneChange(l.id, val)}
+                      suggestions={articlesBase.map((a) => a.designation)}
+                      style={{ width: "100%" }}
                     />
                   )}
                 </td>
@@ -586,7 +604,7 @@ export default function TCODetailPage() {
                   {lectureSeule ? l.unite : (
                     <input
                       defaultValue={l.unite}
-                      onBlur={(e) => majLigneDemande(l.id, "unite", e.target.value)}
+                      onBlur={(e) => { majLigneDemande(l.id, "unite", e.target.value); onUniteLigneBlur(l.designation, e.target.value); }}
                       style={{ ...inputStyle, width: 90 }}
                     />
                   )}
