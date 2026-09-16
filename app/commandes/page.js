@@ -27,6 +27,7 @@ function CommandesInner() {
   const [receptions, setReceptions] = useState([]);
   const [demandes, setDemandes] = useState([]);
   const [prestationParBc, setPrestationParBc] = useState({});
+  const [articlesParBc, setArticlesParBc] = useState({});
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
@@ -36,7 +37,7 @@ function CommandesInner() {
     const { data: c } = await supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000);
     const { data: r } = await supabase.from("receptions").select("*").limit(10000);
     const { data: d } = await supabase.from("demandes").select("id, service, demandeur, motif_projet").limit(10000);
-    const { data: lb } = await supabase.from("lignes_bc").select("bc_id, designation").limit(10000);
+    const { data: lb } = await supabase.from("lignes_bc").select("bc_id, designation, quantite, unite").limit(10000);
     const { data: art } = await supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000);
     setListe(c || []);
     setReceptions(r || []);
@@ -45,13 +46,17 @@ function CommandesInner() {
     const catParDesignation = {};
     (art || []).forEach((a) => { catParDesignation[a.designation.toLowerCase()] = a.categorie?.nom; });
     const map = {};
+    const articlesMap = {};
     (lb || []).forEach((l) => {
       if (!map[l.bc_id]) map[l.bc_id] = [];
       map[l.bc_id].push(catParDesignation[l.designation.toLowerCase()] === "Services & Prestations");
+      if (!articlesMap[l.bc_id]) articlesMap[l.bc_id] = [];
+      articlesMap[l.bc_id].push(`${l.designation} (${l.quantite} ${l.unite})`);
     });
     const prestation = {};
     Object.entries(map).forEach(([bcId, arr]) => { prestation[bcId] = arr.length > 0 && arr.every(Boolean); });
     setPrestationParBc(prestation);
+    setArticlesParBc(articlesMap);
     setLoading(false);
   };
 
@@ -300,7 +305,13 @@ function CommandesInner() {
                 <tr key={c.id} style={{ borderBottom: "1px solid #f0f0f0", color: couleurLigne }}>
                   <td style={tdStyle}>{formatDate(c.date)}</td>
                   <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "nowrap" }}>
-                    <Link href={`/commandes/${c.id}`} style={{ color: "#1E3A34", textDecoration: "underline" }}>{c.numero}</Link>
+                    <Link
+                      href={`/commandes/${c.id}`}
+                      style={{ color: "#1E3A34", textDecoration: "underline" }}
+                      title={articlesParBc[c.id]?.length ? articlesParBc[c.id].join("\n") : "Aucun article"}
+                    >
+                      {c.numero}
+                    </Link>
                     {dmd?.motif_projet && <div style={{ fontSize: 12, color: "#888", fontWeight: 400, whiteSpace: "normal" }}>{dmd.motif_projet}</div>}
                   </td>
                   <td style={tdStyle}>{c.fournisseur_nom}</td>
