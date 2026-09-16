@@ -13,6 +13,7 @@ export default function DemandesListePage() {
   const role = useRole();
   const [liste, setListe] = useState([]);
   const [demandesAvecNonDispo, setDemandesAvecNonDispo] = useState(new Set());
+  const [articlesParDemande, setArticlesParDemande] = useState({});
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
@@ -23,6 +24,13 @@ export default function DemandesListePage() {
     setListe(data || []);
     const { data: nonDispo } = await supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true).limit(10000);
     setDemandesAvecNonDispo(new Set((nonDispo || []).map((x) => x.demande_id)));
+    const { data: toutesLignes } = await supabase.from("lignes_demande").select("demande_id, designation, quantite, unite").limit(10000);
+    const articlesMap = {};
+    (toutesLignes || []).forEach((l) => {
+      if (!articlesMap[l.demande_id]) articlesMap[l.demande_id] = [];
+      articlesMap[l.demande_id].push(`${l.designation} (${l.quantite} ${l.unite})`);
+    });
+    setArticlesParDemande(articlesMap);
     setLoading(false);
   };
 
@@ -188,7 +196,13 @@ export default function DemandesListePage() {
                       <button onClick={() => setFiltreStatut(d.statut)} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100", border: "none", cursor: "pointer" }} title="Filtrer sur ce statut">{d.statut}</button>
                     </td>
                     <td style={tdStyle}>
-                      <Link href={`/demandes/${d.id}`} style={{ fontWeight: 600, color: "#1E3A34", textDecoration: "underline" }}>{d.numero}</Link>
+                      <Link
+                        href={`/demandes/${d.id}`}
+                        style={{ fontWeight: 600, color: "#1E3A34", textDecoration: "underline" }}
+                        title={articlesParDemande[d.id]?.length ? articlesParDemande[d.id].join("\n") : "Aucun article saisi"}
+                      >
+                        {d.numero}
+                      </Link>
                       <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
                         <span title={`Priorité : ${d.priorite || "Moyenne"}`} style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: prioriteCouleur(d.priorite), flexShrink: 0, cursor: "help" }} />
