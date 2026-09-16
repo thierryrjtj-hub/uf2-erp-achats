@@ -11,6 +11,7 @@ const LINKS = [
     children: [
       { href: "/demandes", label: "Liste des demandes" },
       { href: "/demandes/nouvelle", label: "Nouvelle demande" },
+      { href: "/petite-caisse", label: "Petite caisse" },
     ],
   },
   { href: "/commandes", label: "Commandes", icon: IconCart },
@@ -30,6 +31,13 @@ const LINKS = [
     ],
   },
   {
+    href: "/petite-caisse", label: "Caisse & Carburant", icon: IconWallet,
+    children: [
+      { href: "/petite-caisse", label: "Petite caisse" },
+      { href: "/carburant-gaz", label: "Carburant / Gaz" },
+    ],
+  },
+  {
     href: "/articles", label: "Articles", icon: IconBox,
     children: [
       { href: "/articles", label: "Liste des articles" },
@@ -37,6 +45,7 @@ const LINKS = [
       { href: "/articles/categories", label: "Gérer les catégories" },
     ],
   },
+  { href: "/carburant-gaz", label: "Carburant / Gaz", icon: IconFuel },
   { href: "/journal", label: "Journal d'audit", icon: IconList },
   { href: "/sauvegarde", label: "Sauvegarde", icon: IconSave },
 ];
@@ -162,6 +171,9 @@ function IconList({ color }) {
 }
 function IconSave({ color }) {
   return <IconBase><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke={color} /><path d="M17 21v-8H7v8M7 3v5h8" stroke={color} /></IconBase>;
+}
+function IconWallet({ color }) {
+  return <IconBase><path d="M3 7a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" stroke={color} /><path d="M16 12h3" stroke={color} /><path d="M3 9h18" stroke={color} /></IconBase>;
 }
 function IconLogout() {
   return <IconBase><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="#A9C2BB" /><path d="M16 17l5-5-5-5M21 12H9" stroke="#A9C2BB" /></IconBase>;
