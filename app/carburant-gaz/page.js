@@ -96,7 +96,6 @@ export default function CarburantGazPage() {
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, width: 130 }}>
               <option>Carburant</option>
               <option>Gaz</option>
-              <option>Eau potable</option>
             </select>
             <input placeholder="Véhicule / équipement (ex: 4107 TCD, Groupe électrogène...)" value={form.vehicule_equipement} onChange={(e) => setForm({ ...form, vehicule_equipement: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
             <input placeholder="N° carte / fournisseur" value={form.carte_fournisseur} onChange={(e) => setForm({ ...form, carte_fournisseur: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
@@ -121,7 +120,6 @@ export default function CarburantGazPage() {
             <option value="">Tous les types</option>
             <option>Carburant</option>
             <option>Gaz</option>
-            <option>Eau potable</option>
           </select>
           <select value={filtreVehicule} onChange={(e) => setFiltreVehicule(e.target.value)} style={inputStyle}>
             <option value="">Tous les véhicules/équipements</option>
@@ -156,7 +154,7 @@ export default function CarburantGazPage() {
                       <td style={tdStyle}><input type="date" value={editForm.date_operation} onChange={(e) => setEditForm({ ...editForm, date_operation: e.target.value })} style={{ ...inputStyle, width: 140 }} /></td>
                       <td style={tdStyle}>
                         <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value })} style={{ ...inputStyle, width: 110 }}>
-                          <option>Carburant</option><option>Gaz</option><option>Eau potable</option>
+                          <option>Carburant</option><option>Gaz</option>
                         </select>
                       </td>
                       <td style={tdStyle}><input value={editForm.vehicule_equipement} onChange={(e) => setEditForm({ ...editForm, vehicule_equipement: e.target.value })} style={{ ...inputStyle, width: "100%" }} /></td>
@@ -196,4 +194,3 @@ export default function CarburantGazPage() {
     </AuthGuard>
   );
 }
-
