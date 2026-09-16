@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
@@ -9,15 +10,27 @@ import { IconCopy, IconBan, IconTrash } from "../components/Icons";
 import { useRole } from "../../lib/useRole";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
+const GROUPE_TERMINAL = new Set(["Basculée en commande", "Clôturée", "Annulée"]);
+
 export default function DemandesListePage() {
+  return (
+    <Suspense fallback={<AuthGuard><p>Chargement...</p></AuthGuard>}>
+      <DemandesInner />
+    </Suspense>
+  );
+}
+
+function DemandesInner() {
   const role = useRole();
+  const searchParams = useSearchParams();
+  const filtreATraiter = searchParams.get("filtre") === "a_traiter";
   const [liste, setListe] = useState([]);
   const [demandesAvecNonDispo, setDemandesAvecNonDispo] = useState(new Set());
   const [articlesParDemande, setArticlesParDemande] = useState({});
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
-  const [tri, setTri] = useState({ colonne: "created_at", sens: "desc" });
+  const [tri, setTri] = useState({ colonne: "defaut", sens: "desc" });
 
   const charger = async () => {
     const { data } = await supabase.from("demandes").select("*").order("created_at", { ascending: false }).limit(10000);
@@ -43,10 +56,20 @@ export default function DemandesListePage() {
     const base = liste.filter((d) => {
       const okRecherche = !q || [d.numero, d.service, d.demandeur, d.motif_projet].some((v) => (v || "").toLowerCase().includes(q));
       const okStatut = !filtreStatut || d.statut === filtreStatut;
+      if (filtreATraiter && GROUPE_TERMINAL.has(d.statut)) return false;
       return okRecherche && okStatut;
     });
-    return appliquerTri(base, tri);
-  }, [liste, recherche, filtreStatut, tri]);
+    // Ordre par défaut : dernier N° en haut (les demandes importées depuis
+    // l'historique s'alignent ainsi derrière celles créées dans l'appli selon
+    // leur vrai numéro, pas selon la date d'import), en regroupant d'abord les
+    // demandes actives puis les basculées/clôturées/annulées à la fin (tri
+    // stable : l'ordre par numéro est conservé à l'intérieur de chaque groupe).
+    const preTrie = [...base].sort((a, b) => (b.numero || "").localeCompare(a.numero || ""));
+    if (tri.colonne === "defaut") {
+      return preTrie.sort((a, b) => (GROUPE_TERMINAL.has(a.statut) ? 1 : 0) - (GROUPE_TERMINAL.has(b.statut) ? 1 : 0));
+    }
+    return appliquerTri(preTrie, tri);
+  }, [liste, recherche, filtreStatut, tri, filtreATraiter]);
 
   const copierPourDevis = async (d) => {
     const { data: lignesDeLaDemande } = await supabase.from("lignes_demande").select("*").eq("demande_id", d.id).order("created_at");
@@ -146,6 +169,13 @@ export default function DemandesListePage() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <h1 style={{ fontSize: 18, marginBottom: 14, flexShrink: 0 }}>Liste des demandes ({filtrees.length} / {liste.length})</h1>
+
+        {filtreATraiter && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#E8F0FA", color: "#1B4C7A", borderRadius: 8, padding: "8px 14px", marginBottom: 12, fontSize: 13, flexShrink: 0 }}>
+            <span>Filtré depuis le Tableau de bord : seules les {filtrees.length} demande(s) à traiter sont affichées.</span>
+            <Link href="/demandes" style={{ color: "#1B4C7A", textDecoration: "underline" }}>Voir toutes les demandes</Link>
+          </div>
+        )}
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", flexShrink: 0 }}>
