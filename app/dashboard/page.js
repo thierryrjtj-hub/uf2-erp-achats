@@ -39,7 +39,7 @@ export default function DashboardPage() {
   useEffect(() => {
     (async () => {
       // ---- Demandes en attente de devis ----
-      const { data: demandes } = await supabase.from("demandes").select("id, numero, service, statut, created_at").not("statut", "in", '("Basculée en commande","Clôturée")').limit(10000);
+      const { data: demandes } = await supabase.from("demandes").select("id, numero, service, statut, created_at").not("statut", "in", '("Basculée en commande","Clôturée","Annulée")').limit(10000);
       const { data: offres } = await supabase.from("offres").select("id, demande_id").limit(10000);
       const { data: lignesOffre } = await supabase.from("lignes_offre").select("offre_id, prix_unitaire_ht").limit(10000);
 
@@ -54,7 +54,7 @@ export default function DashboardPage() {
       setAlertesDevis(devis);
 
       // ---- BC en attente de livraison ----
-      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, date, date_signature, date_envoi_signature, statut, statut_paiement, date_facture, echeance_jours, date_estimee_reste").limit(10000);
+      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, date, date_signature, date_envoi_signature, date_envoi_fournisseur, statut, statut_paiement, date_facture, echeance_jours, date_estimee_reste").limit(10000);
       const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, quantite").limit(10000);
       const { data: receptions } = await supabase.from("receptions").select("id, bc_id").limit(10000);
       const { data: lignesReception } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
@@ -68,10 +68,19 @@ export default function DashboardPage() {
         if (Number(l.quantite) - cumul > 0) resteABcId[l.bc_id] = true;
       });
 
+      // Un BC n'est "en attente de livraison" qu'une fois réellement envoyé au
+      // fournisseur (date_envoi_fournisseur renseignée) — pas avant, même s'il
+      // reste des quantités à livrer sur le papier.
+      const enAttenteLivraisonBcId = {};
+      (commandes || []).forEach((c) => {
+        if (resteABcId[c.id] && c.date_envoi_fournisseur && c.statut !== "Annulée" && !c.statut?.startsWith("Clôturée")) {
+          enAttenteLivraisonBcId[c.id] = true;
+        }
+      });
+
       const livraison = (commandes || []).filter((c) => {
-        if (!resteABcId[c.id]) return false;
-        if (!c.date_signature) return false;
-        const j = joursDepuis(c.date_signature);
+        if (!enAttenteLivraisonBcId[c.id]) return false;
+        const j = joursDepuis(c.date_envoi_fournisseur);
         return j !== null && j >= 2;
       });
       setAlertesLivraison(livraison);
@@ -86,7 +95,7 @@ export default function DashboardPage() {
       setAlertesPaiement(paiement);
 
       // ---- Date estimée du reste atteinte ----
-      const estimation = (commandes || []).filter((c) => resteABcId[c.id] && c.date_estimee_reste && c.date_estimee_reste <= todayISO());
+      const estimation = (commandes || []).filter((c) => enAttenteLivraisonBcId[c.id] && c.date_estimee_reste && c.date_estimee_reste <= todayISO());
       setAlertesEstimation(estimation);
 
       // ---- Demandeurs à aviser (articles non disponibles localement) ----
@@ -121,7 +130,7 @@ export default function DashboardPage() {
       const bcEnAttenteSignature = (commandes || []).filter((c) => c.date_envoi_signature && !c.date_signature && c.statut !== "Annulée").length;
       setResume({
         demandesATraiter: (demandes || []).length,
-        bcEnLivraison: Object.keys(resteABcId).length,
+        bcEnLivraison: Object.keys(enAttenteLivraisonBcId).length,
         facturesImpayees: (commandes || []).filter((c) => c.statut_paiement !== "Payé").length,
         bcEnAttenteSignature,
       });
@@ -154,8 +163,8 @@ export default function DashboardPage() {
         <p style={{ fontSize: 13, color: "#888", marginBottom: 14, flexShrink: 0 }}>À traiter aujourd'hui</p>
 
         <div style={{ display: "flex", gap: 12, marginBottom: 18, flexShrink: 0, flexWrap: "wrap" }}>
-          <ResumeCard href="/demandes" valeur={resume.demandesATraiter} label="demande(s) à traiter" couleur="#F5A623" />
-          <ResumeCard href="/commandes?filtre=en_attente_reception" valeur={resume.bcEnLivraison} label="BC en cours de livraison" couleur="#1B4C7A" />
+          <ResumeCard href="/demandes?filtre=a_traiter" valeur={resume.demandesATraiter} label="demande(s) à traiter" couleur="#F5A623" />
+          <ResumeCard href="/commandes?filtre=en_attente_livraison" valeur={resume.bcEnLivraison} label="BC en attente de livraison" couleur="#1B4C7A" />
           <ResumeCard href="/commandes?filtre=en_attente_signature" valeur={resume.bcEnAttenteSignature} label="BC en attente de signature direction" couleur="#8A6100" />
           <ResumeCard href="/commandes?filtre=impayees" valeur={resume.facturesImpayees} label="facture(s) impayée(s)" couleur="#B3261E" />
         </div>
@@ -183,7 +192,7 @@ export default function DashboardPage() {
             <Section titre="Relances livraison fournisseurs" couleur="#8A6100" fond="#FFF3D6">
               {alertesLivraison.map((c) => (
                 <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
-                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — signé il y a {joursDepuis(c.date_signature)} jour(s), toujours pas reçu
+                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — envoyé au fournisseur il y a {joursDepuis(c.date_envoi_fournisseur)} jour(s), toujours pas reçu
                 </LigneAlerte>
               ))}
             </Section>
