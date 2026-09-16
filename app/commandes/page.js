@@ -23,6 +23,8 @@ function CommandesInner() {
   const role = useRole();
   const searchParams = useSearchParams();
   const filtreDepuisTableauDeBord = searchParams.get("filtre") === "en_attente_reception";
+  const filtreSignature = searchParams.get("filtre") === "en_attente_signature";
+  const filtreImpayees = searchParams.get("filtre") === "impayees";
   const [liste, setListe] = useState([]);
   const [receptions, setReceptions] = useState([]);
   const [demandes, setDemandes] = useState([]);
@@ -81,10 +83,12 @@ function CommandesInner() {
         const enAttente = !dejaComplet && c.statut !== "Annulée" && !c.statut?.startsWith("Clôturée");
         if (!enAttente) return false;
       }
+      if (filtreSignature && !(c.date_envoi_signature && !c.date_signature && c.statut !== "Annulée")) return false;
+      if (filtreImpayees && c.statut_paiement === "Payé") return false;
       return okRecherche && okStatut;
     });
     return appliquerTri(base, tri);
-  }, [liste, recherche, filtreStatut, tri, demandeParId, filtreDepuisTableauDeBord, receptions]);
+  }, [liste, recherche, filtreStatut, tri, demandeParId, filtreDepuisTableauDeBord, filtreSignature, filtreImpayees, receptions]);
 
   const changerStatut = async (id, statut) => {
     setListe((prev) => prev.map((c) => (c.id === id ? { ...c, statut } : c)));
@@ -238,9 +242,15 @@ function CommandesInner() {
           </div>
         </div>
 
-        {filtreDepuisTableauDeBord && (
+        {(filtreDepuisTableauDeBord || filtreSignature || filtreImpayees) && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#E8F0FA", color: "#1B4C7A", borderRadius: 8, padding: "8px 14px", marginBottom: 12, fontSize: 13, flexShrink: 0 }}>
-            <span>Filtré depuis le Tableau de bord : seuls les {filtrees.length} BC en attente de réception sont affichés.</span>
+            <span>
+              Filtré depuis le Tableau de bord : seuls les {filtrees.length} BC
+              {filtreDepuisTableauDeBord && " en attente de réception"}
+              {filtreSignature && " en attente de signature direction"}
+              {filtreImpayees && " avec facture impayée"}
+              {" "}sont affichés.
+            </span>
             <Link href="/commandes" style={{ color: "#1B4C7A", textDecoration: "underline" }}>Voir tous les BC</Link>
           </div>
         )}
