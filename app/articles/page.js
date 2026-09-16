@@ -77,6 +77,24 @@ export default function ArticlesListePage() {
     return m;
   }, [liste]);
 
+  // Détection automatique d'arrêt d'achat : dernier achat remontant à plus de
+  // 3 fois le cycle habituel (au moins 3 achats pour établir un cycle fiable).
+  const achatArreteParId = useMemo(() => {
+    const map = {};
+    for (const a of liste) {
+      const hist = historiqueParArticle[a.id] || [];
+      if (hist.length < 3) continue;
+      const dates = hist.map((h) => new Date(h.date)).sort((x, y) => x - y);
+      const intervalles = [];
+      for (let i = 1; i < dates.length; i++) intervalles.push((dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24));
+      const cycleJours = intervalles.reduce((s, x) => s + x, 0) / intervalles.length;
+      const derniereDate = dates[dates.length - 1];
+      const joursDepuis = (new Date() - derniereDate) / (1000 * 60 * 60 * 24);
+      if (joursDepuis > cycleJours * 3) map[a.id] = true;
+    }
+    return map;
+  }, [liste, historiqueParArticle]);
+
   const modifier = (a) => {
     setEditId(a.id);
     setEditForm({
@@ -216,6 +234,11 @@ export default function ArticlesListePage() {
                         <div style={{ fontWeight: 700, fontSize: 15 }}>
                           {a.designation}
                           {a.endormi && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: "#8A6100", background: "#FFF3D6", borderRadius: 4, padding: "2px 6px" }}>😴 Endormi</span>}
+                          {!a.endormi && achatArreteParId[a.id] && (
+                            <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: "#1B4C7A", background: "#E8F0FA", borderRadius: 4, padding: "2px 6px" }} title="Dernier achat remontant à plus de 3 fois le cycle habituel — probablement plus utilisé">
+                              ⏸ Achat probablement arrêté
+                            </span>
+                          )}
                         </div>
                         <div>
                           <button onClick={() => copierFiche(a, dernier)} style={iconBtn} title="Copier toutes les infos"><IconCopy /></button>
