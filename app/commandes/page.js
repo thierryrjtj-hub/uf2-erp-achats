@@ -28,6 +28,7 @@ function CommandesInner() {
   const [liste, setListe] = useState([]);
   const [receptions, setReceptions] = useState([]);
   const [demandes, setDemandes] = useState([]);
+  const [fournisseurs, setFournisseurs] = useState([]);
   const [prestationParBc, setPrestationParBc] = useState({});
   const [articlesParBc, setArticlesParBc] = useState({});
   const [loading, setLoading] = useState(true);
@@ -39,11 +40,13 @@ function CommandesInner() {
     const { data: c } = await supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000);
     const { data: r } = await supabase.from("receptions").select("*").limit(10000);
     const { data: d } = await supabase.from("demandes").select("id, service, demandeur, motif_projet").limit(10000);
+    const { data: f } = await supabase.from("fournisseurs").select("id, conditions_paiement_jours").limit(10000);
     const { data: lb } = await supabase.from("lignes_bc").select("bc_id, designation, quantite, unite").limit(10000);
     const { data: art } = await supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000);
     setListe(c || []);
     setReceptions(r || []);
     setDemandes(d || []);
+    setFournisseurs(f || []);
     // Un BC est considéré "prestation" si toutes ses lignes correspondent à des articles catégorie "Services & Prestations"
     const catParDesignation = {};
     (art || []).forEach((a) => { catParDesignation[a.designation.toLowerCase()] = a.categorie?.nom; });
@@ -70,6 +73,18 @@ function CommandesInner() {
     return m;
   }, [demandes]);
 
+  const delaiParFournisseur = useMemo(() => {
+    const m = {};
+    fournisseurs.forEach((f) => { m[f.id] = f.conditions_paiement_jours || 30; });
+    return m;
+  }, [fournisseurs]);
+
+  const bcRecuId = useMemo(() => {
+    const m = {};
+    receptions.forEach((r) => { m[r.bc_id] = true; });
+    return m;
+  }, [receptions]);
+
   const statutsDistincts = useMemo(() => [...new Set(liste.map((c) => c.statut).filter(Boolean))].sort(), [liste]);
   const GROUPE_TERMINAL = useMemo(() => new Set(["Clôturée", "Clôturée (rupture)", "Annulée"]), []);
   const filtrees = useMemo(() => {
@@ -86,7 +101,7 @@ function CommandesInner() {
         if (!enAttente) return false;
       }
       if (filtreSignature && !(c.date_envoi_signature && !c.date_signature && c.statut !== "Annulée")) return false;
-      if (filtreImpayees && c.statut_paiement === "Payé") return false;
+      if (filtreImpayees && (c.statut_paiement === "Payé" || !bcRecuId[c.id])) return false;
       return okRecherche && okStatut;
     });
     // Ordre par défaut : dernier N° BC en haut (les BC importés depuis l'historique
@@ -134,7 +149,7 @@ function CommandesInner() {
   const echeanceInfo = (c) => {
     if (!c.date_facture) return null;
     const d = new Date(c.date_facture);
-    d.setDate(d.getDate() + (c.echeance_jours || 30));
+    d.setDate(d.getDate() + (delaiParFournisseur[c.fournisseur_id] || 30));
     return d;
   };
 
@@ -189,7 +204,7 @@ function CommandesInner() {
   const [exportingImpayees, setExportingImpayees] = useState(false);
   const exporterFacturesImpayees = async () => {
     setExportingImpayees(true);
-    const impayees = liste.filter((c) => c.statut_paiement !== "Payé" && c.statut !== "Annulée" && c.numero_facture);
+    const impayees = liste.filter((c) => bcRecuId[c.id] && c.statut_paiement !== "Payé" && c.statut !== "Annulée" && c.numero_facture);
     const rows = impayees.map((c) => {
       const echeance = echeanceInfo(c);
       const joursRetard = echeance ? Math.max(0, Math.floor((new Date() - echeance) / (1000 * 60 * 60 * 24))) : 0;
@@ -315,7 +330,7 @@ function CommandesInner() {
             {filtrees.map((c) => {
               const reception = receptions.find((r) => r.bc_id === c.id);
               const echeance = echeanceInfo(c);
-              const enRetard = echeance && c.statut_paiement !== "Payé" && new Date() > echeance;
+              const enRetard = bcRecuId[c.id] && echeance && c.statut_paiement !== "Payé" && new Date() > echeance;
               const dmd = demandeParId[c.demande_id];
               const estPrestation = !!prestationParBc[c.id];
               const couleurLigne = c.statut?.startsWith("Clôturée (rupture)") ? "#B3261E"
@@ -363,13 +378,17 @@ function CommandesInner() {
                     )}
                   </td>
                   <td style={tdStyle}>
-                    <span style={{
-                      fontSize: 12, padding: "3px 8px", borderRadius: 6,
-                      background: c.statut_paiement === "Payé" ? "#EAF7EE" : enRetard ? "#FDECEA" : "#FFF3D6",
-                      color: c.statut_paiement === "Payé" ? "#1B7A4C" : enRetard ? "#B3261E" : "#8A6100",
-                    }}>
-                      {c.statut_paiement === "Payé" ? "Payé" : enRetard ? "Échéance dépassée" : "Impayé"}
-                    </span>
+                    {c.statut_paiement === "Payé" || bcRecuId[c.id] ? (
+                      <span style={{
+                        fontSize: 12, padding: "3px 8px", borderRadius: 6,
+                        background: c.statut_paiement === "Payé" ? "#EAF7EE" : enRetard ? "#FDECEA" : "#FFF3D6",
+                        color: c.statut_paiement === "Payé" ? "#1B7A4C" : enRetard ? "#B3261E" : "#8A6100",
+                      }}>
+                        {c.statut_paiement === "Payé" ? "Payé" : enRetard ? "Échéance dépassée" : "Impayé"}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "#999" }} title="Pas encore réceptionné — le suivi de paiement commence à la livraison">En attente livraison</span>
+                    )}
                   </td>
                   <td style={{ ...tdStyle, color: "#666" }}>{c.observation || "-"}</td>
                   <td style={tdStyle}>
