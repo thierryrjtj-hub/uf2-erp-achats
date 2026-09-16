@@ -43,6 +43,8 @@ export default function FournisseursListePage() {
       f.nif && `NIF : ${f.nif}`, f.stat && `STAT : ${f.stat}`, f.rcs && `RCS : ${f.rcs}`, f.cin && `CIN : ${f.cin}`,
       f.type_reglement && `Règlement : ${f.type_reglement}`, `TVA : ${f.tva_defaut_pct === 0 ? "Non assujetti" : (f.tva_defaut_pct ?? 20) + "%"}`,
       f.activite && `Activité : ${f.activite}`,
+      f.moment_paiement && `Moment du paiement : ${f.moment_paiement}`,
+      f.acompte_pct ? `Acompte à la commande : ${f.acompte_pct}% (solde ${f.solde_a || "à la livraison"})` : null,
     ].filter(Boolean).join("\n");
     try { await navigator.clipboard.writeText(texte); } catch (e) {}
   };
@@ -54,6 +56,7 @@ export default function FournisseursListePage() {
       adresse: f.adresse || "", cp: f.code_postal || "", nif: f.nif || "", stat: f.stat || "",
       rcs: f.rcs || "", cin: f.cin || "", reglement: f.type_reglement || "", tva: f.tva_defaut_pct ?? 20,
       activite: f.activite || "", echeance: f.conditions_paiement_jours || 30, remise: f.remise_par_defaut_pct || 0,
+      moment: f.moment_paiement || "", acompte: f.acompte_pct || 0, solde: f.acompte_pct ? (f.solde_a || "À la livraison") : "",
     }));
     await exportExcel({
       filename: `fournisseurs_${new Date().toISOString().slice(0, 10)}.xlsx`,
@@ -67,9 +70,10 @@ export default function FournisseursListePage() {
           { header: "RCS", key: "rcs", width: 16 }, { header: "CIN", key: "cin", width: 16 },
           { header: "Règlement", key: "reglement", width: 14 }, { header: "TVA %", key: "tva", width: 8 },
           { header: "Activité", key: "activite", width: 20 }, { header: "Échéance (j)", key: "echeance", width: 12 },
-          { header: "Remise %", key: "remise", width: 10 },
+          { header: "Remise %", key: "remise", width: 10 }, { header: "Moment paiement", key: "moment", width: 18 },
+          { header: "Acompte %", key: "acompte", width: 10 }, { header: "Solde payé à", key: "solde", width: 16 },
         ],
-        rows, percentKeys: ["tva", "remise"],
+        rows, percentKeys: ["tva", "remise", "acompte"],
       }],
     });
     setExporting(false);
@@ -135,6 +139,8 @@ export default function FournisseursListePage() {
               <Champ label="Activité" value={f.activite} />
               <Champ label="Délai paiement" value={f.conditions_paiement_jours ? `${f.conditions_paiement_jours} jours` : ""} />
               <Champ label="Remise par défaut" value={f.remise_par_defaut_pct ? `${f.remise_par_defaut_pct}%` : ""} />
+              <Champ label="Moment du paiement" value={f.moment_paiement} />
+              <Champ label="Acompte à la commande" value={f.acompte_pct ? `${f.acompte_pct}% (solde ${f.solde_a || "à la livraison"})` : ""} />
             </div>
           </div>
           ))}
