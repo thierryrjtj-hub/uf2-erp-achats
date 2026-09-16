@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
+import ChampPrixHT from "../../components/ChampPrixHT";
 import { useRole } from "../../../lib/useRole";
 import { useUserId } from "../../../lib/useUserId";
 import BandeauLectureSeule from "../../components/BandeauLectureSeule";
@@ -470,7 +471,7 @@ export default function CommandeDetailPage() {
                 />
                 <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
                 <input placeholder="unité" value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} style={{ ...inputStyle, width: 90 }} />
-                <input type="number" placeholder="PU HT" value={l.prix_unitaire_ht} onChange={(e) => majEditLigne(l.key, "prix_unitaire_ht", e.target.value)} style={{ ...inputStyle, width: 110 }} />
+                <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => majEditLigne(l.key, "prix_unitaire_ht", v)} tvaPct={bc.assujetti_tva === false ? 0 : 20} style={{ ...inputStyle, width: 110 }} />
                 <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
                 <button onClick={() => retirerEditLigne(l.key)} style={linkBtn}>Retirer</button>
               </div>
