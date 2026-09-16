@@ -17,6 +17,19 @@ async function enregistrerSignalementReappro(supabase, designation, joursAvantPr
   });
 }
 
+async function enregistrerRelanceLivraison(supabase, bcId, etapeActuelle, joursActuels) {
+  const { data: { user } } = await supabase.auth.getUser();
+  await supabase.from("relance_livraison").upsert({
+    bc_id: bcId,
+    etape: etapeActuelle + 1,
+    jours_au_signalement: joursActuels,
+    date_signalement: new Date().toISOString(),
+    signale_par: user?.id || null,
+  });
+}
+
+const ORDINAUX = ["1ère", "2ème", "3ème", "4ème", "5ème"];
+
 function joursDepuis(dateStr) {
   if (!dateStr) return null;
   const diff = (new Date() - new Date(dateStr)) / (1000 * 60 * 60 * 24);
@@ -34,7 +47,16 @@ export default function DashboardPage() {
   const [alertesReappro, setAlertesReappro] = useState([]);
   const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0, bcEnAttenteSignature: 0 });
   const [tendance, setTendance] = useState([]);
+  const [agenda, setAgenda] = useState([]);
+  const [taches, setTaches] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const chargerAgendaTaches = async () => {
+    const { data: a } = await supabase.from("agenda_rdv").select("*").eq("fait", false).order("date_rdv").limit(200);
+    setAgenda(a || []);
+    const { data: t } = await supabase.from("taches_rapides").select("*").eq("fait", false).order("created_at", { ascending: false }).limit(200);
+    setTaches(t || []);
+  };
 
   useEffect(() => {
     (async () => {
@@ -78,11 +100,21 @@ export default function DashboardPage() {
         }
       });
 
-      const livraison = (commandes || []).filter((c) => {
+      const livraisonBrut = (commandes || []).filter((c) => {
         if (!enAttenteLivraisonBcId[c.id]) return false;
         const j = joursDepuis(c.date_envoi_fournisseur);
         return j !== null && j >= 2;
       });
+      const { data: relancesData } = await supabase.from("relance_livraison").select("bc_id, etape, jours_au_signalement").limit(10000);
+      const relanceParBc = {};
+      (relancesData || []).forEach((r) => { relanceParBc[r.bc_id] = r; });
+      const livraison = livraisonBrut
+        .filter((c) => {
+          const r = relanceParBc[c.id];
+          if (!r) return true;
+          return joursDepuis(c.date_envoi_fournisseur) > r.jours_au_signalement;
+        })
+        .map((c) => ({ ...c, relance: relanceParBc[c.id] || null }));
       setAlertesLivraison(livraison);
 
       // ---- Factures impayées en retard ----
@@ -148,11 +180,34 @@ export default function DashboardPage() {
       }
       setTendance(points);
 
+      await chargerAgendaTaches();
       setLoading(false);
     })();
   }, []);
 
   const total = alertesDevis.length + alertesLivraison.length + alertesPaiement.length + alertesEstimation.length + alertesImport.length;
+
+  const ajouterRdv = async (date_rdv, heure, titre) => {
+    if (!date_rdv || !titre.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("agenda_rdv").insert({ date_rdv, heure: heure || null, titre: titre.trim(), created_by: user?.id || null });
+    chargerAgendaTaches();
+  };
+  const marquerRdvFait = async (id) => {
+    await supabase.from("agenda_rdv").update({ fait: true }).eq("id", id);
+    setAgenda((prev) => prev.filter((r) => r.id !== id));
+  };
+  const ajouterTache = async (texte) => {
+    if (!texte.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from("taches_rapides").insert({ texte: texte.trim(), created_by: user?.id || null });
+    chargerAgendaTaches();
+  };
+  const marquerTacheFaite = async (id) => {
+    await supabase.from("taches_rapides").update({ fait: true, date_fait: new Date().toISOString() }).eq("id", id);
+    setTaches((prev) => prev.filter((t) => t.id !== id));
+  };
+
 
   if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
 
@@ -191,9 +246,26 @@ export default function DashboardPage() {
           {alertesLivraison.length > 0 && (
             <Section titre="Relances livraison fournisseurs" couleur="#8A6100" fond="#FFF3D6">
               {alertesLivraison.map((c) => (
-                <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
-                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — envoyé au fournisseur il y a {joursDepuis(c.date_envoi_fournisseur)} jour(s), toujours pas reçu
-                </LigneAlerte>
+                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", borderRadius: 6, background: "#FAFAF8", marginBottom: 6 }}>
+                  <Link href={`/commandes/${c.id}`} style={{ flex: 1, color: "#1B2430", textDecoration: "none" }}>
+                    <strong>{c.numero}</strong> — {c.fournisseur_nom} — envoyé au fournisseur il y a {joursDepuis(c.date_envoi_fournisseur)} jour(s), toujours pas reçu
+                    {c.relance && <span style={{ marginLeft: 8, fontSize: 11.5, color: "#8A6100" }}>({ORDINAUX[c.relance.etape - 1] || `${c.relance.etape}ème`} relance envoyée)</span>}
+                  </Link>
+                  {role === "acheteur" && (
+                    <button
+                      onClick={async () => {
+                        const etapeActuelle = c.relance?.etape || 0;
+                        const jours = joursDepuis(c.date_envoi_fournisseur);
+                        await enregistrerRelanceLivraison(supabase, c.id, etapeActuelle, jours);
+                        setAlertesLivraison((prev) => prev.filter((x) => x.id !== c.id));
+                      }}
+                      title="J'ai relancé le fournisseur — masquer jusqu'à ce que le retard s'aggrave"
+                      style={{ border: "1px solid #8A6100", background: "#fff", color: "#8A6100", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
+                    >
+                      Relancer
+                    </button>
+                  )}
+                </div>
               ))}
             </Section>
           )}
@@ -252,6 +324,11 @@ export default function DashboardPage() {
               ))}
             </Section>
           )}
+
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <BlocAgenda agenda={agenda} onAjouter={ajouterRdv} onFait={marquerRdvFait} />
+            <BlocTaches taches={taches} onAjouter={ajouterTache} onFait={marquerTacheFaite} />
+          </div>
         </div>
       </div>
     </AuthGuard>
@@ -330,3 +407,67 @@ function GraphiqueTendance({ points }) {
     </div>
   );
 }
+
+// Bloc agenda / rendez-vous rapide — un simple pense-bête, pas un vrai calendrier.
+function BlocAgenda({ agenda, onAjouter, onFait }) {
+  const [date, setDate] = useState("");
+  const [heure, setHeure] = useState("");
+  const [titre, setTitre] = useState("");
+
+  const soumettre = () => {
+    onAjouter(date, heure, titre);
+    setDate(""); setHeure(""); setTitre("");
+  };
+
+  return (
+    <div style={{ flex: 1, minWidth: 280, background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
+      <h2 style={{ fontSize: 14, marginBottom: 10, color: "#1E3A34" }}>Agenda / rendez-vous rapide</h2>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...miniInput, width: 130 }} />
+        <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} style={{ ...miniInput, width: 90 }} />
+        <input placeholder="Rendez-vous..." value={titre} onChange={(e) => setTitre(e.target.value)} onKeyDown={(e) => e.key === "Enter" && soumettre()} style={{ ...miniInput, flex: 1, minWidth: 120 }} />
+        <button onClick={soumettre} style={miniBtn}>+</button>
+      </div>
+      {agenda.length === 0 && <p style={{ fontSize: 12.5, color: "#999" }}>Aucun rendez-vous à venir.</p>}
+      {agenda.map((r) => (
+        <div key={r.id} style={ligneMini}>
+          <input type="checkbox" onChange={() => onFait(r.id)} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>
+            <strong>{formatDate(r.date_rdv)}</strong>{r.heure ? ` à ${r.heure}` : ""} — {r.titre}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Bloc notes / tâches rapides — case "fait" = disparaît de la liste.
+function BlocTaches({ taches, onAjouter, onFait }) {
+  const [texte, setTexte] = useState("");
+
+  const soumettre = () => {
+    onAjouter(texte);
+    setTexte("");
+  };
+
+  return (
+    <div style={{ flex: 1, minWidth: 280, background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
+      <h2 style={{ fontSize: 14, marginBottom: 10, color: "#1E3A34" }}>Notes / tâches rapides</h2>
+      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+        <input placeholder="Nouvelle tâche..." value={texte} onChange={(e) => setTexte(e.target.value)} onKeyDown={(e) => e.key === "Enter" && soumettre()} style={{ ...miniInput, flex: 1 }} />
+        <button onClick={soumettre} style={miniBtn}>+</button>
+      </div>
+      {taches.length === 0 && <p style={{ fontSize: 12.5, color: "#999" }}>Aucune tâche en attente.</p>}
+      {taches.map((t) => (
+        <div key={t.id} style={ligneMini}>
+          <input type="checkbox" onChange={() => onFait(t.id)} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>{t.texte}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const miniInput = { padding: "6px 8px", borderRadius: 6, border: "1px solid #ddd", fontSize: 12.5 };
+const miniBtn = { border: "none", background: "#1B7A4C", color: "#fff", borderRadius: 6, width: 30, fontSize: 16, cursor: "pointer", flexShrink: 0 };
+const ligneMini = { display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, padding: "6px 8px", borderRadius: 6, background: "#FAFAF8", marginBottom: 5 };
