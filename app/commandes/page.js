@@ -22,7 +22,7 @@ export default function CommandesPage() {
 function CommandesInner() {
   const role = useRole();
   const searchParams = useSearchParams();
-  const filtreDepuisTableauDeBord = searchParams.get("filtre") === "en_attente_reception";
+  const filtreDepuisTableauDeBord = searchParams.get("filtre") === "en_attente_livraison";
   const filtreSignature = searchParams.get("filtre") === "en_attente_signature";
   const filtreImpayees = searchParams.get("filtre") === "impayees";
   const [liste, setListe] = useState([]);
@@ -33,7 +33,7 @@ function CommandesInner() {
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
-  const [tri, setTri] = useState({ colonne: "created_at", sens: "desc" });
+  const [tri, setTri] = useState({ colonne: "defaut", sens: "desc" });
 
   const charger = async () => {
     const { data: c } = await supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000);
@@ -71,6 +71,7 @@ function CommandesInner() {
   }, [demandes]);
 
   const statutsDistincts = useMemo(() => [...new Set(liste.map((c) => c.statut).filter(Boolean))].sort(), [liste]);
+  const GROUPE_TERMINAL = useMemo(() => new Set(["Clôturée", "Clôturée (rupture)", "Annulée"]), []);
   const filtrees = useMemo(() => {
     const q = recherche.trim().toLowerCase();
     const base = liste.filter((c) => {
@@ -80,15 +81,25 @@ function CommandesInner() {
       if (filtreDepuisTableauDeBord) {
         const receptionsOfC = receptions.filter((r) => r.bc_id === c.id);
         const dejaComplet = receptionsOfC.some((r) => r.statut === "Totale");
-        const enAttente = !dejaComplet && c.statut !== "Annulée" && !c.statut?.startsWith("Clôturée");
+        const pasEncoreEnvoye = !c.date_envoi_fournisseur;
+        const enAttente = !dejaComplet && !pasEncoreEnvoye && c.statut !== "Annulée" && !c.statut?.startsWith("Clôturée");
         if (!enAttente) return false;
       }
       if (filtreSignature && !(c.date_envoi_signature && !c.date_signature && c.statut !== "Annulée")) return false;
       if (filtreImpayees && c.statut_paiement === "Payé") return false;
       return okRecherche && okStatut;
     });
-    return appliquerTri(base, tri);
-  }, [liste, recherche, filtreStatut, tri, demandeParId, filtreDepuisTableauDeBord, filtreSignature, filtreImpayees, receptions]);
+    // Ordre par défaut : dernier N° BC en haut (les BC importés depuis l'historique
+    // s'alignent ainsi naturellement derrière les BC créés dans l'appli selon leur
+    // vrai numéro, pas selon la date d'import), en regroupant d'abord les BC actifs
+    // puis les clôturés/annulés à la fin (tri stable : l'ordre par numéro est
+    // conservé à l'intérieur de chaque groupe).
+    const preTrie = [...base].sort((a, b) => (b.numero || "").localeCompare(a.numero || ""));
+    if (tri.colonne === "defaut") {
+      return preTrie.sort((a, b) => (GROUPE_TERMINAL.has(a.statut) ? 1 : 0) - (GROUPE_TERMINAL.has(b.statut) ? 1 : 0));
+    }
+    return appliquerTri(preTrie, tri);
+  }, [liste, recherche, filtreStatut, tri, demandeParId, filtreDepuisTableauDeBord, filtreSignature, filtreImpayees, receptions, GROUPE_TERMINAL]);
 
   const changerStatut = async (id, statut) => {
     setListe((prev) => prev.map((c) => (c.id === id ? { ...c, statut } : c)));
@@ -246,7 +257,7 @@ function CommandesInner() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#E8F0FA", color: "#1B4C7A", borderRadius: 8, padding: "8px 14px", marginBottom: 12, fontSize: 13, flexShrink: 0 }}>
             <span>
               Filtré depuis le Tableau de bord : seuls les {filtrees.length} BC
-              {filtreDepuisTableauDeBord && " en attente de réception"}
+              {filtreDepuisTableauDeBord && " en attente de livraison"}
               {filtreSignature && " en attente de signature direction"}
               {filtreImpayees && " avec facture impayée"}
               {" "}sont affichés.
