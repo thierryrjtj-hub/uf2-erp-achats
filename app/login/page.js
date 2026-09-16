@@ -113,9 +113,11 @@ export default function LoginPage() {
       <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
         <form onSubmit={handleChangerMdp} style={{ background: "#fff", padding: 32, borderRadius: 12, width: 340, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
           <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 64 }} />
+          <div style={{ display: "inline-block", background: "#fff", borderRadius: 14, padding: "14px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block" }} />
           </div>
-          <h1 style={{ fontSize: 18, marginBottom: 4, textAlign: "center" }}>Première connexion</h1>
+        </div>
+        <h1 style={{ fontSize: 18, marginBottom: 4, textAlign: "center" }}>Première connexion</h1>
           <p style={{ fontSize: 13, color: "#666", marginBottom: 20, textAlign: "center" }}>
             Merci de choisir votre propre mot de passe — vous seul le connaîtrez à partir de maintenant.
           </p>
@@ -140,7 +142,9 @@ export default function LoginPage() {
     <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
       <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 32, borderRadius: 12, width: 340, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 64 }} />
+          <div style={{ display: "inline-block", background: "#fff", borderRadius: 14, padding: "14px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block" }} />
+          </div>
         </div>
         <h1 style={{ fontSize: 20, marginBottom: 4, textAlign: "center" }}>Achats Locaux</h1>
         <p style={{ fontSize: 13, color: "#666", marginBottom: 20, textAlign: "center" }}>Connexion</p>
