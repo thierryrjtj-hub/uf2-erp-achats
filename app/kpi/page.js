@@ -15,6 +15,8 @@ export default function KpiPage() {
   const [receptions, setReceptions] = useState([]);
   const [lignesReception, setLignesReception] = useState([]);
   const [categorieParDesignation, setCategorieParDesignation] = useState({});
+  const [endormiParDesignation, setEndormiParDesignation] = useState({});
+  const [chaineParDesignation, setChaineParDesignation] = useState({});
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
@@ -25,15 +27,29 @@ export default function KpiPage() {
       const { data: d } = await supabase.from("demandes").select("*").limit(10000);
       const { data: r } = await supabase.from("receptions").select("*").limit(10000);
       const { data: lr } = await supabase.from("lignes_reception").select("*").limit(10000);
-      const { data: art } = await supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000);
+      const { data: art } = await supabase.from("articles").select("id, designation, endormi, continue_par_id, categorie:categories(nom)").limit(10000);
       setCommandes(c || []);
       setLignesBc(l || []);
       setDemandes(d || []);
       setReceptions(r || []);
       setLignesReception(lr || []);
       const catMap = {};
-      (art || []).forEach((a) => { catMap[a.designation] = a.categorie?.nom; });
+      const endormiMap = {};
+      const idVersDesignation = {};
+      (art || []).forEach((a) => {
+        catMap[a.designation] = a.categorie?.nom;
+        if (a.endormi) endormiMap[a.designation] = true;
+        idVersDesignation[a.id] = a.designation;
+      });
+      const chaineMap = {};
+      (art || []).forEach((a) => {
+        if (a.continue_par_id && idVersDesignation[a.continue_par_id]) {
+          chaineMap[a.designation.toLowerCase()] = idVersDesignation[a.continue_par_id];
+        }
+      });
       setCategorieParDesignation(catMap);
+      setEndormiParDesignation(endormiMap);
+      setChaineParDesignation(chaineMap);
       setLoading(false);
     })();
   }, []);
@@ -54,18 +70,22 @@ export default function KpiPage() {
 
     // ---- Fréquence d'achat par article : nombre de BC distincts (pas de lignes) ----
     // Uniquement les catégories "matières premières" — voir lib/categoriesArticles.js
+    // (la continuité COLLE DUNSON -> TRANSPARENT BOND etc. est déjà fusionnée par
+    // calculerFrequenceAchats via chaineParDesignation)
     const commandesParId = {};
     commandes.forEach((c) => { commandesParId[c.id] = c; });
-    const frequences = calculerFrequenceAchats(lignesBc, commandesParId)
+    const frequences = calculerFrequenceAchats(lignesBc, commandesParId, chaineParDesignation)
       .filter((f) => CATEGORIES_MATIERES_PREMIERES.includes(categorieParDesignation[f.designation]));
     const topFrequenceArticles = frequences.map((f) => [f.designation, f.nombreAchats]);
 
     // ---- Cycle de réapprovisionnement : durée moyenne entre deux commandes, pour les
     // articles achetés au moins 3 fois (pour avoir un cycle fiable). Bois de Chauffage
-    // exclu : livraisons quotidiennes/continues, un cycle n'a pas de sens ici.
+    // exclu : livraisons quotidiennes/continues, un cycle n'a pas de sens ici. Les
+    // articles endormis (plus achetés) sont aussi exclus de cette alerte.
     const topCycles = frequences
       .filter((f) => f.cycleJours != null && f.nombreAchats >= 3)
       .filter((f) => categorieParDesignation[f.designation] !== "Bois de Chauffage")
+      .filter((f) => !endormiParDesignation[f.designation])
       .sort((a, b) => a.cycleJours - b.cycleJours);
 
     const impayes = commandes.filter((c) => c.statut_paiement !== "Payé");
@@ -116,7 +136,7 @@ export default function KpiPage() {
     }
 
     return { totalTTC, totalMois, nbCommandesMois: commandesMois.length, topFournisseurs, topArticles, topFrequenceArticles, topCycles, impayesCount: impayes.length, totalImpaye, demandesEnAttente, bcNonRecus, delaiMoyenBc, delaiMoyenReception, parMois };
-  }, [commandes, lignesBc, demandes, receptions, lignesReception, categorieParDesignation]);
+  }, [commandes, lignesBc, demandes, receptions, lignesReception, categorieParDesignation, endormiParDesignation, chaineParDesignation]);
 
   const exporterClassement = async (titre, nomFichier, colonneLabel, lignes, suffixe) => {
     await exportExcel({
@@ -299,4 +319,3 @@ function BarRow({ label, value, max, suffix = "" }) {
 }
 
 const miniExportBtn = { fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", cursor: "pointer" };
-
