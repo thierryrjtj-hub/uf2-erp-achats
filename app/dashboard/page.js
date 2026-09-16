@@ -96,14 +96,26 @@ export default function DashboardPage() {
       // ---- Réapprovisionnement à prévoir (articles au cycle habituel qui approche) ----
       const commandesParId = {};
       (commandes || []).forEach((c) => { commandesParId[c.id] = c; });
-      const { data: articlesCategories } = await supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000);
+      const { data: articlesCategories } = await supabase.from("articles").select("id, designation, endormi, continue_par_id, categorie:categories(nom)").limit(10000);
       const categorieParDesignation = {};
-      (articlesCategories || []).forEach((a) => { categorieParDesignation[a.designation] = a.categorie?.nom; });
+      const endormiParDesignation = {};
+      const idVersDesignation = {};
+      (articlesCategories || []).forEach((a) => {
+        categorieParDesignation[a.designation] = a.categorie?.nom;
+        if (a.endormi) endormiParDesignation[a.designation] = true;
+        idVersDesignation[a.id] = a.designation;
+      });
+      const chaineParDesignation = {};
+      (articlesCategories || []).forEach((a) => {
+        if (a.continue_par_id && idVersDesignation[a.continue_par_id]) {
+          chaineParDesignation[a.designation.toLowerCase()] = idVersDesignation[a.continue_par_id];
+        }
+      });
       const { data: signalementsData } = await supabase.from("reappro_signalements").select("designation, jours_avant_prochaine").limit(10000);
       const signalements = {};
       (signalementsData || []).forEach((s) => { signalements[s.designation] = s.jours_avant_prochaine; });
-      const frequences = calculerFrequenceAchats(lignesBc || [], commandesParId);
-      setAlertesReappro(articlesAReapprovisionner(frequences, 3, categorieParDesignation, signalements));
+      const frequences = calculerFrequenceAchats(lignesBc || [], commandesParId, chaineParDesignation);
+      setAlertesReappro(articlesAReapprovisionner(frequences, 3, categorieParDesignation, signalements, endormiParDesignation));
 
       // ---- Résumé "à faire" en un coup d'œil ----
       setResume({
