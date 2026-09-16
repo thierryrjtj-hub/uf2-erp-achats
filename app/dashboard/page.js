@@ -32,7 +32,7 @@ export default function DashboardPage() {
   const [alertesEstimation, setAlertesEstimation] = useState([]);
   const [alertesImport, setAlertesImport] = useState([]);
   const [alertesReappro, setAlertesReappro] = useState([]);
-  const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0 });
+  const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0, bcEnAttenteSignature: 0 });
   const [tendance, setTendance] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,7 +54,7 @@ export default function DashboardPage() {
       setAlertesDevis(devis);
 
       // ---- BC en attente de livraison ----
-      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, date, date_signature, statut, statut_paiement, date_facture, echeance_jours, date_estimee_reste").limit(10000);
+      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, date, date_signature, date_envoi_signature, statut, statut_paiement, date_facture, echeance_jours, date_estimee_reste").limit(10000);
       const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, quantite").limit(10000);
       const { data: receptions } = await supabase.from("receptions").select("id, bc_id").limit(10000);
       const { data: lignesReception } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
@@ -118,10 +118,12 @@ export default function DashboardPage() {
       setAlertesReappro(articlesAReapprovisionner(frequences, 3, categorieParDesignation, signalements, endormiParDesignation));
 
       // ---- Résumé "à faire" en un coup d'œil ----
+      const bcEnAttenteSignature = (commandes || []).filter((c) => c.date_envoi_signature && !c.date_signature && c.statut !== "Annulée").length;
       setResume({
         demandesATraiter: (demandes || []).length,
         bcEnLivraison: Object.keys(resteABcId).length,
         facturesImpayees: (commandes || []).filter((c) => c.statut_paiement !== "Payé").length,
+        bcEnAttenteSignature,
       });
 
       // ---- Tendance des achats, 6 derniers mois ----
@@ -154,7 +156,8 @@ export default function DashboardPage() {
         <div style={{ display: "flex", gap: 12, marginBottom: 18, flexShrink: 0, flexWrap: "wrap" }}>
           <ResumeCard href="/demandes" valeur={resume.demandesATraiter} label="demande(s) à traiter" couleur="#F5A623" />
           <ResumeCard href="/commandes?filtre=en_attente_reception" valeur={resume.bcEnLivraison} label="BC en cours de livraison" couleur="#1B4C7A" />
-          <ResumeCard href="/commandes" valeur={resume.facturesImpayees} label="facture(s) impayée(s)" couleur="#B3261E" />
+          <ResumeCard href="/commandes?filtre=en_attente_signature" valeur={resume.bcEnAttenteSignature} label="BC en attente de signature direction" couleur="#8A6100" />
+          <ResumeCard href="/commandes?filtre=impayees" valeur={resume.facturesImpayees} label="facture(s) impayée(s)" couleur="#B3261E" />
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
