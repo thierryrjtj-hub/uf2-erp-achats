@@ -41,7 +41,7 @@ export default function CommandeDetailPage() {
   const [saisie, setSaisie] = useState(nouvelleSaisie());
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
-  const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", echeance_jours: 30, statut_paiement: "Impayé", date_paiement: "", mode_paiement: "", observation_facture: "" });
+  const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", statut_paiement: "Impayé", date_paiement: "", mode_paiement: "", observation_facture: "" });
   const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", telephone: "+261 38 77 419 60", email: "judicael.randrianaivo@unifoods.mg" });
   const [transmission, setTransmission] = useState({
     dateEnvoiSignature: "", dateRetourSignature: "", destinataireSignature: "",
@@ -109,7 +109,6 @@ export default function CommandeDetailPage() {
       setFacture({
         numero_facture: c.numero_facture || "",
         date_facture: c.date_facture || "",
-        echeance_jours: c.echeance_jours ?? fournisseurCharge?.conditions_paiement_jours ?? 30,
         statut_paiement: c.statut_paiement || "Impayé",
         date_paiement: c.date_paiement || "",
         mode_paiement: c.mode_paiement || "",
@@ -319,7 +318,6 @@ export default function CommandeDetailPage() {
     await supabase.from("commandes").update({
       numero_facture: facture.numero_facture,
       date_facture: facture.date_facture || null,
-      echeance_jours: Number(facture.echeance_jours) || 30,
       statut_paiement: facture.statut_paiement,
       mode_paiement: facture.statut_paiement === "Payé" ? facture.mode_paiement || null : null,
       date_paiement: facture.statut_paiement === "Payé" ? (facture.date_paiement || new Date().toISOString().slice(0, 10)) : null,
@@ -768,17 +766,11 @@ export default function CommandeDetailPage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
           <input placeholder="N° de facture" value={facture.numero_facture} onChange={(e) => setFacture({ ...facture, numero_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <input type="date" value={facture.date_facture} onChange={(e) => setFacture({ ...facture, date_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-          <input type="number" placeholder="Échéance (jours)" value={facture.echeance_jours} onChange={(e) => setFacture({ ...facture, echeance_jours: e.target.value })} style={{ ...inputStyle, width: 150 }} />
-          {fournisseurDetail?.conditions_paiement_jours ? (
-            <button
-              type="button"
-              onClick={() => setFacture({ ...facture, echeance_jours: fournisseurDetail.conditions_paiement_jours })}
-              style={{ ...buttonStyle, background: "#F5F4F1", color: "#333", fontSize: 12, padding: "6px 10px" }}
-              title="Reprendre le délai de paiement standard du fournisseur"
-            >
-              Délai fournisseur : {fournisseurDetail.conditions_paiement_jours}j
-            </button>
-          ) : null}
+          <span style={{ ...inputStyle, background: "#F5F4F1", color: "#555", display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }} title="Calculée automatiquement : date facture + délai de paiement du fournisseur, non modifiable ici">
+            Échéance : {facture.date_facture
+              ? formatDate(new Date(new Date(facture.date_facture).getTime() + (fournisseurDetail?.conditions_paiement_jours || 30) * 86400000).toISOString())
+              : "—"} ({fournisseurDetail?.conditions_paiement_jours || 30}j)
+          </span>
           <input placeholder="Observation" value={facture.observation_facture} onChange={(e) => setFacture({ ...facture, observation_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <select value={facture.statut_paiement} onChange={(e) => setFacture({ ...facture, statut_paiement: e.target.value })} style={inputStyle}>
             <option>Impayé</option>
