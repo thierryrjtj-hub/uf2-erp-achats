@@ -490,6 +490,7 @@ export default function CommandeDetailPage() {
               <tr>
                 <th style={thStyle}>Article</th><th style={thStyle}>Qté</th><th style={thStyle}>Unité</th>
                 <th style={thStyle}>PU HT</th><th style={thStyle}>Remise</th><th style={thStyle}>Montant HT</th>
+                {lignes.some((l) => l.date_livraison) && <th style={thStyle}>Livré le</th>}
               </tr>
             </thead>
             <tbody>
@@ -501,6 +502,7 @@ export default function CommandeDetailPage() {
                   <td style={tdStyle}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar</td>
                   <td style={tdStyle}>{l.remise_pct} %</td>
                   <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
+                  {lignes.some((x) => x.date_livraison) && <td style={tdStyle}>{l.date_livraison ? formatDate(l.date_livraison) : ""}</td>}
                 </tr>
               ))}
             </tbody>
