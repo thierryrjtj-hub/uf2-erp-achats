@@ -195,11 +195,11 @@ export default function KpiPage() {
 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
           <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-            <Card label="Total des achats" value={`${stats.totalTTC.toLocaleString("fr-FR")} Ar`} />
-            <Card label="Ce mois-ci" value={`${stats.totalMois.toLocaleString("fr-FR")} Ar`} sub={`${stats.nbCommandesMois} BC`} />
+            <Card label="Total des achats" value={`${stats.totalTTC.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`} />
+            <Card label="Ce mois-ci" value={`${stats.totalMois.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`} sub={`${stats.nbCommandesMois} BC`} />
             <Card label="Demandes en attente de BC" value={stats.demandesEnAttente} />
             <Card label="BC en attente de réception" value={stats.bcNonRecus} />
-            <Card label="Factures impayées" value={stats.impayesCount} sub={stats.totalImpaye ? `${stats.totalImpaye.toLocaleString("fr-FR")} Ar` : null} />
+            <Card label="Factures impayées" value={stats.impayesCount} sub={stats.totalImpaye ? `${stats.totalImpaye.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : null} />
             <Card label="Délai moyen jusqu'au BC" value={stats.delaiMoyenBc != null ? `${stats.delaiMoyenBc} j` : "-"} sub="depuis réception de la DA" />
             <Card label="Délai moyen jusqu'à réception" value={stats.delaiMoyenReception != null ? `${stats.delaiMoyenReception} j` : "-"} sub="depuis réception de la DA" />
           </div>
@@ -281,7 +281,7 @@ export default function KpiPage() {
                   const maxMois = Math.max(...stats.parMois.map((x) => x.montant), 1);
                   return (
                     <div key={m.mois} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                      <div style={{ fontSize: 10, color: "#888" }}>{m.montant ? `${Math.round(m.montant / 1000).toLocaleString("fr-FR")}k` : ""}</div>
+                      <div style={{ fontSize: 10, color: "#888" }}>{m.montant ? `${Math.round(m.montant / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}k` : ""}</div>
                       <div style={{ width: "100%", maxWidth: 34, height: `${(m.montant / maxMois) * 110 || 1}px`, background: "#1E3A34", borderRadius: 4 }} />
                       <div style={{ fontSize: 11, color: "#666" }}>{m.label}</div>
                     </div>
@@ -313,9 +313,10 @@ function BarRow({ label, value, max, suffix = "" }) {
       <div style={{ flex: 1, height: 8, background: "#F0EFEA", borderRadius: 4, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${(value / max) * 100}%`, background: "#1E3A34" }} />
       </div>
-      <div style={{ width: 90, textAlign: "right", fontSize: 12 }}>{typeof value === "number" && suffix === " Ar" ? value.toLocaleString("fr-FR") : value}{suffix}</div>
+      <div style={{ width: 90, textAlign: "right", fontSize: 12 }}>{typeof value === "number" && suffix === " Ar" ? value.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : value}{suffix}</div>
     </div>
   );
 }
 
 const miniExportBtn = { fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", cursor: "pointer" };
+
