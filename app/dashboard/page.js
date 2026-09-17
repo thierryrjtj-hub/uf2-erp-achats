@@ -137,9 +137,15 @@ export default function DashboardPage() {
       const estimation = (commandes || []).filter((c) => enAttenteLivraisonBcId[c.id] && c.date_estimee_reste && c.date_estimee_reste <= todayISO());
       setAlertesEstimation(estimation);
 
-      // ---- Demandeurs à aviser (articles non disponibles localement) ----
-      const { data: aAviser } = await supabase.from("demandes").select("id, numero, service, demandeur, observation").eq("demandeur_avise", false).not("observation", "is", null).limit(10000);
-      setAlertesImport(aAviser || []);
+      // ---- Demandeurs à aviser (articles réellement non disponibles localement) ----
+      const { data: lignesNonDispo } = await supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true).limit(10000);
+      const demandeIdsNonDispo = [...new Set((lignesNonDispo || []).map((l) => l.demande_id))];
+      let aAviser = [];
+      if (demandeIdsNonDispo.length > 0) {
+        const { data } = await supabase.from("demandes").select("id, numero, service, demandeur, observation").eq("demandeur_avise", false).in("id", demandeIdsNonDispo).limit(10000);
+        aAviser = data || [];
+      }
+      setAlertesImport(aAviser);
 
       // ---- Réapprovisionnement à prévoir (articles au cycle habituel qui approche) ----
       const commandesParId = {};
