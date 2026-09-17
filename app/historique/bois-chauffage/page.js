@@ -4,7 +4,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import { exportExcel } from "../../../lib/exportExcel";
 import { formatDate } from "../../../lib/format";
-import { inputStyle, buttonStyle } from "../../components/ui";
+import { inputStyle, buttonStyle, thStyle, tdStyle } from "../../components/ui";
 import TriMenu, { appliquerTri } from "../../components/TriMenu";
 
 const MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
@@ -24,7 +24,7 @@ export default function BoisChauffagePage() {
 
   useEffect(() => {
     (async () => {
-      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, prix_unitaire_ht, remise_pct").limit(10000);
+      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, prix_unitaire_ht, remise_pct, date_livraison").limit(10000);
       const boisLignes = (lignesBc || []).filter((l) => l.designation.toLowerCase().includes("bois de chauffage") || l.designation.toLowerCase().includes("bois chauffage"));
       if (boisLignes.length === 0) { setEvenements([]); setLoading(false); return; }
 
@@ -38,6 +38,9 @@ export default function BoisChauffagePage() {
         lignesReceptionList = data || [];
       }
 
+      // Date retenue par ligne : la date de livraison réelle saisie sur la ligne
+      // (un voyage/jour = une ligne) si elle existe, sinon la date de réception
+      // globale du BC (anciennes données, avant ce champ) en dernier recours.
       const evts = lignesReceptionList.map((lr) => {
         const reception = (receptionsList || []).find((r) => r.id === lr.reception_id);
         const commande = reception ? (commandesList || []).find((c) => c.id === reception.bc_id) : null;
@@ -46,7 +49,7 @@ export default function BoisChauffagePage() {
         const pu = ligneBc ? Number(ligneBc.prix_unitaire_ht) || 0 : 0;
         const remise = ligneBc ? Number(ligneBc.remise_pct) || 0 : 0;
         return {
-          date: reception?.date_reception_reelle ? reception.date_reception_reelle.slice(0, 10) : null,
+          date: ligneBc?.date_livraison ? ligneBc.date_livraison.slice(0, 10) : (reception?.date_reception_reelle ? reception.date_reception_reelle.slice(0, 10) : null),
           fournisseur: commande?.fournisseur_nom || "Inconnu",
           m3: qte,
           montant: qte * pu * (1 - remise / 100),
@@ -188,16 +191,16 @@ export default function BoisChauffagePage() {
                       {tableauJournalier.map((j) => (
                         <tr key={j.date}>
                           <td style={tdStyle}>{formatDate(j.date)}</td>
-                          {fournisseurs.map((f) => <td key={f} style={tdStyle}>{j.parFournisseur[f] ? j.parFournisseur[f].toLocaleString("fr-FR") : "-"}</td>)}
-                          <td style={{ ...tdStyle, fontWeight: 600 }}>{j.total.toLocaleString("fr-FR")}</td>
+                          {fournisseurs.map((f) => <td key={f} style={tdStyle}>{j.parFournisseur[f] ? j.parFournisseur[f].toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}</td>)}
+                          <td style={{ ...tdStyle, fontWeight: 600 }}>{j.total.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
                       <tr style={{ borderTop: "2px solid #ddd" }}>
                         <td style={{ ...tdStyle, fontWeight: 700 }}>Total</td>
-                        {fournisseurs.map((f) => <td key={f} style={{ ...tdStyle, fontWeight: 700 }}>{(totauxParFournisseurPeriode[f] || 0).toLocaleString("fr-FR")}</td>)}
-                        <td style={{ ...tdStyle, fontWeight: 700 }}>{totalGeneralPeriode.toLocaleString("fr-FR")}</td>
+                        {fournisseurs.map((f) => <td key={f} style={{ ...tdStyle, fontWeight: 700 }}>{(totauxParFournisseurPeriode[f] || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>)}
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>{totalGeneralPeriode.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -229,9 +232,9 @@ export default function BoisChauffagePage() {
                       {recapAnnuel.map((r) => (
                         <tr key={r.fournisseur}>
                           <td style={tdStyle}>{r.fournisseur}</td>
-                          {r.parMois.map((v, i) => <td key={i} style={tdStyle}>{v ? v.toLocaleString("fr-FR") : "-"}</td>)}
-                          <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalM3.toLocaleString("fr-FR")}</td>
-                          <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalMontant.toLocaleString("fr-FR")} Ar</td>
+                          {r.parMois.map((v, i) => <td key={i} style={tdStyle}>{v ? v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}</td>)}
+                          <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalM3.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td style={{ ...tdStyle, fontWeight: 600 }}>{r.totalMontant.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                         </tr>
                       ))}
                     </tbody>
@@ -247,7 +250,5 @@ export default function BoisChauffagePage() {
 }
 
 const smallBtn = { padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer" };
-const thStyle = { textAlign: "left", padding: "9px 10px", color: "#8A8F98", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #ECEBE6", background: "#FAFAF8", whiteSpace: "nowrap", position: "sticky", top: 0, zIndex: 1 };
-const tdStyle = { padding: "8px 10px", whiteSpace: "nowrap" };
 const sousOnglet = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#888", textDecoration: "none", background: "transparent" };
 const sousOngletActif = { fontSize: 13, padding: "6px 14px", borderRadius: 8, color: "#1B2430", fontWeight: 600, background: "#fff" };
