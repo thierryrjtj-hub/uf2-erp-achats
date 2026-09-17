@@ -259,9 +259,9 @@ function NouveauBCDirectInner() {
         <button onClick={addLigne} style={{ ...buttonStyle, background: "#888" }}>+ Ajouter une ligne</button>
 
         <div style={{ marginTop: 16, fontSize: 13 }}>
-          <div>Total HT : <strong>{totaux.ht.toLocaleString("fr-FR")} Ar</strong></div>
-          <div>TVA : {assujettiTva ? `${tva.toLocaleString("fr-FR")} Ar` : "Non taxable"}</div>
-          <div>Total TTC : <strong>{ttc.toLocaleString("fr-FR")} Ar</strong></div>
+          <div>Total HT : <strong>{totaux.ht.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></div>
+          <div>TVA : {assujettiTva ? `${tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "Non taxable"}</div>
+          <div>Total TTC : <strong>{ttc.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></div>
         </div>
 
         <div style={{ marginTop: 16 }}>
