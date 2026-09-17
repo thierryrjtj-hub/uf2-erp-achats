@@ -572,11 +572,7 @@ export default function TCODetailPage() {
             )}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <select value={orientation} onChange={(e) => setOrientation(e.target.value)} style={inputStyle} title="Orientation d'impression du TCO">
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Paysage</option>
-            </select>
-            <button onClick={() => window.print()} style={buttonStyle}>Imprimer le comparatif</button>
+            <button onClick={() => window.print()} style={buttonStyle}>Imprimer la demande</button>
           </div>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -650,7 +646,16 @@ export default function TCODetailPage() {
       </div>
 
       <CadreExtensible titre="Tableau comparatif (TCO)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Tableau comparatif (TCO)</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+          <h2 style={{ fontSize: 15 }}>Tableau comparatif (TCO)</h2>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select value={orientation} onChange={(e) => setOrientation(e.target.value)} style={inputStyle} title="Orientation d'impression du TCO">
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Paysage</option>
+            </select>
+            <button onClick={() => window.print()} style={buttonStyle}>Imprimer le comparatif</button>
+          </div>
+        </div>
 
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           <Autocomplete
