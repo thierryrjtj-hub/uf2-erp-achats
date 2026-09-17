@@ -11,7 +11,7 @@ const LINKS = [
     children: [
       { href: "/demandes", label: "Liste des demandes" },
       { href: "/demandes/nouvelle", label: "Nouvelle demande" },
-      { href: "/petite-caisse", label: "Petite caisse" },
+      { href: "/petite-caisse", label: "Achat en petite caisse" },
       { href: "/carburant-gaz", label: "Carburant / Gaz" },
     ],
   },
