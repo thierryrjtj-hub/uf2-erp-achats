@@ -96,9 +96,15 @@ export default function PetiteCaissePage() {
   // (fiche de décaissement) avant même la saisie ici : pas besoin de re-signer
   // un BC, il est donc créé et clôturé directement, marqué payé en espèce.
   const creerDemandeEtBc = async (form, userId) => {
+    let numeroDa = null;
+    const annee = Number(new Date().getFullYear().toString().slice(-2));
+    const { data: n } = await supabase.rpc("next_numero_da", { p_prefixe: "CAIS", p_annee: annee });
+    if (n != null) numeroDa = `CAIS-${String(n).padStart(4, "0")}-${annee}`;
+
     const { data: demande } = await supabase.from("demandes").insert({
       demandeur: form.signataire_direction || null, motif_projet: form.motif || form.article,
       statut: "Basculée en commande", observation: OBSERVATION_PETITE_CAISSE, created_by: userId,
+      date_da: form.date_demande || null, numero_da: numeroDa,
     }).select().single();
     if (!demande) return;
 
