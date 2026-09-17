@@ -2,17 +2,19 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
+import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
 
 const empty = {
   date_operation: new Date().toISOString().slice(0, 10), type: "Carburant", vehicule_equipement: "",
-  carte_fournisseur: "", quantite: "", unite: "L", montant: "", responsable: "", observation: "",
+  article: "", carte_fournisseur: "", quantite: "", unite: "L", montant: "", responsable: "", observation: "",
 };
 
 export default function CarburantGazPage() {
   const role = useRole();
   const [liste, setListe] = useState([]);
+  const [articlesBase, setArticlesBase] = useState([]);
   const [loading, setLoading] = useState(true);
   const [nouveauOuvert, setNouveauOuvert] = useState(false);
   const [form, setForm] = useState(empty);
@@ -25,10 +27,34 @@ export default function CarburantGazPage() {
   const charger = async () => {
     const { data } = await supabase.from("carburant_gaz").select("*").order("date_operation", { ascending: false }).limit(5000);
     setListe(data || []);
+    const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
+    setArticlesBase(art || []);
     setLoading(false);
   };
 
   useEffect(() => { charger(); }, []);
+
+  const resoudreSuccesseur = (article) => {
+    let courant = article;
+    const vus = new Set();
+    while (courant?.continue_par_id && !vus.has(courant.id)) {
+      vus.add(courant.id);
+      const suivant = articlesBase.find((a) => a.id === courant.continue_par_id);
+      if (!suivant) break;
+      courant = suivant;
+    }
+    return courant;
+  };
+
+  const onArticleChange = (val) => {
+    const matchBrut = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
+    if (matchBrut) {
+      const final = resoudreSuccesseur(matchBrut);
+      setForm((prev) => ({ ...prev, article: final.designation, unite: final.unite_defaut || prev.unite }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, article: val }));
+  };
 
   const vehicules = useMemo(() => [...new Set(liste.map((p) => p.vehicule_equipement).filter(Boolean))].sort(), [liste]);
 
@@ -38,16 +64,65 @@ export default function CarburantGazPage() {
 
   const totalMontant = useMemo(() => filtrees.reduce((s, p) => s + (Number(p.montant) || 0), 0), [filtrees]);
 
+  // Trouve ou crée le fournisseur (nom de la carte / station) pour rattacher le BC
+  const idFournisseur = async (nomFournisseur) => {
+    const nom = nomFournisseur?.trim() || "Carburant / Gaz (carte)";
+    const { data: existant } = await supabase.from("fournisseurs").select("id").eq("nom", nom).maybeSingle();
+    if (existant) return { id: existant.id, nom };
+    const { data: cree } = await supabase.from("fournisseurs").insert({ nom }).select().single();
+    return { id: cree?.id || null, nom };
+  };
+
+  // Achat déjà autorisé via la carte (ticket gardé par l'assistante de direction) :
+  // pas de signature de BC à faire, mais reste à facturer/payer via la facture
+  // mensuelle du fournisseur — donc statut paiement laissé "Impayé" par défaut.
+  const creerDemandeEtBc = async (form, userId) => {
+    const observation = `Achat par carte ${form.type.toLowerCase()} — ${form.vehicule_equipement}`;
+    const { data: demande } = await supabase.from("demandes").insert({
+      demandeur: form.responsable || null, motif_projet: `${form.type} — ${form.vehicule_equipement}`,
+      statut: "Basculée en commande", observation, created_by: userId,
+    }).select().single();
+    if (!demande) return;
+
+    const designation = form.article || form.type;
+    await supabase.from("lignes_demande").insert({
+      demande_id: demande.id, designation, quantite: Number(form.quantite) || 1, unite: form.unite,
+    });
+
+    const fournisseur = await idFournisseur(form.carte_fournisseur);
+    const montant = Number(form.montant) || 0;
+    const { data: bc } = await supabase.from("commandes").insert({
+      demande_id: demande.id, fournisseur_id: fournisseur.id, fournisseur_nom: fournisseur.nom,
+      assujetti_tva: false, montant_ht: montant, montant_tva: 0, montant_ttc: montant,
+      statut_paiement: "Impayé", observation, created_by: userId,
+    }).select().single();
+    if (!bc) return;
+
+    const { data: ligneBc } = await supabase.from("lignes_bc").insert({
+      bc_id: bc.id, designation, quantite: Number(form.quantite) || 1, unite: form.unite,
+      prix_unitaire_ht: montant / (Number(form.quantite) || 1), remise_pct: 0, montant_ht: montant,
+    }).select().single();
+
+    const { data: reception } = await supabase.from("receptions").insert({
+      bc_id: bc.id, statut: "Totale", date_reception_reelle: form.date_operation,
+      receptionnaire: `Achat direct (carte ${form.type.toLowerCase()})`, confirme_par: form.responsable || form.type,
+    }).select().single();
+    if (reception && ligneBc) {
+      await supabase.from("lignes_reception").insert({ reception_id: reception.id, ligne_bc_id: ligneBc.id, quantite_livree: Number(form.quantite) || 1 });
+    }
+  };
+
   const creer = async () => {
-    if (!form.vehicule_equipement.trim()) return;
+    if (!form.vehicule_equipement.trim() || !form.article.trim()) return;
     setEnvoi(true);
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("carburant_gaz").insert({
       date_operation: form.date_operation, type: form.type, vehicule_equipement: form.vehicule_equipement,
-      carte_fournisseur: form.carte_fournisseur || null, quantite: form.quantite === "" ? null : Number(form.quantite),
+      article: form.article, carte_fournisseur: form.carte_fournisseur || null, quantite: form.quantite === "" ? null : Number(form.quantite),
       unite: form.unite, montant: form.montant === "" ? null : Number(form.montant),
       responsable: form.responsable || null, observation: form.observation || null, created_by: user?.id || null,
     });
+    await creerDemandeEtBc(form, user?.id || null);
     setEnvoi(false);
     setForm(empty);
     setNouveauOuvert(false);
@@ -58,7 +133,7 @@ export default function CarburantGazPage() {
     setEditId(p.id);
     setEditForm({
       date_operation: p.date_operation, type: p.type, vehicule_equipement: p.vehicule_equipement,
-      carte_fournisseur: p.carte_fournisseur || "", quantite: p.quantite ?? "", unite: p.unite || "L",
+      article: p.article || "", carte_fournisseur: p.carte_fournisseur || "", quantite: p.quantite ?? "", unite: p.unite || "L",
       montant: p.montant ?? "", responsable: p.responsable || "", observation: p.observation || "",
     });
   };
@@ -66,7 +141,7 @@ export default function CarburantGazPage() {
   const enregistrerEdition = async () => {
     const payload = {
       date_operation: editForm.date_operation, type: editForm.type, vehicule_equipement: editForm.vehicule_equipement,
-      carte_fournisseur: editForm.carte_fournisseur || null, quantite: editForm.quantite === "" ? null : Number(editForm.quantite),
+      article: editForm.article || null, carte_fournisseur: editForm.carte_fournisseur || null, quantite: editForm.quantite === "" ? null : Number(editForm.quantite),
       unite: editForm.unite, montant: editForm.montant === "" ? null : Number(editForm.montant),
       responsable: editForm.responsable || null, observation: editForm.observation || null,
     };
@@ -77,7 +152,7 @@ export default function CarburantGazPage() {
   };
 
   const supprimer = async (id) => {
-    if (!confirm("Supprimer cette ligne ?")) return;
+    if (!confirm("Supprimer cette ligne ? (la demande et le BC déjà créés ne sont pas supprimés automatiquement)")) return;
     await supabase.from("carburant_gaz").delete().eq("id", id);
     charger();
   };
@@ -91,6 +166,11 @@ export default function CarburantGazPage() {
 
       {nouveauOuvert && (
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
+          <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
+            Dès l'enregistrement, une demande et un bon de commande sont créés automatiquement (achat déjà
+            autorisé via la carte, pas de signature à faire), visibles dans les listes Demandes/Commandes et
+            dans l'historique.
+          </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
             <input type="date" value={form.date_operation} onChange={(e) => setForm({ ...form, date_operation: e.target.value })} style={{ ...inputStyle, width: 150 }} />
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, width: 130 }}>
@@ -98,10 +178,17 @@ export default function CarburantGazPage() {
               <option>Gaz</option>
             </select>
             <input placeholder="Véhicule / équipement (ex: 4107 TCD, Groupe électrogène...)" value={form.vehicule_equipement} onChange={(e) => setForm({ ...form, vehicule_equipement: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-            <input placeholder="N° carte / fournisseur" value={form.carte_fournisseur} onChange={(e) => setForm({ ...form, carte_fournisseur: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <input placeholder="N° carte / fournisseur (ex: Jovena, Galana)" value={form.carte_fournisseur} onChange={(e) => setForm({ ...form, carte_fournisseur: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input type="number" placeholder="Quantité" value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} style={{ ...inputStyle, width: 120 }} />
+            <Autocomplete
+              placeholder="Article (recherche dans la liste des articles)"
+              value={form.article}
+              onChange={onArticleChange}
+              suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
+              style={{ flex: 2 }}
+            />
+            <input type="number" placeholder="Quantité" value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} style={{ ...inputStyle, width: 100 }} />
             <select value={form.unite} onChange={(e) => setForm({ ...form, unite: e.target.value })} style={{ ...inputStyle, width: 90 }}>
               <option value="L">L</option>
               <option value="kg">kg</option>
@@ -138,6 +225,7 @@ export default function CarburantGazPage() {
               <th style={thStyle}>Type</th>
               <th style={thStyle}>Véhicule / équipement</th>
               <th style={thStyle}>Carte / fournisseur</th>
+              <th style={thStyle}>Article</th>
               <th style={thStyle}>Quantité</th>
               <th style={thStyle}>Montant</th>
               <th style={thStyle}>Responsable</th>
@@ -159,7 +247,8 @@ export default function CarburantGazPage() {
                       </td>
                       <td style={tdStyle}><input value={editForm.vehicule_equipement} onChange={(e) => setEditForm({ ...editForm, vehicule_equipement: e.target.value })} style={{ ...inputStyle, width: "100%" }} /></td>
                       <td style={tdStyle}><input value={editForm.carte_fournisseur} onChange={(e) => setEditForm({ ...editForm, carte_fournisseur: e.target.value })} style={{ ...inputStyle, width: "100%" }} /></td>
-                      <td style={tdStyle}>
+                      <td style={tdStyle}><input value={editForm.article} onChange={(e) => setEditForm({ ...editForm, article: e.target.value })} style={{ ...inputStyle, width: "100%" }} /></td>
+                      <td style={tdStyle} colSpan={2}>
                         <input type="number" value={editForm.quantite} onChange={(e) => setEditForm({ ...editForm, quantite: e.target.value })} style={{ ...inputStyle, width: 80, marginRight: 4 }} />
                         {editForm.unite}
                       </td>
@@ -176,6 +265,7 @@ export default function CarburantGazPage() {
                       <td style={tdStyle}>{p.type}</td>
                       <td style={tdStyle}>{p.vehicule_equipement}</td>
                       <td style={tdStyle}>{p.carte_fournisseur || "—"}</td>
+                      <td style={tdStyle}>{p.article || "—"}</td>
                       <td style={tdStyle}>{p.quantite ? `${p.quantite} ${p.unite || ""}` : "—"}</td>
                       <td style={tdStyle}>{p.montant ? `${Number(p.montant).toLocaleString("fr-FR")} Ar` : "—"}</td>
                       <td style={tdStyle}>{p.responsable || "—"}</td>
