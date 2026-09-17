@@ -31,7 +31,7 @@ export default function CarburantGazPage() {
     setListe(data || []);
     const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
     setArticlesBase(art || []);
-    const { data: f } = await supabase.from("fournisseurs").select("id, nom").order("nom").limit(10000);
+    const { data: f } = await supabase.from("fournisseurs").select("id, nom, tva_defaut_pct").order("nom").limit(10000);
     setFournisseurs(f || []);
     setLoading(false);
   };
@@ -96,17 +96,20 @@ export default function CarburantGazPage() {
     const fournisseurChoisi = fournisseurs.find((f) => f.nom === form.carte_fournisseur);
     const fournisseurId = fournisseurChoisi ? fournisseurChoisi.id : await idFournisseurDivers();
     const fournisseurNom = fournisseurChoisi ? fournisseurChoisi.nom : "Fournisseurs divers";
+    const assujetti = fournisseurChoisi ? fournisseurChoisi.tva_defaut_pct !== 0 : true;
     const montant = Number(form.montant) || 0;
+    const montantHt = assujetti ? montant / 1.2 : montant;
+    const tva = assujetti ? montant - montantHt : 0;
     const { data: bc } = await supabase.from("commandes").insert({
       demande_id: demande.id, fournisseur_id: fournisseurId, fournisseur_nom: fournisseurNom,
-      assujetti_tva: false, montant_ht: montant, montant_tva: 0, montant_ttc: montant,
+      assujetti_tva: assujetti, montant_ht: montantHt, montant_tva: tva, montant_ttc: montant,
       statut_paiement: "Impayé", observation, created_by: userId,
     }).select().single();
     if (!bc) return;
 
     const { data: ligneBc } = await supabase.from("lignes_bc").insert({
       bc_id: bc.id, designation, quantite: Number(form.quantite) || 1, unite: form.unite,
-      prix_unitaire_ht: montant / (Number(form.quantite) || 1), remise_pct: 0, montant_ht: montant,
+      prix_unitaire_ht: montantHt / (Number(form.quantite) || 1), remise_pct: 0, montant_ht: montantHt,
     }).select().single();
 
     const { data: reception } = await supabase.from("receptions").insert({
@@ -201,12 +204,8 @@ export default function CarburantGazPage() {
               style={{ flex: 2 }}
             />
             <input type="number" placeholder="Quantité" value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} style={{ ...inputStyle, width: 100 }} />
-            <select value={form.unite} onChange={(e) => setForm({ ...form, unite: e.target.value })} style={{ ...inputStyle, width: 90 }}>
-              <option value="L">L</option>
-              <option value="kg">kg</option>
-              <option value="m3">m3</option>
-            </select>
-            <input type="number" placeholder="Montant (Ar)" value={form.montant} onChange={(e) => setForm({ ...form, montant: e.target.value })} style={{ ...inputStyle, width: 150 }} />
+            <input placeholder="Unité" value={form.unite} onChange={(e) => setForm({ ...form, unite: e.target.value })} style={{ ...inputStyle, width: 90 }} />
+            <input type="number" placeholder="Montant TTC (Ar)" title="Montant total payé, TVA comprise (le HT est recalculé automatiquement selon le fournisseur)" value={form.montant} onChange={(e) => setForm({ ...form, montant: e.target.value })} style={{ ...inputStyle, width: 160 }} />
             <input placeholder="Responsable / chauffeur" value={form.responsable} onChange={(e) => setForm({ ...form, responsable: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           </div>
           <button onClick={creer} disabled={envoi} style={{ ...buttonStyle, marginTop: 10 }}>{envoi ? "Création..." : "Enregistrer"}</button>
@@ -224,7 +223,7 @@ export default function CarburantGazPage() {
             <option value="">Tous les véhicules/équipements</option>
             {vehicules.map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
-          <span style={{ fontSize: 13, color: "#666" }}>Total : <strong>{totalMontant.toLocaleString("fr-FR")} Ar</strong></span>
+          <span style={{ fontSize: 13, color: "#666" }}>Total : <strong>{totalMontant.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></span>
         </div>
 
         {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
@@ -279,7 +278,7 @@ export default function CarburantGazPage() {
                       <td style={tdStyle}>{p.carte_fournisseur || "—"}</td>
                       <td style={tdStyle}>{p.article || "—"}</td>
                       <td style={tdStyle}>{p.quantite ? `${p.quantite} ${p.unite || ""}` : "—"}</td>
-                      <td style={tdStyle}>{p.montant ? `${Number(p.montant).toLocaleString("fr-FR")} Ar` : "—"}</td>
+                      <td style={tdStyle}>{p.montant ? `${Number(p.montant).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "—"}</td>
                       <td style={tdStyle}>{p.responsable || "—"}</td>
                       <td style={tdStyle}>
                         <button onClick={() => modifier(p)} style={linkBtn}>Modifier</button>
