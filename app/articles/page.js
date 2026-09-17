@@ -127,8 +127,8 @@ export default function ArticlesListePage() {
   const copierFiche = async (a, dernier) => {
     const texte = [
       a.designation, a.unite_defaut && `Unité : ${a.unite_defaut}`, a.categorieNom && `Catégorie : ${a.categorieNom}`,
-      a.dernier_prix_ht && `Dernier prix HT (référence) : ${Number(a.dernier_prix_ht).toLocaleString("fr-FR")} Ar`,
-      dernier && `Dernier achat réel : ${dernier.fournisseur} — ${dernier.pu.toLocaleString("fr-FR")} Ar HT le ${formatDate(dernier.date)} (BC ${dernier.bc})`,
+      a.dernier_prix_ht && `Dernier prix HT (référence) : ${Number(a.dernier_prix_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`,
+      dernier && `Dernier achat réel : ${dernier.fournisseur} — ${dernier.pu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar HT le ${formatDate(dernier.date)} (BC ${dernier.bc})`,
     ].filter(Boolean).join("\n");
     try { await navigator.clipboard.writeText(texte); } catch (e) {}
   };
@@ -255,18 +255,18 @@ export default function ArticlesListePage() {
                       <div style={grid}>
                         <Champ label="Unité d'achat" value={a.unite_defaut} />
                         <Champ label="Catégorie" value={a.categorieNom} />
-                        <Champ label="Dernier prix HT (référence)" value={a.dernier_prix_ht ? `${Number(a.dernier_prix_ht).toLocaleString("fr-FR")} Ar` : ""} />
+                        <Champ label="Dernier prix HT (référence)" value={a.dernier_prix_ht ? `${Number(a.dernier_prix_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""} />
                       </div>
                       {dernier ? (
                         <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #f0f0f0" }}>
                           <div style={champLabel}>Dernier achat réel</div>
                           <div style={{ fontSize: 13, marginTop: 2 }}>
-                            <strong>{dernier.fournisseur}</strong> — {dernier.pu.toLocaleString("fr-FR")} Ar HT
-                            ({dernier.puTtc.toLocaleString("fr-FR")} Ar TTC) — qté {dernier.qte} — le {formatDate(dernier.date)} — BC {dernier.bc}
+                            <strong>{dernier.fournisseur}</strong> — {dernier.pu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar HT
+                            ({dernier.puTtc.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar TTC) — qté {dernier.qte} — le {formatDate(dernier.date)} — BC {dernier.bc}
                           </div>
                           {autres.length > 0 && (
                             <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
-                              Autres fournisseurs consultés : {autres.map((h) => `${h.fournisseur} (${h.pu.toLocaleString("fr-FR")} Ar)`).join(", ")}
+                              Autres fournisseurs consultés : {autres.map((h) => `${h.fournisseur} (${h.pu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar)`).join(", ")}
                             </div>
                           )}
                         </div>
