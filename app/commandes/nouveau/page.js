@@ -38,9 +38,21 @@ function NouveauBCDirectInner() {
   useEffect(() => {
     (async () => {
       const { data: f } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
-      const { data: a } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht").limit(10000);
+      const { data: a } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id").limit(10000);
       setFournisseurs(f || []);
       setArticlesBase(a || []);
+
+      const resoudre = (article) => {
+        let courant = article;
+        const vus = new Set();
+        while (courant?.continue_par_id && !vus.has(courant.id)) {
+          vus.add(courant.id);
+          const suivant = (a || []).find((x) => x.id === courant.continue_par_id);
+          if (!suivant) break;
+          courant = suivant;
+        }
+        return courant;
+      };
 
       if (demandeId) {
         const { data: d } = await supabase.from("demandes").select("*").eq("id", demandeId).maybeSingle();
@@ -48,9 +60,10 @@ function NouveauBCDirectInner() {
         const { data: ld } = await supabase.from("lignes_demande").select("*").eq("demande_id", demandeId).order("created_at");
         if (ld && ld.length) {
           setLignes(ld.map((l) => {
-            const art = (a || []).find((x) => x.designation.toLowerCase() === l.designation.toLowerCase());
+            const artBrut = (a || []).find((x) => x.designation.toLowerCase() === l.designation.toLowerCase());
+            const art = artBrut ? resoudre(artBrut) : null;
             return {
-              key: l.id, ligne_demande_id: l.id, designation: l.designation, quantite: l.quantite, unite: l.unite,
+              key: l.id, ligne_demande_id: l.id, designation: art ? art.designation : l.designation, quantite: l.quantite, unite: art?.unite_defaut || l.unite,
               prix_unitaire_ht: art?.dernier_prix_ht || "", remise_pct: 0, date_livraison: l.date_livraison || "",
             };
           }));
@@ -68,13 +81,29 @@ function NouveauBCDirectInner() {
   const addLigne = () => setLignes([...lignes, ligneVide()]);
   const removeLigne = (key) => setLignes(lignes.filter((l) => l.key !== key));
 
-  const onDesignationChange = (key, val) => {
-    updateLigne(key, "designation", val);
-    const match = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
-    if (match) {
-      updateLigne(key, "unite", match.unite_defaut || "pcs");
-      if (match.dernier_prix_ht) updateLigne(key, "prix_unitaire_ht", match.dernier_prix_ht);
+  // Suit la chaîne "continue par" jusqu'au dernier article en vigueur (protection anti-boucle)
+  const resoudreSuccesseur = (article) => {
+    let courant = article;
+    const vus = new Set();
+    while (courant?.continue_par_id && !vus.has(courant.id)) {
+      vus.add(courant.id);
+      const suivant = articlesBase.find((a) => a.id === courant.continue_par_id);
+      if (!suivant) break;
+      courant = suivant;
     }
+    return courant;
+  };
+
+  const onDesignationChange = (key, val) => {
+    const matchBrut = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
+    if (matchBrut) {
+      const final = resoudreSuccesseur(matchBrut);
+      updateLigne(key, "designation", final.designation);
+      if (final.unite_defaut) updateLigne(key, "unite", final.unite_defaut);
+      if (final.dernier_prix_ht) updateLigne(key, "prix_unitaire_ht", final.dernier_prix_ht);
+      return;
+    }
+    updateLigne(key, "designation", val);
   };
 
   const onUniteBlur = async (designation, unite) => {
@@ -216,7 +245,7 @@ function NouveauBCDirectInner() {
               placeholder="Désignation"
               value={l.designation}
               onChange={(val) => onDesignationChange(l.key, val)}
-              suggestions={articlesBase.map((a) => a.designation)}
+              suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
               style={{ flex: 2, minWidth: 160 }}
             />
             <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
