@@ -9,7 +9,7 @@ import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../component
 
 const empty = {
   date_demande: new Date().toISOString().slice(0, 10), article: "", quantite: 1, unite: "pcs",
-  motif: "", montant_demande: "",
+  fournisseur: "", motif: "", montant_demande: "",
   signataire_direction: "", date_signature: "", montant_depense: "", justificatif: "", observation: "",
 };
 
@@ -26,12 +26,13 @@ const COULEUR_STATUT = {
 };
 
 const OBSERVATION_PETITE_CAISSE = "Achat en petite caisse — Payé en espèce";
-const NOM_FOURNISSEUR_PETITE_CAISSE = "Petite caisse (achat direct)";
+const NOM_FOURNISSEUR_DIVERS = "Fournisseurs divers";
 
 export default function PetiteCaissePage() {
   const role = useRole();
   const [liste, setListe] = useState([]);
   const [articlesBase, setArticlesBase] = useState([]);
+  const [fournisseurs, setFournisseurs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [nouveauOuvert, setNouveauOuvert] = useState(false);
   const [form, setForm] = useState(empty);
@@ -45,6 +46,8 @@ export default function PetiteCaissePage() {
     setListe(data || []);
     const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
     setArticlesBase(art || []);
+    const { data: f } = await supabase.from("fournisseurs").select("id, nom").order("nom").limit(10000);
+    setFournisseurs(f || []);
     setLoading(false);
   };
 
@@ -79,11 +82,12 @@ export default function PetiteCaissePage() {
 
   const total = useMemo(() => filtrees.reduce((s, p) => s + (Number(p.montant_depense) || Number(p.montant_demande) || 0), 0), [filtrees]);
 
-  // Trouve ou crée le fournisseur générique "Petite caisse (achat direct)"
-  const idFournisseurPetiteCaisse = async () => {
-    const { data: existant } = await supabase.from("fournisseurs").select("id").eq("nom", NOM_FOURNISSEUR_PETITE_CAISSE).maybeSingle();
+  // Trouve ou crée le fournisseur "Fournisseurs divers" (utilisé si aucun
+  // fournisseur précis n'a été sélectionné à la saisie)
+  const idFournisseurDivers = async () => {
+    const { data: existant } = await supabase.from("fournisseurs").select("id").eq("nom", NOM_FOURNISSEUR_DIVERS).maybeSingle();
     if (existant) return existant.id;
-    const { data: cree } = await supabase.from("fournisseurs").insert({ nom: NOM_FOURNISSEUR_PETITE_CAISSE, type_reglement: "Espèces" }).select().single();
+    const { data: cree } = await supabase.from("fournisseurs").insert({ nom: NOM_FOURNISSEUR_DIVERS, type_reglement: "Espèces" }).select().single();
     return cree?.id || null;
   };
 
@@ -101,10 +105,12 @@ export default function PetiteCaissePage() {
       demande_id: demande.id, designation: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
     });
 
-    const fournisseurId = await idFournisseurPetiteCaisse();
+    const fournisseurChoisi = fournisseurs.find((f) => f.nom === form.fournisseur);
+    const fournisseurId = fournisseurChoisi ? fournisseurChoisi.id : await idFournisseurDivers();
+    const fournisseurNom = fournisseurChoisi ? fournisseurChoisi.nom : NOM_FOURNISSEUR_DIVERS;
     const montant = Number(form.montant_demande) || 0;
     const { data: bc } = await supabase.from("commandes").insert({
-      demande_id: demande.id, fournisseur_id: fournisseurId, fournisseur_nom: NOM_FOURNISSEUR_PETITE_CAISSE,
+      demande_id: demande.id, fournisseur_id: fournisseurId, fournisseur_nom: fournisseurNom,
       assujetti_tva: false, montant_ht: montant, montant_tva: 0, montant_ttc: montant,
       statut_paiement: "Payé", observation: OBSERVATION_PETITE_CAISSE, created_by: userId,
     }).select().single();
@@ -195,6 +201,13 @@ export default function PetiteCaissePage() {
             <input placeholder="Unité" value={form.unite} onChange={(e) => setForm({ ...form, unite: e.target.value })} style={{ ...inputStyle, width: 90 }} />
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Autocomplete
+              placeholder="Fournisseur (laisser vide = Fournisseurs divers, à préciser plus tard)"
+              value={form.fournisseur}
+              onChange={(val) => setForm({ ...form, fournisseur: val })}
+              suggestions={fournisseurs.map((f) => f.nom)}
+              style={{ flex: 1 }}
+            />
             <input placeholder="Motif / précision (optionnel)" value={form.motif} onChange={(e) => setForm({ ...form, motif: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
             <input type="number" placeholder="Montant demandé (Ar)" value={form.montant_demande} onChange={(e) => setForm({ ...form, montant_demande: e.target.value })} style={{ ...inputStyle, width: 180 }} />
           </div>
