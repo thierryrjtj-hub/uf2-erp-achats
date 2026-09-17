@@ -6,6 +6,7 @@ import AuthGuard from "../components/AuthGuard";
 import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
+import { formatDate } from "../../lib/format";
 
 const empty = {
   date_demande: new Date().toISOString().slice(0, 10), article: "", quantite: 1, unite: "pcs",
@@ -267,10 +268,10 @@ export default function PetiteCaissePage() {
                     </>
                   ) : (
                     <>
-                      <td style={tdStyle}>{p.date_demande}</td>
+                      <td style={tdStyle}>{formatDate(p.date_demande)}</td>
                       <td style={tdStyle}>{p.motif}</td>
                       <td style={tdStyle}>{Number(p.montant_demande).toLocaleString("fr-FR")} Ar</td>
-                      <td style={tdStyle}>{p.signataire_direction ? `${p.signataire_direction}${p.date_signature ? ` (${p.date_signature})` : ""}` : "—"}</td>
+                      <td style={tdStyle}>{p.signataire_direction ? `${p.signataire_direction}${p.date_signature ? ` (${formatDate(p.date_signature)})` : ""}` : "—"}</td>
                       <td style={tdStyle}>{p.montant_depense ? `${Number(p.montant_depense).toLocaleString("fr-FR")} Ar` : "—"}</td>
                       <td style={tdStyle}>{p.justificatif || "—"}</td>
                       <td style={tdStyle}>
