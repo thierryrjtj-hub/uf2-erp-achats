@@ -5,6 +5,7 @@ import AuthGuard from "../components/AuthGuard";
 import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
+import { formatDate } from "../../lib/format";
 
 const empty = {
   date_operation: new Date().toISOString().slice(0, 10), type: "Carburant", vehicule_equipement: "",
@@ -272,7 +273,7 @@ export default function CarburantGazPage() {
                     </>
                   ) : (
                     <>
-                      <td style={tdStyle}>{p.date_operation}</td>
+                      <td style={tdStyle}>{formatDate(p.date_operation)}</td>
                       <td style={tdStyle}>{p.type}</td>
                       <td style={tdStyle}>{p.vehicule_equipement}</td>
                       <td style={tdStyle}>{p.carte_fournisseur || "—"}</td>
