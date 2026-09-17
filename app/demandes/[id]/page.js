@@ -94,7 +94,7 @@ export default function TCODetailPage() {
     const { data: ld } = await supabase.from("lignes_demande").select("*").eq("demande_id", id).order("created_at");
     const { data: f } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
     const { data: o } = await supabase.from("offres").select("*").eq("demande_id", id);
-    const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut").limit(10000);
+    const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
     let lo = [];
     if (o && o.length) {
       const { data } = await supabase.from("lignes_offre").select("*").in("offre_id", o.map((x) => x.id));
@@ -307,9 +307,27 @@ export default function TCODetailPage() {
   };
 
   const onDesignationLigneChange = (ligneId, val) => {
+    const matchBrut = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
+    if (matchBrut) {
+      const final = resoudreSuccesseurArticle(matchBrut);
+      majLigneDemande(ligneId, "designation", final.designation);
+      if (final.unite_defaut) majLigneDemande(ligneId, "unite", final.unite_defaut);
+      return;
+    }
     majLigneDemande(ligneId, "designation", val);
-    const match = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
-    if (match) majLigneDemande(ligneId, "unite", match.unite_defaut || "pcs");
+  };
+
+  // Suit la chaîne "continue par" jusqu'au dernier article en vigueur (protection anti-boucle)
+  const resoudreSuccesseurArticle = (article) => {
+    let courant = article;
+    const vus = new Set();
+    while (courant?.continue_par_id && !vus.has(courant.id)) {
+      vus.add(courant.id);
+      const suivant = articlesBase.find((a) => a.id === courant.continue_par_id);
+      if (!suivant) break;
+      courant = suivant;
+    }
+    return courant;
   };
 
   const onUniteLigneBlur = async (designation, unite) => {
@@ -586,7 +604,7 @@ export default function TCODetailPage() {
                     <Autocomplete
                       value={l.designation}
                       onChange={(val) => onDesignationLigneChange(l.id, val)}
-                      suggestions={articlesBase.map((a) => a.designation)}
+                      suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
                       style={{ width: "100%" }}
                     />
                   )}
