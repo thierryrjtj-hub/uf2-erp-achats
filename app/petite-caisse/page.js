@@ -47,7 +47,7 @@ export default function PetiteCaissePage() {
     setListe(data || []);
     const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
     setArticlesBase(art || []);
-    const { data: f } = await supabase.from("fournisseurs").select("id, nom").order("nom").limit(10000);
+    const { data: f } = await supabase.from("fournisseurs").select("id, nom, tva_defaut_pct").order("nom").limit(10000);
     setFournisseurs(f || []);
     setLoading(false);
   };
@@ -109,17 +109,20 @@ export default function PetiteCaissePage() {
     const fournisseurChoisi = fournisseurs.find((f) => f.nom === form.fournisseur);
     const fournisseurId = fournisseurChoisi ? fournisseurChoisi.id : await idFournisseurDivers();
     const fournisseurNom = fournisseurChoisi ? fournisseurChoisi.nom : NOM_FOURNISSEUR_DIVERS;
+    const assujetti = fournisseurChoisi ? fournisseurChoisi.tva_defaut_pct !== 0 : false;
     const montant = Number(form.montant_demande) || 0;
+    const montantHt = assujetti ? montant / 1.2 : montant;
+    const tva = assujetti ? montant - montantHt : 0;
     const { data: bc } = await supabase.from("commandes").insert({
       demande_id: demande.id, fournisseur_id: fournisseurId, fournisseur_nom: fournisseurNom,
-      assujetti_tva: false, montant_ht: montant, montant_tva: 0, montant_ttc: montant,
+      assujetti_tva: assujetti, montant_ht: montantHt, montant_tva: tva, montant_ttc: montant,
       statut_paiement: "Payé", observation: OBSERVATION_PETITE_CAISSE, created_by: userId,
     }).select().single();
     if (!bc) return;
 
     const { data: ligneBc } = await supabase.from("lignes_bc").insert({
       bc_id: bc.id, designation: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
-      prix_unitaire_ht: montant / (Number(form.quantite) || 1), remise_pct: 0, montant_ht: montant,
+      prix_unitaire_ht: montantHt / (Number(form.quantite) || 1), remise_pct: 0, montant_ht: montantHt,
     }).select().single();
 
     const { data: reception } = await supabase.from("receptions").insert({
@@ -224,7 +227,7 @@ export default function PetiteCaissePage() {
             <option>Décaissé</option>
             <option>Justifié</option>
           </select>
-          <span style={{ fontSize: 13, color: "#666" }}>Total {filtreStatut ? `(${filtreStatut})` : ""} : <strong>{total.toLocaleString("fr-FR")} Ar</strong></span>
+          <span style={{ fontSize: 13, color: "#666" }}>Total {filtreStatut ? `(${filtreStatut})` : ""} : <strong>{total.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></span>
         </div>
 
         {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
@@ -270,9 +273,9 @@ export default function PetiteCaissePage() {
                     <>
                       <td style={tdStyle}>{formatDate(p.date_demande)}</td>
                       <td style={tdStyle}>{p.motif}</td>
-                      <td style={tdStyle}>{Number(p.montant_demande).toLocaleString("fr-FR")} Ar</td>
+                      <td style={tdStyle}>{Number(p.montant_demande).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                       <td style={tdStyle}>{p.signataire_direction ? `${p.signataire_direction}${p.date_signature ? ` (${formatDate(p.date_signature)})` : ""}` : "—"}</td>
-                      <td style={tdStyle}>{p.montant_depense ? `${Number(p.montant_depense).toLocaleString("fr-FR")} Ar` : "—"}</td>
+                      <td style={tdStyle}>{p.montant_depense ? `${Number(p.montant_depense).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "—"}</td>
                       <td style={tdStyle}>{p.justificatif || "—"}</td>
                       <td style={tdStyle}>
                         <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: c.bg, color: c.fg }}>{st}</span>
