@@ -82,7 +82,7 @@ export default function TCODetailPage() {
   const [dejaCouvertes, setDejaCouvertes] = useState(new Set());
   const [bcGeneres, setBcGeneres] = useState([]);
   const [notesTco, setNotesTco] = useState({ remarque: "" });
-  // orientation d'impression du TCO : calculée automatiquement plus bas, voir pagesImpression
+  const [orientationManuelle, setOrientationManuelle] = useState("");
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
@@ -447,9 +447,9 @@ export default function TCODetailPage() {
     pagesImpression.push(offresAvecTotaux.slice(i, i + FOURNISSEURS_PAR_PAGE));
   }
   // Orientation automatique du TCO à l'impression : portrait si 2 fournisseurs
-  // ou moins, paysage au-delà (y compris les pages suivantes, même avec un
-  // seul fournisseur dessus, pour rester cohérent avec la première page).
-  const orientation = offresAvecTotaux.length > 2 ? "landscape" : "portrait";
+  // ou moins, paysage au-delà — reste modifiable manuellement via le menu à
+  // côté du bouton "Imprimer le comparatif" si besoin.
+  const orientation = orientationManuelle || (offresAvecTotaux.length > 2 ? "landscape" : "portrait");
   const dense = lignesDemande.length > 10;
   const cozy = lignesDemande.length <= 3;
   const padCellule = dense ? "2px 4px" : cozy ? "7px 4px" : "4px 4px";
@@ -610,7 +610,7 @@ export default function TCODetailPage() {
                   )}
                 </td>
                 <td style={tdStyle}>
-                  {lectureSeule ? l.quantite.toLocaleString("fr-FR") : (
+                  {lectureSeule ? l.quantite.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (
                     <input
                       type="number" min="0" defaultValue={l.quantite}
                       onBlur={(e) => majLigneDemande(l.id, "quantite", e.target.value)}
@@ -653,6 +653,16 @@ export default function TCODetailPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
           <h2 style={{ fontSize: 15 }}>Tableau comparatif (TCO)</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <select
+              value={orientationManuelle}
+              onChange={(e) => setOrientationManuelle(e.target.value)}
+              style={inputStyle}
+              title="Par défaut automatique (portrait ≤2 fournisseurs, paysage au-delà) — modifiable ici si besoin"
+            >
+              <option value="">Orientation auto ({offresAvecTotaux.length > 2 ? "paysage" : "portrait"})</option>
+              <option value="portrait">Forcer portrait</option>
+              <option value="landscape">Forcer paysage</option>
+            </select>
             <button onClick={() => window.print()} style={buttonStyle}>Imprimer le comparatif</button>
           </div>
         </div>
@@ -754,14 +764,14 @@ export default function TCODetailPage() {
                         {ld.designation}
                         {couverte && <span style={{ marginLeft: 6, fontSize: 11, color: "#1B7A4C" }}>✓ BC déjà généré</span>}
                       </td>
-                      <td style={tdStyle}>{ld.quantite.toLocaleString("fr-FR")}</td>
+                      <td style={tdStyle}>{ld.quantite.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td style={tdStyle}>{ld.unite}</td>
                       <td style={{ ...tdStyle, background: "#EAF7EE", fontSize: 12 }}>
                         {offreRetenue ? (
                           <>
                             <strong>{offreRetenue.fournisseur_nom}</strong><br />
                             {montantRetenu != null ? (
-                              <>HT {montantRetenu.toLocaleString("fr-FR")} Ar</>
+                              <>HT {montantRetenu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</>
                             ) : "-"}
                           </>
                         ) : "-"}
@@ -786,7 +796,7 @@ export default function TCODetailPage() {
                                 onCommit={(v) => majPrix(o.id, ld.id, "prix_unitaire_ht", v)}
                                 tvaPct={o.assujetti_tva === false ? 0 : 20}
                                 disabled={couverte}
-                                style={{ ...inputStyle, width: 80 }}
+                                style={{ ...inputStyle, width: 100 }}
                               />
                               <input
                                 type="number"
@@ -805,28 +815,28 @@ export default function TCODetailPage() {
                 })}
                 <tr style={{ borderTop: "2px solid #eee" }}>
                   <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>Total des articles au prix le moins cher retenu (HT)</td>
-                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.ht.toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.ht.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
-                      {o.totalHT.toLocaleString("fr-FR")} Ar
+                      {o.totalHT.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar
                     </td>
                   ))}
                 </tr>
                 <tr>
                   <td colSpan={4} style={tdStyle}>TVA</td>
-                  <td style={{ ...tdStyle, color: "#1B7A4C" }}>{totalPreconisation.tva.toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdStyle, color: "#1B7A4C" }}>{totalPreconisation.tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={tdStyle}>
-                      {o.assujetti_tva === false ? <span style={{ color: "#999" }}>Non taxable</span> : `${o.tva.toLocaleString("fr-FR")} Ar`}
+                      {o.assujetti_tva === false ? <span style={{ color: "#999" }}>Non taxable</span> : `${o.tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`}
                     </td>
                   ))}
                 </tr>
                 <tr>
                   <td colSpan={4} style={{ ...tdStyle, fontWeight: 600 }}>Total TTC</td>
-                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.ttc.toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.ttc.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
-                      {o.totalTTC.toLocaleString("fr-FR")} Ar
+                      {o.totalTTC.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar
                     </td>
                   ))}
                 </tr>
@@ -909,11 +919,29 @@ export default function TCODetailPage() {
             <div>
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
-                  <col style={{ width: 24 }} /><col style={{ width: 140 }} /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
-                  <col style={{ width: 7 }} />
-                  <col style={{ width: 134 }} />
-                  <col style={{ width: 7 }} />
-                  {page.map((o) => (<Fragment key={o.id}><col style={{ width: 68 }} /><col style={{ width: 52 }} /><col style={{ width: 78 }} /></Fragment>))}
+                  {(() => {
+                    // Largeurs en % de la page (jamais en px fixe) : le tableau tient
+                    // toujours sur une page quel que soit le nombre de fournisseurs,
+                    // pas besoin de réduire l'échelle à l'impression.
+                    const FIXE = { no: 2.5, article: 15, qte: 4, unite: 4.5, gap: 0.5, preco: 13 };
+                    const restant = 100 - (FIXE.no + FIXE.article + FIXE.qte + FIXE.unite + FIXE.gap * 2 + FIXE.preco);
+                    const parFournisseur = restant / Math.max(page.length, 1);
+                    return (
+                      <>
+                        <col style={{ width: `${FIXE.no}%` }} /><col style={{ width: `${FIXE.article}%` }} /><col style={{ width: `${FIXE.qte}%` }} /><col style={{ width: `${FIXE.unite}%` }} />
+                        <col style={{ width: `${FIXE.gap}%` }} />
+                        <col style={{ width: `${FIXE.preco}%` }} />
+                        <col style={{ width: `${FIXE.gap}%` }} />
+                        {page.map((o) => (
+                          <Fragment key={o.id}>
+                            <col style={{ width: `${parFournisseur * 0.345}%` }} />
+                            <col style={{ width: `${parFournisseur * 0.263}%` }} />
+                            <col style={{ width: `${parFournisseur * 0.392}%` }} />
+                          </Fragment>
+                        ))}
+                      </>
+                    );
+                  })()}
                 </colgroup>
                 <thead>
                   <tr>
@@ -970,14 +998,14 @@ export default function TCODetailPage() {
                       <tr key={ld.id}>
                         <td style={{ ...tdTco, textAlign: "center", padding: padCellule, ...boxEdge("left", { last: finRangee, firstCol: true }) }}>{i + 1}</td>
                         <td style={{ ...tdTco, padding: padCellule, ...boxEdge("left", { last: finRangee }) }}>{ld.designation}</td>
-                        <td style={{ ...tdTco, textAlign: "center", padding: padCellule, ...boxEdge("left", { last: finRangee }) }}>{Number(ld.quantite).toLocaleString("fr-FR")}</td>
+                        <td style={{ ...tdTco, textAlign: "center", padding: padCellule, ...boxEdge("left", { last: finRangee }) }}>{Number(ld.quantite).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ ...tdTco, textAlign: "center", padding: padCellule, ...boxEdge("left", { last: finRangee, lastCol: true }) }}>{ld.unite}</td>
                         <td style={{ ...tdTco, border: "none" }}></td>
                         <td style={{ ...tdTco, ...precoColStyle, textAlign: "center", verticalAlign: "middle", padding: "8px 6px", ...boxEdge("mid", { last: finRangee, firstCol: true, lastCol: true }) }}>
                           {offreRetenue ? (
                             <>
                               <div style={{ fontWeight: 700, fontSize: 12.5, color: "#1B7A4C" }}>{offreRetenue.fournisseur_nom}</div>
-                              <div style={{ fontSize: 9.5, color: "#888", marginTop: 2 }}>HT {montantRetenu != null ? montantRetenu.toLocaleString("fr-FR") + " Ar" : "-"}</div>
+                              <div style={{ fontSize: 9.5, color: "#888", marginTop: 2 }}>HT {montantRetenu != null ? montantRetenu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " Ar" : "-"}</div>
                             </>
                           ) : "—"}
                         </td>
@@ -992,9 +1020,9 @@ export default function TCODetailPage() {
                           const styleCellDer = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...boxEdge("right", { last: finRangee, lastCol: idx === page.length - 1 }), fontWeight: estMoinsCher ? 700 : 400, color: estMoinsCher ? "#1B7A4C" : "#1a1a1a" };
                           return (
                             <Fragment key={o.id}>
-                              <td style={styleCell1}>{lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : ""}</td>
+                              <td style={styleCell1}>{lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}</td>
                               <td style={styleCell}>{lo.remise_pct ? `${lo.remise_pct}%` : ""}</td>
-                              <td style={styleCellDer}>{m != null ? `${m.toLocaleString("fr-FR")} Ar` : ""}</td>
+                              <td style={styleCellDer}>{m != null ? `${m.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}</td>
                             </Fragment>
                           );
                         })}
@@ -1010,11 +1038,26 @@ export default function TCODetailPage() {
             <div>
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
-                  <col style={{ width: 24 }} /><col style={{ width: 140 }} /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
-                  <col style={{ width: 7 }} />
-                  <col style={{ width: 134 }} />
-                  <col style={{ width: 7 }} />
-                  {page.map((o) => (<Fragment key={o.id}><col style={{ width: 68 }} /><col style={{ width: 52 }} /><col style={{ width: 78 }} /></Fragment>))}
+                  {(() => {
+                    const FIXE = { no: 2.5, article: 15, qte: 4, unite: 4.5, gap: 0.5, preco: 13 };
+                    const restant = 100 - (FIXE.no + FIXE.article + FIXE.qte + FIXE.unite + FIXE.gap * 2 + FIXE.preco);
+                    const parFournisseur = restant / Math.max(page.length, 1);
+                    return (
+                      <>
+                        <col style={{ width: `${FIXE.no}%` }} /><col style={{ width: `${FIXE.article}%` }} /><col style={{ width: `${FIXE.qte}%` }} /><col style={{ width: `${FIXE.unite}%` }} />
+                        <col style={{ width: `${FIXE.gap}%` }} />
+                        <col style={{ width: `${FIXE.preco}%` }} />
+                        <col style={{ width: `${FIXE.gap}%` }} />
+                        {page.map((o) => (
+                          <Fragment key={o.id}>
+                            <col style={{ width: `${parFournisseur * 0.345}%` }} />
+                            <col style={{ width: `${parFournisseur * 0.263}%` }} />
+                            <col style={{ width: `${parFournisseur * 0.392}%` }} />
+                          </Fragment>
+                        ))}
+                      </>
+                    );
+                  })()}
                 </colgroup>
                 <tbody>
                   <tr>
@@ -1029,17 +1072,17 @@ export default function TCODetailPage() {
                     <td rowSpan={rowSpanMotif} style={{ ...tdTco, border: "none" }}></td>
                     <td rowSpan={rowSpanMotif} style={{ ...tdTco, ...precoColStyle, verticalAlign: "top", padding: 10, ...boxEdge("mid", { first: true, last: true, firstCol: true, lastCol: true }) }}>
                       <div style={lblStyle}>Total au prix le moins cher (HT)</div>
-                      <div style={{ fontWeight: 700, fontSize: 11 }}>{totalPreconisation.ht.toLocaleString("fr-FR")} Ar</div>
+                      <div style={{ fontWeight: 700, fontSize: 11 }}>{totalPreconisation.ht.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</div>
                       <div style={{ ...lblStyle, marginTop: 6 }}>TVA</div>
-                      <div style={{ fontWeight: 700, fontSize: 11 }}>{totalPreconisation.tva.toLocaleString("fr-FR")} Ar</div>
+                      <div style={{ fontWeight: 700, fontSize: 11 }}>{totalPreconisation.tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</div>
                       <div style={{ ...lblStyle, marginTop: 6 }}>Total TTC</div>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1B7A4C" }}>{totalPreconisation.ttc.toLocaleString("fr-FR")} Ar</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1B7A4C" }}>{totalPreconisation.ttc.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</div>
                     </td>
                     <td rowSpan={rowSpanMotif} style={{ ...tdTco, border: "none" }}></td>
                     {page.map((o, idx) => (
                       <Fragment key={o.id}>
                         <td colSpan={2} style={{ ...tdTco, ...(idx === 0 ? boxEdge("right", { first: true, firstCol: true }) : { borderLeft: "1.5px solid #1a1a1a" }) }}>Montant HT</td>
-                        <td style={{ ...tdTco, ...boxEdge("right", { first: true, lastCol: idx === page.length - 1 }) }}>{o.totalHT.toLocaleString("fr-FR")} Ar</td>
+                        <td style={{ ...tdTco, ...boxEdge("right", { first: true, lastCol: idx === page.length - 1 }) }}>{o.totalHT.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                       </Fragment>
                     ))}
                   </tr>
@@ -1049,7 +1092,7 @@ export default function TCODetailPage() {
                       return (
                         <Fragment key={o.id}>
                           <td colSpan={2} style={{ ...tdTco, ...(idx === 0 ? boxEdge("right", { firstCol: true }) : { borderLeft: "1.5px solid #1a1a1a" }) }}>Remise obtenue</td>
-                          <td style={{ ...tdTco, ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>{remiseObt ? `${remiseObt.toLocaleString("fr-FR")} Ar` : ""}</td>
+                          <td style={{ ...tdTco, ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>{remiseObt ? `${remiseObt.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}</td>
                         </Fragment>
                       );
                     })}
@@ -1058,7 +1101,7 @@ export default function TCODetailPage() {
                     {page.map((o, idx) => (
                       <Fragment key={o.id}>
                         <td colSpan={2} style={{ ...tdTco, ...(idx === 0 ? boxEdge("right", { firstCol: true }) : { borderLeft: "1.5px solid #1a1a1a" }) }}>TVA</td>
-                        <td style={{ ...tdTco, ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>{o.assujetti_tva === false ? <span style={{ color: "#999", fontStyle: "italic" }}>Non taxable</span> : `${o.tva.toLocaleString("fr-FR")} Ar`}</td>
+                        <td style={{ ...tdTco, ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>{o.assujetti_tva === false ? <span style={{ color: "#999", fontStyle: "italic" }}>Non taxable</span> : `${o.tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`}</td>
                       </Fragment>
                     ))}
                   </tr>
@@ -1066,7 +1109,7 @@ export default function TCODetailPage() {
                     {page.map((o, idx) => (
                       <Fragment key={o.id}>
                         <td colSpan={2} style={{ ...tdTco, fontWeight: 600, ...(idx === 0 ? boxEdge("right", { firstCol: true }) : { borderLeft: "1.5px solid #1a1a1a" }) }}>Total TTC</td>
-                        <td style={{ ...tdTco, fontWeight: 700, color: "#1B7A4C", ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>{o.totalTTC.toLocaleString("fr-FR")} Ar</td>
+                        <td style={{ ...tdTco, fontWeight: 700, color: "#1B7A4C", ...boxEdge("right", { lastCol: idx === page.length - 1 }) }}>{o.totalTTC.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                       </Fragment>
                     ))}
                   </tr>
