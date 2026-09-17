@@ -574,6 +574,9 @@ export default function CommandeDetailPage() {
                 Le <strong>{new Date(r.date_reception_reelle).toLocaleString("fr-FR")}</strong> — {r.receptionnaire} ({r.type_livraison}{r.numero_bl ? `, BL ${r.numero_bl}` : ""}) —
                 {" "}{r.lignes.map((x) => `${lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}: ${x.quantite_livree}`).join(", ")}
                 {" "}— saisi par {r.confirme_par}
+                {r.receptionnaire === "Import historique" && (
+                  <span style={{ color: "#1B4C7A", marginLeft: 6 }} title="Date d'import de l'historique — pas la date réelle de réception">📥 (date d'import, pas la date réelle)</span>
+                )}
               </div>
             ))}
           </div>
