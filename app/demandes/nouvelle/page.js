@@ -40,16 +40,36 @@ export default function NouvelleDemandePage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("articles").select("id, designation, unite_defaut").limit(10000);
+      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
       setArticlesBase(data || []);
     })();
   }, []);
 
-  // Si la désignation tapée correspond à un article existant, pré-remplit son unité automatiquement
+  // Suit la chaîne "continue par" jusqu'au dernier article en vigueur (protection anti-boucle)
+  const resoudreSuccesseur = (article) => {
+    let courant = article;
+    const vus = new Set();
+    while (courant?.continue_par_id && !vus.has(courant.id)) {
+      vus.add(courant.id);
+      const suivant = articlesBase.find((a) => a.id === courant.continue_par_id);
+      if (!suivant) break;
+      courant = suivant;
+    }
+    return courant;
+  };
+
+  // Si la désignation tapée correspond à un article existant, pré-remplit son unité
+  // automatiquement — et si cet article a été remplacé ("continue par"), c'est
+  // directement l'article de remplacement qui est utilisé.
   const onDesignationChange = (key, val) => {
+    const matchBrut = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
+    if (matchBrut) {
+      const final = resoudreSuccesseur(matchBrut);
+      updateLigne(key, "designation", final.designation);
+      if (final.unite_defaut) updateLigne(key, "unite", final.unite_defaut);
+      return;
+    }
     updateLigne(key, "designation", val);
-    const match = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
-    if (match && match.unite_defaut) updateLigne(key, "unite", match.unite_defaut);
   };
 
   // Si l'unité est modifiée à la main, on met aussi à jour la fiche article correspondante
@@ -78,12 +98,16 @@ export default function NouvelleDemandePage() {
 
     const nouvelles = rangees.map((rangee) => {
       const colonnes = rangee.split("\t").map((c) => c.trim());
-      const designation = colonnes[0] || "";
+      let designation = colonnes[0] || "";
       const quantite = colonnes[1] && !isNaN(Number(colonnes[1])) ? Number(colonnes[1]) : 1;
       let unite = colonnes[2] || "";
-      if (!unite) {
-        const match = articlesBase.find((a) => a.designation.toLowerCase() === designation.toLowerCase());
-        unite = match?.unite_defaut || "pcs";
+      const matchBrut = articlesBase.find((a) => a.designation.toLowerCase() === designation.toLowerCase());
+      if (matchBrut) {
+        const final = resoudreSuccesseur(matchBrut);
+        designation = final.designation;
+        if (!unite) unite = final.unite_defaut || "pcs";
+      } else if (!unite) {
+        unite = "pcs";
       }
       return { key: Math.random().toString(36).slice(2), designation, quantite, unite, date_livraison: "" };
     }).filter((l) => l.designation);
@@ -230,7 +254,7 @@ export default function NouvelleDemandePage() {
               placeholder="Désignation de l'article (tape pour voir les suggestions)"
               value={l.designation}
               onChange={(val) => onDesignationChange(l.key, val)}
-              suggestions={articlesBase.map((a) => a.designation)}
+              suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
               style={{ flex: 3 }}
             />
             <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
