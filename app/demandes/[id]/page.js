@@ -756,12 +756,7 @@ export default function TCODetailPage() {
                           <>
                             <strong>{offreRetenue.fournisseur_nom}</strong><br />
                             {montantRetenu != null ? (
-                              <>
-                                HT {montantRetenu.toLocaleString("fr-FR")} Ar<br />
-                                {offreRetenue.assujetti_tva !== false
-                                  ? `TTC ${(montantRetenu * 1.2).toLocaleString("fr-FR")} Ar`
-                                  : "Non taxable"}
-                              </>
+                              <>HT {montantRetenu.toLocaleString("fr-FR")} Ar</>
                             ) : "-"}
                           </>
                         ) : "-"}
