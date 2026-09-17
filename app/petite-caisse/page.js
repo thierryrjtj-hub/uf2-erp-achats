@@ -1,12 +1,15 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
+import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
 
 const empty = {
-  date_demande: new Date().toISOString().slice(0, 10), motif: "", montant_demande: "",
+  date_demande: new Date().toISOString().slice(0, 10), article: "", quantite: 1, unite: "pcs",
+  motif: "", montant_demande: "",
   signataire_direction: "", date_signature: "", montant_depense: "", justificatif: "", observation: "",
 };
 
@@ -22,9 +25,13 @@ const COULEUR_STATUT = {
   "Justifié": { bg: "#EAF7EE", fg: "#1B7A4C" },
 };
 
+const OBSERVATION_PETITE_CAISSE = "Achat en petite caisse — Payé en espèce";
+const NOM_FOURNISSEUR_PETITE_CAISSE = "Petite caisse (achat direct)";
+
 export default function PetiteCaissePage() {
   const role = useRole();
   const [liste, setListe] = useState([]);
+  const [articlesBase, setArticlesBase] = useState([]);
   const [loading, setLoading] = useState(true);
   const [nouveauOuvert, setNouveauOuvert] = useState(false);
   const [form, setForm] = useState(empty);
@@ -36,10 +43,34 @@ export default function PetiteCaissePage() {
   const charger = async () => {
     const { data } = await supabase.from("petite_caisse").select("*").order("date_demande", { ascending: false }).limit(5000);
     setListe(data || []);
+    const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
+    setArticlesBase(art || []);
     setLoading(false);
   };
 
   useEffect(() => { charger(); }, []);
+
+  const resoudreSuccesseur = (article) => {
+    let courant = article;
+    const vus = new Set();
+    while (courant?.continue_par_id && !vus.has(courant.id)) {
+      vus.add(courant.id);
+      const suivant = articlesBase.find((a) => a.id === courant.continue_par_id);
+      if (!suivant) break;
+      courant = suivant;
+    }
+    return courant;
+  };
+
+  const onArticleChange = (val) => {
+    const matchBrut = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
+    if (matchBrut) {
+      const final = resoudreSuccesseur(matchBrut);
+      setForm((prev) => ({ ...prev, article: final.designation, unite: final.unite_defaut || "pcs" }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, article: val }));
+  };
 
   const filtrees = useMemo(() => {
     if (!filtreStatut) return liste;
@@ -48,14 +79,60 @@ export default function PetiteCaissePage() {
 
   const total = useMemo(() => filtrees.reduce((s, p) => s + (Number(p.montant_depense) || Number(p.montant_demande) || 0), 0), [filtrees]);
 
+  // Trouve ou crée le fournisseur générique "Petite caisse (achat direct)"
+  const idFournisseurPetiteCaisse = async () => {
+    const { data: existant } = await supabase.from("fournisseurs").select("id").eq("nom", NOM_FOURNISSEUR_PETITE_CAISSE).maybeSingle();
+    if (existant) return existant.id;
+    const { data: cree } = await supabase.from("fournisseurs").insert({ nom: NOM_FOURNISSEUR_PETITE_CAISSE, type_reglement: "Espèces" }).select().single();
+    return cree?.id || null;
+  };
+
+  // Cette demande d'achat en petite caisse est déjà validée par la direction
+  // (fiche de décaissement) avant même la saisie ici : pas besoin de re-signer
+  // un BC, il est donc créé et clôturé directement, marqué payé en espèce.
+  const creerDemandeEtBc = async (form, userId) => {
+    const { data: demande } = await supabase.from("demandes").insert({
+      demandeur: form.signataire_direction || null, motif_projet: form.motif || form.article,
+      statut: "Basculée en commande", observation: OBSERVATION_PETITE_CAISSE, created_by: userId,
+    }).select().single();
+    if (!demande) return;
+
+    await supabase.from("lignes_demande").insert({
+      demande_id: demande.id, designation: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
+    });
+
+    const fournisseurId = await idFournisseurPetiteCaisse();
+    const montant = Number(form.montant_demande) || 0;
+    const { data: bc } = await supabase.from("commandes").insert({
+      demande_id: demande.id, fournisseur_id: fournisseurId, fournisseur_nom: NOM_FOURNISSEUR_PETITE_CAISSE,
+      assujetti_tva: false, montant_ht: montant, montant_tva: 0, montant_ttc: montant,
+      statut_paiement: "Payé", observation: OBSERVATION_PETITE_CAISSE, created_by: userId,
+    }).select().single();
+    if (!bc) return;
+
+    const { data: ligneBc } = await supabase.from("lignes_bc").insert({
+      bc_id: bc.id, designation: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
+      prix_unitaire_ht: montant / (Number(form.quantite) || 1), remise_pct: 0, montant_ht: montant,
+    }).select().single();
+
+    const { data: reception } = await supabase.from("receptions").insert({
+      bc_id: bc.id, statut: "Totale", date_reception_reelle: form.date_demande,
+      receptionnaire: "Achat direct (petite caisse)", confirme_par: form.signataire_direction || "Petite caisse",
+    }).select().single();
+    if (reception && ligneBc) {
+      await supabase.from("lignes_reception").insert({ reception_id: reception.id, ligne_bc_id: ligneBc.id, quantite_livree: Number(form.quantite) || 1 });
+    }
+  };
+
   const creer = async () => {
-    if (!form.motif.trim() || !form.montant_demande) return;
+    if (!form.article.trim() || !form.montant_demande) return;
     setEnvoi(true);
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("petite_caisse").insert({
-      date_demande: form.date_demande, motif: form.motif, montant_demande: Number(form.montant_demande),
+      date_demande: form.date_demande, motif: form.motif || form.article, montant_demande: Number(form.montant_demande),
       created_by: user?.id || null,
     });
+    await creerDemandeEtBc(form, user?.id || null);
     setEnvoi(false);
     setForm(empty);
     setNouveauOuvert(false);
@@ -86,7 +163,7 @@ export default function PetiteCaissePage() {
   };
 
   const supprimer = async (id) => {
-    if (!confirm("Supprimer cette ligne de petite caisse ?")) return;
+    if (!confirm("Supprimer cette ligne de petite caisse ? (la demande et le BC déjà créés ne sont pas supprimés automatiquement)")) return;
     await supabase.from("petite_caisse").delete().eq("id", id);
     charger();
   };
@@ -94,15 +171,31 @@ export default function PetiteCaissePage() {
   return (
     <AuthGuard>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <h1 style={{ fontSize: 18 }}>Petite caisse ({filtrees.length})</h1>
-        <button onClick={() => setNouveauOuvert((o) => !o)} style={buttonStyle}>{nouveauOuvert ? "Fermer" : "+ Nouvelle demande"}</button>
+        <h1 style={{ fontSize: 18 }}>Achat en petite caisse ({filtrees.length})</h1>
+        <button onClick={() => setNouveauOuvert((o) => !o)} style={buttonStyle}>{nouveauOuvert ? "Fermer" : "+ Nouvel achat en petite caisse"}</button>
       </div>
 
       {nouveauOuvert && (
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
+            Dès l'enregistrement, une demande et un bon de commande sont créés automatiquement (achat déjà validé
+            par la direction via la fiche de décaissement — pas besoin de signature de BC), visibles dans les listes
+            Demandes/Commandes et dans l'historique, marqués "payé en espèce".
+          </p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
             <input type="date" value={form.date_demande} onChange={(e) => setForm({ ...form, date_demande: e.target.value })} style={{ ...inputStyle, width: 160 }} />
-            <input placeholder="Motif de l'achat" value={form.motif} onChange={(e) => setForm({ ...form, motif: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+            <Autocomplete
+              placeholder="Article (recherche dans la liste des articles)"
+              value={form.article}
+              onChange={onArticleChange}
+              suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
+              style={{ flex: 2 }}
+            />
+            <input type="number" placeholder="Qté" value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} style={{ ...inputStyle, width: 80 }} />
+            <input placeholder="Unité" value={form.unite} onChange={(e) => setForm({ ...form, unite: e.target.value })} style={{ ...inputStyle, width: 90 }} />
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input placeholder="Motif / précision (optionnel)" value={form.motif} onChange={(e) => setForm({ ...form, motif: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
             <input type="number" placeholder="Montant demandé (Ar)" value={form.montant_demande} onChange={(e) => setForm({ ...form, montant_demande: e.target.value })} style={{ ...inputStyle, width: 180 }} />
           </div>
           <button onClick={creer} disabled={envoi} style={{ ...buttonStyle, marginTop: 10 }}>{envoi ? "Création..." : "Créer la demande"}</button>
@@ -185,4 +278,3 @@ export default function PetiteCaissePage() {
     </AuthGuard>
   );
 }
-
