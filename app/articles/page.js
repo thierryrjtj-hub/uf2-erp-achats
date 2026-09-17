@@ -8,6 +8,7 @@ import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
 import ChampPrixHT from "../components/ChampPrixHT";
+import { formatDate } from "../../lib/format";
 import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
@@ -127,7 +128,7 @@ export default function ArticlesListePage() {
     const texte = [
       a.designation, a.unite_defaut && `Unité : ${a.unite_defaut}`, a.categorieNom && `Catégorie : ${a.categorieNom}`,
       a.dernier_prix_ht && `Dernier prix HT (référence) : ${Number(a.dernier_prix_ht).toLocaleString("fr-FR")} Ar`,
-      dernier && `Dernier achat réel : ${dernier.fournisseur} — ${dernier.pu.toLocaleString("fr-FR")} Ar HT le ${dernier.date} (BC ${dernier.bc})`,
+      dernier && `Dernier achat réel : ${dernier.fournisseur} — ${dernier.pu.toLocaleString("fr-FR")} Ar HT le ${formatDate(dernier.date)} (BC ${dernier.bc})`,
     ].filter(Boolean).join("\n");
     try { await navigator.clipboard.writeText(texte); } catch (e) {}
   };
@@ -261,7 +262,7 @@ export default function ArticlesListePage() {
                           <div style={champLabel}>Dernier achat réel</div>
                           <div style={{ fontSize: 13, marginTop: 2 }}>
                             <strong>{dernier.fournisseur}</strong> — {dernier.pu.toLocaleString("fr-FR")} Ar HT
-                            ({dernier.puTtc.toLocaleString("fr-FR")} Ar TTC) — qté {dernier.qte} — le {dernier.date} — BC {dernier.bc}
+                            ({dernier.puTtc.toLocaleString("fr-FR")} Ar TTC) — qté {dernier.qte} — le {formatDate(dernier.date)} — BC {dernier.bc}
                           </div>
                           {autres.length > 0 && (
                             <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
