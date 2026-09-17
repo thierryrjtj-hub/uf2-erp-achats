@@ -158,6 +158,7 @@ function CommandesInner() {
     setExporting(true);
     const rows = liste.map((c) => {
       const reception = receptions.find((r) => r.bc_id === c.id);
+      const importe = reception?.receptionnaire === "Import historique";
       return {
         numero: c.numero,
         date: c.date,
@@ -171,6 +172,8 @@ function CommandesInner() {
         statutPaiement: c.statut_paiement || "Impayé",
         recu: reception ? new Date(reception.date_reception_reelle).toLocaleString("fr-FR") : "",
         confirmePar: reception ? reception.confirme_par : "",
+        importeHistorique: importe ? "Oui (date de réception = date d'import, pas la date réelle)" : "",
+        observation: c.observation || "",
       };
     });
     await exportExcel({
@@ -192,6 +195,8 @@ function CommandesInner() {
           { header: "Statut paiement", key: "statutPaiement", width: 15 },
           { header: "Reçu le", key: "recu", width: 20 },
           { header: "Confirmé par", key: "confirmePar", width: 24 },
+          { header: "Importé de l'historique", key: "importeHistorique", width: 30 },
+          { header: "Observation", key: "observation", width: 28 },
         ],
         rows,
         currencyKeys: ["montantHt", "montantTva", "montantTtc"],
@@ -371,7 +376,11 @@ function CommandesInner() {
                         {estPrestation
                           ? (reception.statut === "Totale" ? "Prestation effectuée" : "Prestation partielle")
                           : (reception.statut === "Totale" ? "Livré" : "Livré partiellement")}<br />
-                        <span style={{ color: "#999" }}>par {reception.receptionnaire || reception.confirme_par}</span>
+                        {reception.receptionnaire === "Import historique" ? (
+                          <span style={{ color: "#1B4C7A" }} title="Date d'import de l'historique, pas la date réelle de réception">📥 import historique</span>
+                        ) : (
+                          <span style={{ color: "#999" }}>par {reception.receptionnaire || reception.confirme_par}</span>
+                        )}
                       </span>
                     ) : (
                       <span style={{ fontSize: 12, color: "#999" }}>{estPrestation ? "Prestation non effectuée" : "Non livré"}</span>
