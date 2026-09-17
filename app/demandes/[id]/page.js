@@ -82,7 +82,7 @@ export default function TCODetailPage() {
   const [dejaCouvertes, setDejaCouvertes] = useState(new Set());
   const [bcGeneres, setBcGeneres] = useState([]);
   const [notesTco, setNotesTco] = useState({ remarque: "" });
-  const [orientation, setOrientation] = useState("portrait");
+  // orientation d'impression du TCO : calculée automatiquement plus bas, voir pagesImpression
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
@@ -446,6 +446,10 @@ export default function TCODetailPage() {
   for (let i = 0; i < offresAvecTotaux.length; i += FOURNISSEURS_PAR_PAGE) {
     pagesImpression.push(offresAvecTotaux.slice(i, i + FOURNISSEURS_PAR_PAGE));
   }
+  // Orientation automatique du TCO à l'impression : portrait si 2 fournisseurs
+  // ou moins, paysage au-delà (y compris les pages suivantes, même avec un
+  // seul fournisseur dessus, pour rester cohérent avec la première page).
+  const orientation = offresAvecTotaux.length > 2 ? "landscape" : "portrait";
   const dense = lignesDemande.length > 10;
   const cozy = lignesDemande.length <= 3;
   const padCellule = dense ? "2px 4px" : cozy ? "7px 4px" : "4px 4px";
@@ -649,10 +653,6 @@ export default function TCODetailPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
           <h2 style={{ fontSize: 15 }}>Tableau comparatif (TCO)</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <select value={orientation} onChange={(e) => setOrientation(e.target.value)} style={inputStyle} title="Orientation d'impression du TCO">
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Paysage</option>
-            </select>
             <button onClick={() => window.print()} style={buttonStyle}>Imprimer le comparatif</button>
           </div>
         </div>
