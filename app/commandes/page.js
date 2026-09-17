@@ -170,7 +170,7 @@ function CommandesInner() {
         numeroFacture: c.numero_facture || "",
         dateFacture: c.date_facture || "",
         statutPaiement: c.statut_paiement || "Impayé",
-        recu: reception ? new Date(reception.date_reception_reelle).toLocaleString("fr-FR") : "",
+        recu: reception ? new Date(reception.date_reception_reelle).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "",
         confirmePar: reception ? reception.confirme_par : "",
         importeHistorique: importe ? "Oui (date de réception = date d'import, pas la date réelle)" : "",
         observation: c.observation || "",
@@ -356,7 +356,7 @@ function CommandesInner() {
                     {dmd?.motif_projet && <div style={{ fontSize: 12, color: "#888", fontWeight: 400, whiteSpace: "normal" }}>{dmd.motif_projet}</div>}
                   </td>
                   <td style={tdStyle}>{c.fournisseur_nom}</td>
-                  <td style={tdStyle}>{Number(c.montant_ttc).toLocaleString("fr-FR")} Ar</td>
+                  <td style={tdStyle}>{Number(c.montant_ttc).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   <td style={tdStyle}>
                     {dmd ? <>{dmd.service || "-"}<div style={{ fontSize: 12, color: "#888" }}>{dmd.demandeur || ""}</div></> : "-"}
                   </td>
