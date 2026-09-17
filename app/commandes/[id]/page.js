@@ -147,7 +147,7 @@ export default function CommandeDetailPage() {
   }, []);
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, categorie:categories(nom)").limit(10000);
+      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id, categorie:categories(nom)").limit(10000);
       setArticlesBase(data || []);
     })();
   }, []);
@@ -339,11 +339,27 @@ export default function CommandeDetailPage() {
   const retirerEditLigne = (key) => setEditLignes((prev) => prev.filter((l) => l.key !== key));
 
   const onDesignationEditChange = (key, val) => {
-    majEditLigne(key, "designation", val);
-    const match = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
-    if (match) {
-      majEditLigne(key, "unite", match.unite_defaut || "pcs");
+    const matchBrut = articlesBase.find((a) => a.designation.toLowerCase() === val.toLowerCase());
+    if (matchBrut) {
+      const final = resoudreSuccesseurArticle(matchBrut);
+      majEditLigne(key, "designation", final.designation);
+      if (final.unite_defaut) majEditLigne(key, "unite", final.unite_defaut);
+      return;
     }
+    majEditLigne(key, "designation", val);
+  };
+
+  // Suit la chaîne "continue par" jusqu'au dernier article en vigueur (protection anti-boucle)
+  const resoudreSuccesseurArticle = (article) => {
+    let courant = article;
+    const vus = new Set();
+    while (courant?.continue_par_id && !vus.has(courant.id)) {
+      vus.add(courant.id);
+      const suivant = articlesBase.find((a) => a.id === courant.continue_par_id);
+      if (!suivant) break;
+      courant = suivant;
+    }
+    return courant;
   };
 
   const onUniteEditBlur = async (designation, unite) => {
@@ -487,7 +503,7 @@ export default function CommandeDetailPage() {
                   placeholder="Désignation"
                   value={l.designation}
                   onChange={(val) => onDesignationEditChange(l.key, val)}
-                  suggestions={articlesBase.map((a) => a.designation)}
+                  suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
                   style={{ flex: 2, minWidth: 160 }}
                 />
                 <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
