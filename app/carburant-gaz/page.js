@@ -82,9 +82,15 @@ export default function CarburantGazPage() {
   // mensuelle du fournisseur — donc statut paiement laissé "Impayé" par défaut.
   const creerDemandeEtBc = async (form, userId) => {
     const observation = `Achat par carte ${form.type.toLowerCase()} — ${form.vehicule_equipement}`;
+    let numeroDa = null;
+    const annee = Number(new Date().getFullYear().toString().slice(-2));
+    const { data: n } = await supabase.rpc("next_numero_da", { p_prefixe: "CARB", p_annee: annee });
+    if (n != null) numeroDa = `CARB-${String(n).padStart(4, "0")}-${annee}`;
+
     const { data: demande } = await supabase.from("demandes").insert({
       demandeur: form.responsable || null, motif_projet: `${form.type} — ${form.vehicule_equipement}`,
       statut: "Basculée en commande", observation, created_by: userId,
+      date_da: form.date_operation || null, numero_da: numeroDa,
     }).select().single();
     if (!demande) return;
 
