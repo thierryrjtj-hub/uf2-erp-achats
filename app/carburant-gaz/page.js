@@ -15,6 +15,7 @@ export default function CarburantGazPage() {
   const role = useRole();
   const [liste, setListe] = useState([]);
   const [articlesBase, setArticlesBase] = useState([]);
+  const [fournisseurs, setFournisseurs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [nouveauOuvert, setNouveauOuvert] = useState(false);
   const [form, setForm] = useState(empty);
@@ -29,6 +30,8 @@ export default function CarburantGazPage() {
     setListe(data || []);
     const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
     setArticlesBase(art || []);
+    const { data: f } = await supabase.from("fournisseurs").select("id, nom").order("nom").limit(10000);
+    setFournisseurs(f || []);
     setLoading(false);
   };
 
@@ -64,13 +67,13 @@ export default function CarburantGazPage() {
 
   const totalMontant = useMemo(() => filtrees.reduce((s, p) => s + (Number(p.montant) || 0), 0), [filtrees]);
 
-  // Trouve ou crée le fournisseur (nom de la carte / station) pour rattacher le BC
-  const idFournisseur = async (nomFournisseur) => {
-    const nom = nomFournisseur?.trim() || "Carburant / Gaz (carte)";
-    const { data: existant } = await supabase.from("fournisseurs").select("id").eq("nom", nom).maybeSingle();
-    if (existant) return { id: existant.id, nom };
-    const { data: cree } = await supabase.from("fournisseurs").insert({ nom }).select().single();
-    return { id: cree?.id || null, nom };
+  // Trouve ou crée le fournisseur "Fournisseurs divers" (utilisé si aucun
+  // fournisseur précis n'a été sélectionné à la saisie)
+  const idFournisseurDivers = async () => {
+    const { data: existant } = await supabase.from("fournisseurs").select("id").eq("nom", "Fournisseurs divers").maybeSingle();
+    if (existant) return existant.id;
+    const { data: cree } = await supabase.from("fournisseurs").insert({ nom: "Fournisseurs divers" }).select().single();
+    return cree?.id || null;
   };
 
   // Achat déjà autorisé via la carte (ticket gardé par l'assistante de direction) :
@@ -89,10 +92,12 @@ export default function CarburantGazPage() {
       demande_id: demande.id, designation, quantite: Number(form.quantite) || 1, unite: form.unite,
     });
 
-    const fournisseur = await idFournisseur(form.carte_fournisseur);
+    const fournisseurChoisi = fournisseurs.find((f) => f.nom === form.carte_fournisseur);
+    const fournisseurId = fournisseurChoisi ? fournisseurChoisi.id : await idFournisseurDivers();
+    const fournisseurNom = fournisseurChoisi ? fournisseurChoisi.nom : "Fournisseurs divers";
     const montant = Number(form.montant) || 0;
     const { data: bc } = await supabase.from("commandes").insert({
-      demande_id: demande.id, fournisseur_id: fournisseur.id, fournisseur_nom: fournisseur.nom,
+      demande_id: demande.id, fournisseur_id: fournisseurId, fournisseur_nom: fournisseurNom,
       assujetti_tva: false, montant_ht: montant, montant_tva: 0, montant_ttc: montant,
       statut_paiement: "Impayé", observation, created_by: userId,
     }).select().single();
@@ -178,7 +183,13 @@ export default function CarburantGazPage() {
               <option>Gaz</option>
             </select>
             <input placeholder="Véhicule / équipement (ex: 4107 TCD, Groupe électrogène...)" value={form.vehicule_equipement} onChange={(e) => setForm({ ...form, vehicule_equipement: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-            <input placeholder="N° carte / fournisseur (ex: Jovena, Galana)" value={form.carte_fournisseur} onChange={(e) => setForm({ ...form, carte_fournisseur: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <Autocomplete
+              placeholder="Fournisseur (Jovena, Galana... vide = Fournisseurs divers)"
+              value={form.carte_fournisseur}
+              onChange={(val) => setForm({ ...form, carte_fournisseur: val })}
+              suggestions={fournisseurs.map((f) => f.nom)}
+              style={{ flex: 1 }}
+            />
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Autocomplete
