@@ -536,9 +536,9 @@ export default function CommandeDetailPage() {
                   <td style={tdStyle}>{l.designation}</td>
                   <td style={tdStyle}>{l.quantite}</td>
                   <td style={tdStyle}>{l.unite}</td>
-                  <td style={tdStyle}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar</td>
+                  <td style={tdStyle}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   <td style={tdStyle}>{l.remise_pct} %</td>
-                  <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
+                  <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   {lignes.some((x) => x.date_livraison) && <td style={tdStyle}>{l.date_livraison ? formatDate(l.date_livraison) : ""}</td>}
                 </tr>
               ))}
@@ -547,10 +547,10 @@ export default function CommandeDetailPage() {
         )}
 
         <div style={{ marginLeft: "auto", width: 260 }}>
-          <div style={rowTotal}><span>Total HT</span><span>{Number(bc.montant_ht).toLocaleString("fr-FR")} Ar</span></div>
-          <div style={rowTotal}><span>TVA</span><span>{bc.assujetti_tva === false ? "Non taxable" : `${Number(bc.montant_tva).toLocaleString("fr-FR")} Ar`}</span></div>
+          <div style={rowTotal}><span>Total HT</span><span>{Number(bc.montant_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</span></div>
+          <div style={rowTotal}><span>TVA</span><span>{bc.assujetti_tva === false ? "Non taxable" : `${Number(bc.montant_tva).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`}</span></div>
           <div style={{ ...rowTotal, fontWeight: 700, borderTop: "1px solid #ddd", paddingTop: 6 }}>
-            <span>Total TTC</span><span>{Number(bc.montant_ttc).toLocaleString("fr-FR")} Ar</span>
+            <span>Total TTC</span><span>{Number(bc.montant_ttc).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</span>
           </div>
         </div>
       </div>
@@ -571,7 +571,7 @@ export default function CommandeDetailPage() {
             <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Historique des réceptions</div>
             {receptions.map((r) => (
               <div key={r.id} style={{ fontSize: 12, padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
-                Le <strong>{new Date(r.date_reception_reelle).toLocaleString("fr-FR")}</strong> — {r.receptionnaire} ({r.type_livraison}{r.numero_bl ? `, BL ${r.numero_bl}` : ""}) —
+                Le <strong>{new Date(r.date_reception_reelle).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> — {r.receptionnaire} ({r.type_livraison}{r.numero_bl ? `, BL ${r.numero_bl}` : ""}) —
                 {" "}{r.lignes.map((x) => `${lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}: ${x.quantite_livree}`).join(", ")}
                 {" "}— saisi par {r.confirme_par}
                 {r.receptionnaire === "Import historique" && (
@@ -761,7 +761,7 @@ export default function CommandeDetailPage() {
                   <td style={tdStyle}>{a.date_accuse || "-"}</td>
                   <td style={tdStyle}>{a.date_facture || "-"}</td>
                   <td style={tdStyle}>{a.numero_facture}</td>
-                  <td style={tdStyle}>{a.montant ? `${Number(a.montant).toLocaleString("fr-FR")} Ar` : "-"}</td>
+                  <td style={tdStyle}>{a.montant ? `${Number(a.montant).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "-"}</td>
                   <td style={tdStyle}>{a.observation || "-"}</td>
                   <td style={tdStyle}><button onClick={() => supprimerAccuse(a.id)} style={{ ...linkBtn, display: "inline-flex", alignItems: "center" }} title="Supprimer"><IconTrash /></button></td>
                 </tr>
@@ -889,10 +889,10 @@ export default function CommandeDetailPage() {
                   <td style={tdGris}>{l.designation}</td>
                   <td style={{ ...tdGris, textAlign: "center" }}>{Number(l.quantite).toLocaleString("fr-FR", { minimumFractionDigits: 2 })}</td>
                   <td style={tdGris}>{l.unite}</td>
-                  <td style={{ ...tdGris, textAlign: "right" }}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdGris, textAlign: "right" }}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   <td style={{ ...tdGris, textAlign: "right" }}>{l.remise_pct ? `${l.remise_pct}%` : ""}</td>
-                  <td style={{ ...tdGris, textAlign: "right" }}>{puNet.toLocaleString("fr-FR")} Ar</td>
-                  <td style={{ ...tdGris, textAlign: "right" }}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
+                  <td style={{ ...tdGris, textAlign: "right" }}>{puNet.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
+                  <td style={{ ...tdGris, textAlign: "right" }}>{Number(l.montant_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                 </tr>
               );
             })}
@@ -908,15 +908,15 @@ export default function CommandeDetailPage() {
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <div style={{ width: 290, ...encadreDouble(), padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4, color: GRIS_LABEL }}>
-              <span>Montant Total HT</span><strong style={{ color: NOIR_VALEUR }}>{Number(bc.montant_ht).toLocaleString("fr-FR")} Ar</strong>
+              <span>Montant Total HT</span><strong style={{ color: NOIR_VALEUR }}>{Number(bc.montant_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: GRIS_LABEL }}>
               <span>Tva {bc.assujetti_tva === false ? "0%" : "20%"}</span>
-              <strong style={{ color: NOIR_VALEUR }}>{bc.assujetti_tva === false ? "-" : `${Number(bc.montant_tva).toLocaleString("fr-FR")} Ar`}</strong>
+              <strong style={{ color: NOIR_VALEUR }}>{bc.assujetti_tva === false ? "-" : `${Number(bc.montant_tva).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`}</strong>
             </div>
             <div style={{ marginTop: 10, background: "#fff", borderRadius: 6, padding: "8px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", color: NOIR_VALEUR }}>
               <span style={{ fontSize: 11, fontWeight: 700 }}>NET A PAYER TTC</span>
-              <span style={{ fontSize: 16, fontWeight: 700 }}>{Number(bc.montant_ttc).toLocaleString("fr-FR")} Ar</span>
+              <span style={{ fontSize: 16, fontWeight: 700 }}>{Number(bc.montant_ttc).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</span>
             </div>
           </div>
         </div>
