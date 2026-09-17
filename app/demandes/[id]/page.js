@@ -909,7 +909,7 @@ export default function TCODetailPage() {
             <div>
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
-                  <col style={{ width: 24 }} /><col /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
+                  <col style={{ width: 24 }} /><col style={{ width: 140 }} /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
                   <col style={{ width: 7 }} />
                   <col style={{ width: 134 }} />
                   <col style={{ width: 7 }} />
@@ -1010,7 +1010,7 @@ export default function TCODetailPage() {
             <div>
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
                 <colgroup>
-                  <col style={{ width: 24 }} /><col /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
+                  <col style={{ width: 24 }} /><col style={{ width: 140 }} /><col style={{ width: 38 }} /><col style={{ width: 44 }} />
                   <col style={{ width: 7 }} />
                   <col style={{ width: 134 }} />
                   <col style={{ width: 7 }} />
