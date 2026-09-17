@@ -1015,12 +1015,13 @@ export default function TCODetailPage() {
                           const m = montantLigne(o, ld);
                           const estMoinsCher = moinsCherParLigne[ld.id] === o.id && !!lo.prix_unitaire_ht;
                           const fond = estMoinsCher ? { background: "#EAF7EE" } : {};
-                          const styleCell1 = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...(idx === 0 ? boxEdge("right", { last: finRangee, firstCol: true }) : { borderLeft: "1.5px solid #1a1a1a" }) };
-                          const styleCell = { ...tdTco, padding: padCellule, textAlign: "right", ...fond };
-                          const styleCellDer = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...boxEdge("right", { last: finRangee, lastCol: idx === page.length - 1 }), fontWeight: estMoinsCher ? 700 : 400, color: estMoinsCher ? "#1B7A4C" : "#1a1a1a" };
+                          const cadreMoinsCher = estMoinsCher ? { borderTop: "2px solid #1a1a1a", borderBottom: "2px solid #1a1a1a" } : {};
+                          const styleCell1 = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...(idx === 0 ? boxEdge("right", { last: finRangee, firstCol: true }) : { borderLeft: "1.5px solid #1a1a1a" }), ...cadreMoinsCher };
+                          const styleCell = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...cadreMoinsCher };
+                          const styleCellDer = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...boxEdge("right", { last: finRangee, lastCol: idx === page.length - 1 }), ...cadreMoinsCher, fontWeight: estMoinsCher ? 700 : 400, color: estMoinsCher ? "#1B7A4C" : "#1a1a1a" };
                           return (
                             <Fragment key={o.id}>
-                              <td style={styleCell1}>{lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}</td>
+                              <td style={styleCell1}>{lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}{estMoinsCher ? " ★" : ""}</td>
                               <td style={styleCell}>{lo.remise_pct ? `${lo.remise_pct}%` : ""}</td>
                               <td style={styleCellDer}>{m != null ? `${m.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}</td>
                             </Fragment>
