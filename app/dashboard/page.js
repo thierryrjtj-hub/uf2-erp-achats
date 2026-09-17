@@ -407,7 +407,7 @@ function GraphiqueTendance({ points }) {
           <g key={i}>
             <circle cx={c.x} cy={c.y} r="4" fill="#1E3A34" />
             <text x={c.x} y={hauteur - 6} fontSize="10" fill="#888" textAnchor="middle">{c.label}</text>
-            {c.montant > 0 && <text x={c.x} y={c.y - 10} fontSize="10" fill="#1E3A34" textAnchor="middle">{Math.round(c.montant / 1000).toLocaleString("fr-FR")}k</text>}
+            {c.montant > 0 && <text x={c.x} y={c.y - 10} fontSize="10" fill="#1E3A34" textAnchor="middle">{Math.round(c.montant / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}k</text>}
           </g>
         ))}
       </svg>
