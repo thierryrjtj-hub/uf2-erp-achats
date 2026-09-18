@@ -9,7 +9,7 @@ import { useState, useRef, useEffect } from "react";
 // pour changer de suggestion ; Entrée pour valider celle surlignée et fermer
 // la liste (on peut ensuite continuer la saisie vers le champ suivant avec
 // Tab) ; Échap pour fermer sans rien choisir.
-export default function Autocomplete({ value, onChange, onSelect, suggestions, placeholder, style }) {
+export default function Autocomplete({ value, onChange, onSelect, suggestions, placeholder, style, inputAttrs }) {
   const [ouvert, setOuvert] = useState(false);
   const [surligne, setSurligne] = useState(0);
   const blurTimeout = useRef(null);
@@ -55,6 +55,7 @@ export default function Autocomplete({ value, onChange, onSelect, suggestions, p
         onBlur={() => { blurTimeout.current = setTimeout(() => setOuvert(false), 150); }}
         onKeyDown={onKeyDown}
         style={{ ...inputStyle, ...style, width: "100%" }}
+        {...inputAttrs}
       />
       {ouvert && filtrees.length > 0 && (
         <div style={dropdownStyle}>
