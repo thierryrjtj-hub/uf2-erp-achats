@@ -291,7 +291,7 @@ function CommandesInner() {
             <h2 style={{ fontSize: 15 }}>Liste ({filtrees.length} / {liste.length})</h2>
             <div style={{ display: "flex", gap: 8 }}>
               <div style={{ position: "relative", width: 260 }}>
-                <input placeholder="Rechercher (N° BC, fournisseur...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+                <input data-search-field placeholder="Rechercher (N° BC, fournisseur...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
                 {recherche && <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer">×</button>}
               </div>
               <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)} style={inputStyle}>
