@@ -70,7 +70,8 @@ export default function RootLayout({ children }) {
               left: 58px;
               top: 0;
               width: 200px;
-              z-index: 100;
+              z-index: 9999;
+              opacity: 1 !important;
               border-radius: 0 8px 8px 0;
               box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
               padding: 4px !important;
