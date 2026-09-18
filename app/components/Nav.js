@@ -65,7 +65,7 @@ export default function Nav() {
           const actif = pathname.startsWith(l.href);
           const Icon = l.icon;
           return (
-            <div key={l.href}>
+            <div key={l.href} className="nav-parent-item">
               <Link
                 href={l.href}
                 title={l.label}
@@ -83,7 +83,7 @@ export default function Nav() {
                 <span className="nav-label">{l.label}</span>
               </Link>
               {l.children && actif && (
-                <div className="nav-souslabel" style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 2, marginBottom: 2 }}>
+                <div className="nav-souslabel" style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 2, marginBottom: 2, background: BRAND }}>
                   {l.children.map((c) => {
                     const sousActif = pathname === c.href;
                     return (
