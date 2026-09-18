@@ -43,7 +43,7 @@ export default function PetiteCaissePage() {
   const [filtreStatut, setFiltreStatut] = useState("");
 
   const charger = async () => {
-    const { data } = await supabase.from("petite_caisse").select("*").order("date_demande", { ascending: false }).limit(5000);
+    const { data } = await supabase.from("petite_caisse").select("*, demande:demande_id(id, numero), commande:commande_id(id, numero)").order("date_demande", { ascending: false }).limit(5000);
     setListe(data || []);
     const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
     setArticlesBase(art || []);
@@ -106,7 +106,7 @@ export default function PetiteCaissePage() {
       statut: "Basculée en commande", observation: OBSERVATION_PETITE_CAISSE, created_by: userId,
       date_da: form.date_demande || null, numero_da: numeroDa,
     }).select().single();
-    if (!demande) return;
+    if (!demande) return {};
 
     await supabase.from("lignes_demande").insert({
       demande_id: demande.id, designation: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
@@ -124,7 +124,7 @@ export default function PetiteCaissePage() {
       assujetti_tva: assujetti, montant_ht: montantHt, montant_tva: tva, montant_ttc: montant,
       statut_paiement: "Payé", observation: OBSERVATION_PETITE_CAISSE, created_by: userId,
     }).select().single();
-    if (!bc) return;
+    if (!bc) return { demande };
 
     const { data: ligneBc } = await supabase.from("lignes_bc").insert({
       bc_id: bc.id, designation: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
@@ -138,17 +138,21 @@ export default function PetiteCaissePage() {
     if (reception && ligneBc) {
       await supabase.from("lignes_reception").insert({ reception_id: reception.id, ligne_bc_id: ligneBc.id, quantite_livree: Number(form.quantite) || 1 });
     }
+    return { demande, bc };
   };
 
   const creer = async () => {
     if (!form.article.trim() || !form.montant_demande) return;
     setEnvoi(true);
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("petite_caisse").insert({
+    const { data: ligne } = await supabase.from("petite_caisse").insert({
       date_demande: form.date_demande, motif: form.motif || form.article, montant_demande: Number(form.montant_demande),
       created_by: user?.id || null,
-    });
-    await creerDemandeEtBc(form, user?.id || null);
+    }).select().single();
+    const { demande, bc } = (await creerDemandeEtBc(form, user?.id || null)) || {};
+    if (ligne && demande && bc) {
+      await supabase.from("petite_caisse").update({ demande_id: demande.id, commande_id: bc.id }).eq("id", ligne.id);
+    }
     setEnvoi(false);
     setForm(empty);
     setNouveauOuvert(false);
@@ -248,6 +252,7 @@ export default function PetiteCaissePage() {
               <th style={thStyle}>Signataire direction</th>
               <th style={thStyle}>Montant dépensé</th>
               <th style={thStyle}>Pièce de caisse</th>
+              <th style={thStyle}>DA / BC liés</th>
               <th style={thStyle}>Statut</th>
               <th style={thStyle}></th>
             </tr>
@@ -270,6 +275,10 @@ export default function PetiteCaissePage() {
                       </td>
                       <td style={tdStyle}><input type="number" value={editForm.montant_depense} onChange={(e) => setEditForm({ ...editForm, montant_depense: e.target.value })} style={{ ...inputStyle, width: 110 }} /></td>
                       <td style={tdStyle}><input placeholder="N° pièce" value={editForm.justificatif} onChange={(e) => setEditForm({ ...editForm, justificatif: e.target.value })} style={{ ...inputStyle, width: 110 }} /></td>
+                      <td style={tdStyle}>
+                        {p.demande?.numero && <Link href={`/demandes/${p.demande.id}`} style={{ display: "block", fontSize: 12 }}>{p.demande.numero}</Link>}
+                        {p.commande?.numero && <Link href={`/commandes/${p.commande.id}`} style={{ display: "block", fontSize: 12 }}>{p.commande.numero}</Link>}
+                      </td>
                       <td style={tdStyle} colSpan={2}>
                         <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 6 }}>Enregistrer</button>
                         <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
@@ -283,6 +292,11 @@ export default function PetiteCaissePage() {
                       <td style={tdStyle}>{p.signataire_direction ? `${p.signataire_direction}${p.date_signature ? ` (${formatDate(p.date_signature)})` : ""}` : "—"}</td>
                       <td style={tdStyle}>{p.montant_depense ? `${Number(p.montant_depense).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "—"}</td>
                       <td style={tdStyle}>{p.justificatif || "—"}</td>
+                      <td style={tdStyle}>
+                        {p.demande?.numero && <Link href={`/demandes/${p.demande.id}`} style={{ display: "block", fontSize: 12 }}>{p.demande.numero}</Link>}
+                        {p.commande?.numero && <Link href={`/commandes/${p.commande.id}`} style={{ display: "block", fontSize: 12 }}>{p.commande.numero}</Link>}
+                        {!p.demande?.numero && !p.commande?.numero && "—"}
+                      </td>
                       <td style={tdStyle}>
                         <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: c.bg, color: c.fg }}>{st}</span>
                       </td>
