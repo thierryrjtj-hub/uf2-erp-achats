@@ -837,11 +837,14 @@ export default function TCODetailPage() {
                                 onKeyDown={(e) => {
                                   if (e.key !== "Enter") return;
                                   e.preventDefault();
+                                  e.stopPropagation();
                                   const suivant = i < lignesDemande.length - 1
                                     ? document.getElementById(`pu-${oi}-${i + 1}`)
                                     : document.getElementById(`numero-devis-${oi + 1}`);
-                                  suivant?.focus();
-                                  suivant?.select?.();
+                                  // Laisse le temps au blur du champ actuel (enregistrement) de se déclencher
+                                  // avant de focaliser le suivant, sinon le gestionnaire global "Entrée = blur"
+                                  // risque de refermer le nouveau champ tout de suite après.
+                                  setTimeout(() => { suivant?.focus(); suivant?.select?.(); }, 0);
                                 }}
                                 defaultValue={lo.prix_unitaire_ht ?? ""}
                                 onCommit={(v) => majPrix(o.id, ld.id, "prix_unitaire_ht", v)}
