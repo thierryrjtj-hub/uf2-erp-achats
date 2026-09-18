@@ -54,11 +54,27 @@ export default function RootLayout({ children }) {
           /* ---- Adaptation mobile ---- */
           @media (max-width: 680px) {
             .nav-sidebar { width: 60px !important; }
-            .nav-label, .nav-souslabel, .nav-footer { display: none !important; }
+            .nav-label, .nav-footer { display: none !important; }
             .nav-logo-chip { padding: 6px !important; }
             .nav-logo-chip img { height: 22px !important; }
             .content-pane { padding: 14px 12px !important; }
             table { font-size: 12px !important; }
+
+            /* Sous-onglets : au lieu d'être cachés (donc inaccessibles), ils
+               s'affichent en petit panneau flottant à côté de l'icône du
+               parent, assez large pour lire les libellés en entier. */
+            .nav-parent-item { position: relative; }
+            .nav-souslabel {
+              display: flex !important;
+              position: absolute !important;
+              left: 58px;
+              top: 0;
+              width: 200px;
+              z-index: 100;
+              border-radius: 0 8px 8px 0;
+              box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+              padding: 4px !important;
+            }
           }
         `}</style>
       </head>
