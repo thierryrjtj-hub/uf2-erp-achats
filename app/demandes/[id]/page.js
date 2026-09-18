@@ -1176,7 +1176,7 @@ export default function TCODetailPage() {
             </div>
 
             {derniere && (
-              <div style={{ display: "flex", gap: 20, marginTop: 16 }}>
+              <div style={{ display: "flex", gap: 20, marginTop: 16, breakInside: "avoid", pageBreakInside: "avoid" }}>
                 <div style={{ flex: 1, maxWidth: 320 }}>
                   <div style={{ fontWeight: 700, fontSize: 10.5, textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1.5px solid #1a1a1a", paddingBottom: 5, marginBottom: 85 }}>Validation technique</div>
                   <div style={{ fontSize: 8.5, color: "#888", borderTop: "0.75px solid #ddd", paddingTop: 4 }}>Date / Nom / Signature</div>
