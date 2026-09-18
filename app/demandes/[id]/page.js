@@ -746,7 +746,7 @@ export default function TCODetailPage() {
                   <th style={thStyle}>Qté</th>
                   <th style={thStyle}>Unité</th>
                   <th style={{ ...thStyle, color: "#1B7A4C" }}>Préconisation</th>
-                  {offresAvecTotaux.map((o) => (
+                  {offresAvecTotaux.map((o, oi) => (
                     <th key={o.id} style={{ ...thStyle, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
                       {o.fournisseur_nom}
                       {etiquetteParOffre[o.id] && <span style={{ fontSize: 11, color: "#1B7A4C" }}> — {etiquetteParOffre[o.id]}</span>}
@@ -762,6 +762,7 @@ export default function TCODetailPage() {
                       </label>
                       <div className="no-print" style={{ display: "flex", gap: 4, marginTop: 6 }}>
                         <input
+                          id={`numero-devis-${oi}`}
                           placeholder="N° devis"
                           defaultValue={o.numero_devis || ""}
                           onBlur={(e) => majOffre(o.id, "numero_devis", e.target.value)}
@@ -809,7 +810,7 @@ export default function TCODetailPage() {
                           </>
                         ) : "-"}
                       </td>
-                      {offresAvecTotaux.map((o) => {
+                      {offresAvecTotaux.map((o, oi) => {
                         const lo = o.lignesOffre.find((x) => x.ligne_demande_id === ld.id) || {};
                         const disponible = lo.prix_unitaire_ht != null && lo.prix_unitaire_ht !== "";
                         const retenu = selection[ld.id] === o.id;
@@ -825,6 +826,16 @@ export default function TCODetailPage() {
                                 title="Retenir ce fournisseur pour cet article"
                               />
                               <ChampPrixHT
+                                id={`pu-${oi}-${i}`}
+                                onKeyDown={(e) => {
+                                  if (e.key !== "Enter") return;
+                                  e.preventDefault();
+                                  const suivant = i < lignesDemande.length - 1
+                                    ? document.getElementById(`pu-${oi}-${i + 1}`)
+                                    : document.getElementById(`numero-devis-${oi + 1}`);
+                                  suivant?.focus();
+                                  suivant?.select?.();
+                                }}
                                 defaultValue={lo.prix_unitaire_ht ?? ""}
                                 onCommit={(v) => majPrix(o.id, ld.id, "prix_unitaire_ht", v)}
                                 tvaPct={o.assujetti_tva === false ? 0 : 20}
