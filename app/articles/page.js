@@ -101,6 +101,7 @@ export default function ArticlesListePage() {
     setEditForm({
       designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie_id: a.categorie_id || "",
       dernier_prix_ht: a.dernier_prix_ht ?? "", endormi: !!a.endormi, continue_par_id: a.continue_par_id || "",
+      continueParTexte: a.continue_par_id ? (designationParId[a.continue_par_id] || "") : "",
     });
   };
 
@@ -220,10 +221,26 @@ export default function ArticlesListePage() {
                         </label>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ fontSize: 13, color: "#666" }}>Continue par :</span>
-                          <select value={editForm.continue_par_id} onChange={(e) => setEditForm({ ...editForm, continue_par_id: e.target.value })} style={{ ...inputStyle, width: 260 }}>
-                            <option value="">— Aucun (article indépendant) —</option>
-                            {liste.filter((x) => x.id !== editId).map((x) => <option key={x.id} value={x.id}>{x.designation}</option>)}
-                          </select>
+                          <Autocomplete
+                            placeholder="Tape le nom de l'article de remplacement..."
+                            value={editForm.continueParTexte}
+                            onChange={(val) => {
+                              const match = liste.find((x) => x.id !== editId && x.designation.toLowerCase() === val.toLowerCase());
+                              setEditForm({ ...editForm, continueParTexte: val, continue_par_id: match ? match.id : "" });
+                            }}
+                            suggestions={liste.filter((x) => x.id !== editId).map((x) => x.designation)}
+                            style={{ width: 260 }}
+                          />
+                          {editForm.continue_par_id && (
+                            <button
+                              type="button"
+                              onClick={() => setEditForm({ ...editForm, continue_par_id: "", continueParTexte: "" })}
+                              style={{ ...linkBtn, color: "#B3261E" }}
+                              title="Rompre le lien — cet article redevient indépendant"
+                            >
+                              Rompre le lien
+                            </button>
+                          )}
                         </div>
                       </div>
                       <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 8 }}>Enregistrer</button>
