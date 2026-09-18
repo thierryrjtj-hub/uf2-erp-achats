@@ -33,7 +33,11 @@ const ORDINAUX = ["1ère", "2ème", "3ème", "4ème", "5ème"];
 function joursDepuis(dateStr) {
   if (!dateStr) return null;
   const diff = (new Date() - new Date(dateStr)) / (1000 * 60 * 60 * 24);
-  return Math.floor(diff);
+  const jours = Math.floor(diff);
+  // Garde-fou : une date manifestement invalide (mal enregistrée) ne doit
+  // jamais afficher un nombre de jours absurde dans une alerte.
+  if (!Number.isFinite(jours) || jours < 0 || jours > 3650) return null;
+  return jours;
 }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
@@ -76,7 +80,7 @@ export default function DashboardPage() {
       setAlertesDevis(devis);
 
       // ---- BC en attente de livraison ----
-      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, fournisseur_id, date, date_signature, date_envoi_signature, date_envoi_fournisseur, statut, statut_paiement, date_facture, date_estimee_reste").limit(10000);
+      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, fournisseur_id, date, date_signature, date_envoi_signature, date_envoi_fournisseur, statut, statut_paiement, date_facture, date_estimee_reste, mode_envoi_fournisseur").limit(10000);
       const { data: fournisseursData } = await supabase.from("fournisseurs").select("id, conditions_paiement_jours").limit(10000);
       const delaiParFournisseur = {};
       (fournisseursData || []).forEach((f) => { delaiParFournisseur[f.id] = f.conditions_paiement_jours || 30; });
@@ -106,7 +110,7 @@ export default function DashboardPage() {
       const livraisonBrut = (commandes || []).filter((c) => {
         if (!enAttenteLivraisonBcId[c.id]) return false;
         const j = joursDepuis(c.date_envoi_fournisseur);
-        return j !== null && j >= 2;
+        return j !== null && j >= 1;
       });
       const { data: relancesData } = await supabase.from("relance_livraison").select("bc_id, etape, jours_au_signalement").limit(10000);
       const relanceParBc = {};
@@ -257,29 +261,34 @@ export default function DashboardPage() {
           )}
 
           {alertesLivraison.length > 0 && (
-            <Section titre="Relances livraison fournisseurs" couleur="#8A6100" fond="#FFF3D6">
-              {alertesLivraison.map((c) => (
-                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", borderRadius: 6, background: "#FAFAF8", marginBottom: 6 }}>
-                  <Link href={`/commandes/${c.id}`} style={{ flex: 1, color: "#1B2430", textDecoration: "none" }}>
-                    <strong>{c.numero}</strong> — {c.fournisseur_nom} — envoyé au fournisseur il y a {joursDepuis(c.date_envoi_fournisseur)} jour(s), toujours pas reçu
-                    {c.relance && <span style={{ marginLeft: 8, fontSize: 11.5, color: "#8A6100" }}>({ORDINAUX[c.relance.etape - 1] || `${c.relance.etape}ème`} relance envoyée)</span>}
-                  </Link>
-                  {role === "acheteur" && (
-                    <button
-                      onClick={async () => {
-                        const etapeActuelle = c.relance?.etape || 0;
-                        const jours = joursDepuis(c.date_envoi_fournisseur);
-                        await enregistrerRelanceLivraison(supabase, c.id, etapeActuelle, jours);
-                        setAlertesLivraison((prev) => prev.filter((x) => x.id !== c.id));
-                      }}
-                      title="J'ai relancé le fournisseur — masquer jusqu'à ce que le retard s'aggrave"
-                      style={{ border: "1px solid #8A6100", background: "#fff", color: "#8A6100", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
-                    >
-                      Relancer
-                    </button>
-                  )}
-                </div>
-              ))}
+            <Section titre="Suivi livraison / enlèvement fournisseurs" couleur="#8A6100" fond="#FFF3D6">
+              {alertesLivraison.map((c) => {
+                const estEnlevement = c.mode_envoi_fournisseur === "Enlèvement par nos soins" || c.mode_envoi_fournisseur === "Prestation / Travaux";
+                return (
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", borderRadius: 6, background: "#FAFAF8", marginBottom: 6 }}>
+                    <Link href={`/commandes/${c.id}`} style={{ flex: 1, color: "#1B2430", textDecoration: "none" }}>
+                      <strong>{c.numero}</strong> — {c.fournisseur_nom} — {estEnlevement
+                        ? `enlèvement par nos soins prévu — avez-vous déjà planifié la récupération avec le coursier ? (envoyé il y a ${joursDepuis(c.date_envoi_fournisseur)} jour(s))`
+                        : `envoyé au fournisseur il y a ${joursDepuis(c.date_envoi_fournisseur)} jour(s), toujours pas reçu`}
+                      {c.relance && <span style={{ marginLeft: 8, fontSize: 11.5, color: "#8A6100" }}>({ORDINAUX[c.relance.etape - 1] || `${c.relance.etape}ème`} {estEnlevement ? "vérification faite" : "relance envoyée"})</span>}
+                    </Link>
+                    {role === "acheteur" && (
+                      <button
+                        onClick={async () => {
+                          const etapeActuelle = c.relance?.etape || 0;
+                          const jours = joursDepuis(c.date_envoi_fournisseur);
+                          await enregistrerRelanceLivraison(supabase, c.id, etapeActuelle, jours);
+                          setAlertesLivraison((prev) => prev.filter((x) => x.id !== c.id));
+                        }}
+                        title={estEnlevement ? "Récupération déjà planifiée — masquer jusqu'à ce que le retard s'aggrave" : "J'ai relancé le fournisseur — masquer jusqu'à ce que le retard s'aggrave"}
+                        style={{ border: "1px solid #8A6100", background: "#fff", color: "#8A6100", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
+                      >
+                        {estEnlevement ? "Déjà planifié" : "Relancer"}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </Section>
           )}
 
