@@ -42,6 +42,23 @@ export default function AuthGuard({ children }) {
     return () => document.removeEventListener("keydown", surAppuiTouche);
   }, []);
 
+  // Ctrl+F (ou Cmd+F sur Mac) : au lieu de la recherche du navigateur, focalise
+  // directement le champ de recherche de la page si elle en a un (repéré par
+  // l'attribut data-search-field, posé sur les champs de recherche de l'appli).
+  useEffect(() => {
+    const surCtrlF = (e) => {
+      if (!(e.key === "f" && (e.ctrlKey || e.metaKey))) return;
+      const champ = document.querySelector("[data-search-field]");
+      if (champ) {
+        e.preventDefault();
+        champ.focus();
+        champ.select?.();
+      }
+    };
+    document.addEventListener("keydown", surCtrlF);
+    return () => document.removeEventListener("keydown", surCtrlF);
+  }, []);
+
   if (!ready) return <p style={{ padding: 24 }}>Chargement...</p>;
 
   return (
