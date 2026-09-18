@@ -387,17 +387,13 @@ function CommandesInner() {
                     )}
                   </td>
                   <td style={tdStyle}>
-                    {c.statut_paiement === "Payé" || bcRecuId[c.id] ? (
-                      <span style={{
-                        fontSize: 12, padding: "3px 8px", borderRadius: 6,
-                        background: c.statut_paiement === "Payé" ? "#EAF7EE" : enRetard ? "#FDECEA" : "#FFF3D6",
-                        color: c.statut_paiement === "Payé" ? "#1B7A4C" : enRetard ? "#B3261E" : "#8A6100",
-                      }}>
-                        {c.statut_paiement === "Payé" ? "Payé" : enRetard ? "Échéance dépassée" : "Impayé"}
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: 12, color: "#999" }} title="Pas encore réceptionné — le suivi de paiement commence à la livraison">En attente livraison</span>
-                    )}
+                    <span style={{
+                      fontSize: 12, padding: "3px 8px", borderRadius: 6,
+                      background: c.statut_paiement === "Payé" ? "#EAF7EE" : enRetard ? "#FDECEA" : "#FFF3D6",
+                      color: c.statut_paiement === "Payé" ? "#1B7A4C" : enRetard ? "#B3261E" : "#8A6100",
+                    }}>
+                      {c.statut_paiement === "Payé" ? "Payé" : enRetard ? "Échéance dépassée" : "Impayé"}
+                    </span>
                   </td>
                   <td style={{ ...tdStyle, color: "#666" }}>{c.observation || "-"}</td>
                   <td style={tdStyle}>
