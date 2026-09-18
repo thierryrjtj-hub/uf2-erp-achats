@@ -15,7 +15,7 @@ import { montantEnLettresAriary } from "../../../lib/nombreEnLettres";
 import { formatDate } from "../../../lib/format";
 
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
-const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins"];
+const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins", "Prestation / Travaux"];
 const nouvelleSaisie = () => ({ receptionnaire: "Magasin", receptionnaireAutre: "", numeroBl: "", typeLivraison: "Livraison fournisseur", dateLivraisonTerrain: "" });
 const estBoisDeChauffage = (designation) => {
   const d = (designation || "").toLowerCase();
@@ -264,7 +264,7 @@ export default function CommandeDetailPage() {
     }));
     setDateSignature(date);
     if (!observation.trim() || observation.startsWith("BC en cours de signature")) {
-      setObservation("BC signé, envoyé au fournisseur — en attente de livraison ou d'enlèvement par nos soins");
+      setObservation(estPrestation ? "BC signé, envoyé au fournisseur — en attente de réalisation des travaux/prestation" : "BC signé, envoyé au fournisseur — en attente de livraison ou d'enlèvement par nos soins");
     }
   };
 
@@ -691,6 +691,7 @@ export default function CommandeDetailPage() {
               <select value={transmission.modeEnvoiFournisseur} onChange={(e) => setTransmission({ ...transmission, modeEnvoiFournisseur: e.target.value })} style={inputStyle}>
                 <option>Livraison fournisseur</option>
                 <option>Enlèvement par nos soins</option>
+                <option>Prestation / Travaux</option>
               </select>
             </div>
             {transmission.modeEnvoiFournisseur === "Enlèvement par nos soins" && (
