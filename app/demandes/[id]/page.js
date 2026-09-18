@@ -86,6 +86,7 @@ export default function TCODetailPage() {
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
+  const [modeImpression, setModeImpression] = useState("comparatif");
   const [sauvegardesPrixEnCours, setSauvegardesPrixEnCours] = useState(0);
   const [rechercheFournisseur, setRechercheFournisseur] = useState("");
   const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", fonction: "Buyer" });
@@ -614,7 +615,7 @@ export default function TCODetailPage() {
             )}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => window.print()} style={buttonStyle}>Imprimer la demande</button>
+            <button onClick={() => { setModeImpression("demande"); setTimeout(() => window.print(), 60); }} style={buttonStyle}>Imprimer la demande</button>
           </div>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -701,7 +702,7 @@ export default function TCODetailPage() {
               <option value="portrait">Forcer portrait</option>
               <option value="landscape">Forcer paysage</option>
             </select>
-            <button onClick={() => window.print()} disabled={sauvegardesPrixEnCours > 0} style={buttonStyle}>
+            <button onClick={() => { setModeImpression("comparatif"); setTimeout(() => window.print(), 60); }} disabled={sauvegardesPrixEnCours > 0} style={buttonStyle}>
               {sauvegardesPrixEnCours > 0 ? "Enregistrement des prix..." : "Imprimer le comparatif"}
             </button>
           </div>
@@ -935,6 +936,53 @@ export default function TCODetailPage() {
       </CadreExtensible>
       </div>
 
+      {modeImpression === "demande" && (
+        <div className="tco-imprimable">
+          <div className="page-impression" style={{ fontFamily: "Arial, sans-serif", color: "#1a1a1a", padding: 10 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", borderBottom: "2px solid #3E7A52", paddingBottom: 10, marginBottom: 16 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16 }}>Demande d'achat {demande.numero}</div>
+                {demande.numero_da && <div style={{ fontSize: 11, color: "#555" }}>N° DA : {demande.numero_da}</div>}
+              </div>
+              <div style={{ fontSize: 11, color: "#555", textAlign: "right" }}>
+                Imprimé le {formatDate(new Date().toISOString())}
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16, fontSize: 12 }}>
+              <div><strong>Date DA :</strong> {demande.date_da ? formatDate(demande.date_da) : "—"}</div>
+              <div><strong>Priorité :</strong> {demande.priorite || "Moyenne"}</div>
+              <div><strong>Service demandeur :</strong> {demande.service || "—"}</div>
+              <div><strong>Nom demandeur :</strong> {demande.demandeur || "—"}</div>
+              <div style={{ gridColumn: "1 / -1" }}><strong>Motif :</strong> {demande.motif_projet || "—"}</div>
+              {demande.observation && <div style={{ gridColumn: "1 / -1" }}><strong>Observation :</strong> {demande.observation}</div>}
+            </div>
+
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: "1.5px solid #1a1a1a" }}>
+                  <th style={{ textAlign: "left", padding: "4px 6px" }}>N°</th>
+                  <th style={{ textAlign: "left", padding: "4px 6px" }}>Article</th>
+                  <th style={{ textAlign: "right", padding: "4px 6px" }}>Quantité</th>
+                  <th style={{ textAlign: "left", padding: "4px 6px" }}>Unité</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lignesDemande.map((ld, i) => (
+                  <tr key={ld.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                    <td style={{ padding: "4px 6px" }}>{i + 1}</td>
+                    <td style={{ padding: "4px 6px" }}>{ld.designation}</td>
+                    <td style={{ padding: "4px 6px", textAlign: "right" }}>{ld.quantite}</td>
+                    <td style={{ padding: "4px 6px" }}>{ld.unite}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {modeImpression === "comparatif" && (
       <div className="tco-imprimable">
         {offresAvecTotaux.length > 0 && pagesImpression.map((page, pIdx) => {
           const derniere = pIdx === pagesImpression.length - 1;
@@ -1211,6 +1259,7 @@ export default function TCODetailPage() {
           </div>
         );})}
       </div>
+      )}
     </AuthGuard>
   );
 }
