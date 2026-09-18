@@ -146,7 +146,10 @@ export default function PetiteCaissePage() {
     setEnvoi(true);
     const { data: { user } } = await supabase.auth.getUser();
     const { data: ligne } = await supabase.from("petite_caisse").insert({
-      date_demande: form.date_demande, motif: form.motif || form.article, montant_demande: Number(form.montant_demande),
+      date_demande: form.date_demande, motif: form.motif || form.article,
+      article: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
+      prix_unitaire: (Number(form.montant_demande) || 0) / (Number(form.quantite) || 1),
+      montant_demande: Number(form.montant_demande),
       created_by: user?.id || null,
     }).select().single();
     const { demande, bc } = (await creerDemandeEtBc(form, user?.id || null)) || {};
@@ -163,6 +166,7 @@ export default function PetiteCaissePage() {
     setEditId(p.id);
     setEditForm({
       date_demande: p.date_demande, motif: p.motif, montant_demande: p.montant_demande,
+      article: p.article || p.motif || "", quantite: p.quantite ?? 1, unite: p.unite || "pcs", prix_unitaire: p.prix_unitaire ?? "",
       signataire_direction: p.signataire_direction || "", date_signature: p.date_signature || "",
       montant_depense: p.montant_depense ?? "", justificatif: p.justificatif || "", observation: p.observation || "",
     });
@@ -170,7 +174,9 @@ export default function PetiteCaissePage() {
 
   const enregistrerEdition = async () => {
     const payload = {
-      date_demande: editForm.date_demande, motif: editForm.motif, montant_demande: Number(editForm.montant_demande) || 0,
+      date_demande: editForm.date_demande, motif: editForm.motif || editForm.article, montant_demande: Number(editForm.montant_demande) || 0,
+      article: editForm.article, quantite: Number(editForm.quantite) || 1, unite: editForm.unite,
+      prix_unitaire: editForm.prix_unitaire === "" ? null : Number(editForm.prix_unitaire),
       signataire_direction: editForm.signataire_direction || null, date_signature: editForm.date_signature || null,
       montant_depense: editForm.montant_depense === "" ? null : Number(editForm.montant_depense),
       justificatif: editForm.justificatif || null, observation: editForm.observation || null,
@@ -247,7 +253,10 @@ export default function PetiteCaissePage() {
           <thead>
             <tr>
               <th style={thStyle}>Date</th>
-              <th style={thStyle}>Motif</th>
+              <th style={thStyle}>Article</th>
+              <th style={thStyle}>Qté</th>
+              <th style={thStyle}>Unité</th>
+              <th style={thStyle}>PU HT</th>
               <th style={thStyle}>Montant demandé</th>
               <th style={thStyle}>Signataire direction</th>
               <th style={thStyle}>Montant dépensé</th>
@@ -267,7 +276,10 @@ export default function PetiteCaissePage() {
                   {enEdition ? (
                     <>
                       <td style={tdStyle}><input type="date" value={editForm.date_demande} onChange={(e) => setEditForm({ ...editForm, date_demande: e.target.value })} style={{ ...inputStyle, width: 140 }} /></td>
-                      <td style={tdStyle}><input value={editForm.motif} onChange={(e) => setEditForm({ ...editForm, motif: e.target.value })} style={{ ...inputStyle, width: "100%" }} /></td>
+                      <td style={tdStyle}><input value={editForm.article} onChange={(e) => setEditForm({ ...editForm, article: e.target.value })} style={{ ...inputStyle, width: "100%" }} /></td>
+                      <td style={tdStyle}><input type="number" value={editForm.quantite} onChange={(e) => setEditForm({ ...editForm, quantite: e.target.value })} style={{ ...inputStyle, width: 70 }} /></td>
+                      <td style={tdStyle}><input value={editForm.unite} onChange={(e) => setEditForm({ ...editForm, unite: e.target.value })} style={{ ...inputStyle, width: 80 }} /></td>
+                      <td style={tdStyle}><input type="number" value={editForm.prix_unitaire} onChange={(e) => setEditForm({ ...editForm, prix_unitaire: e.target.value })} style={{ ...inputStyle, width: 100 }} /></td>
                       <td style={tdStyle}><input type="number" value={editForm.montant_demande} onChange={(e) => setEditForm({ ...editForm, montant_demande: e.target.value })} style={{ ...inputStyle, width: 110 }} /></td>
                       <td style={tdStyle}>
                         <input placeholder="Nom" value={editForm.signataire_direction} onChange={(e) => setEditForm({ ...editForm, signataire_direction: e.target.value })} style={{ ...inputStyle, width: 110, marginBottom: 4 }} />
@@ -287,7 +299,10 @@ export default function PetiteCaissePage() {
                   ) : (
                     <>
                       <td style={tdStyle}>{formatDate(p.date_demande)}</td>
-                      <td style={tdStyle}>{p.motif}</td>
+                      <td style={tdStyle}>{p.article || p.motif}</td>
+                      <td style={tdStyle}>{p.quantite ?? 1}</td>
+                      <td style={tdStyle}>{p.unite || "—"}</td>
+                      <td style={tdStyle}>{p.prix_unitaire ? `${Number(p.prix_unitaire).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "—"}</td>
                       <td style={tdStyle}>{Number(p.montant_demande).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                       <td style={tdStyle}>{p.signataire_direction ? `${p.signataire_direction}${p.date_signature ? ` (${formatDate(p.date_signature)})` : ""}` : "—"}</td>
                       <td style={tdStyle}>{p.montant_depense ? `${Number(p.montant_depense).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "—"}</td>
