@@ -226,6 +226,7 @@ export default function HistoriquePage() {
               onChange={setRecherche}
               suggestions={suggestionsRecherche}
               style={{ flex: 1, minWidth: 320 }}
+              inputAttrs={{ "data-search-field": true }}
             />
             <label style={{ fontSize: 12, color: "#666" }}>Du</label>
             <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
