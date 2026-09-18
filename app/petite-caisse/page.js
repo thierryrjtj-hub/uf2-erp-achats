@@ -188,9 +188,22 @@ export default function PetiteCaissePage() {
     charger();
   };
 
-  const supprimer = async (id) => {
-    if (!confirm("Supprimer cette ligne de petite caisse ? (la demande et le BC déjà créés ne sont pas supprimés automatiquement)")) return;
-    await supabase.from("petite_caisse").delete().eq("id", id);
+  const supprimer = async (p) => {
+    if (!confirm(p.demande_id ? "Supprimer cette ligne, ainsi que la demande et le BC qu'elle avait générés ?" : "Supprimer cette ligne de petite caisse ?")) return;
+    if (p.commande_id) {
+      const { data: receptionsC } = await supabase.from("receptions").select("id").eq("bc_id", p.commande_id);
+      for (const r of receptionsC || []) {
+        await supabase.from("lignes_reception").delete().eq("reception_id", r.id);
+      }
+      await supabase.from("receptions").delete().eq("bc_id", p.commande_id);
+      await supabase.from("lignes_bc").delete().eq("bc_id", p.commande_id);
+      await supabase.from("commandes").delete().eq("id", p.commande_id);
+    }
+    if (p.demande_id) {
+      await supabase.from("lignes_demande").delete().eq("demande_id", p.demande_id);
+      await supabase.from("demandes").delete().eq("id", p.demande_id);
+    }
+    await supabase.from("petite_caisse").delete().eq("id", p.id);
     charger();
   };
 
@@ -317,7 +330,7 @@ export default function PetiteCaissePage() {
                       </td>
                       <td style={tdStyle}>
                         <button onClick={() => modifier(p)} style={linkBtn}>Modifier</button>
-                        {role === "acheteur" && <button onClick={() => supprimer(p.id)} style={{ ...linkBtn, color: "#B3261E" }}>Suppr.</button>}
+                        {role === "acheteur" && <button onClick={() => supprimer(p)} style={{ ...linkBtn, color: "#B3261E" }}>Suppr.</button>}
                       </td>
                     </>
                   )}
