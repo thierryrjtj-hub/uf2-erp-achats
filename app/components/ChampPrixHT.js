@@ -11,7 +11,7 @@ import { useRef, useState } from "react";
 //   ET quand la calculatrice valide, pour rester cohérent avec les champs qui
 //   n'enregistrent qu'à la perte de focus)
 export default function ChampPrixHT({
-  value, defaultValue, onChange, onCommit, tvaPct = 20, style, placeholder = "PU HT", disabled = false,
+  value, defaultValue, onChange, onCommit, tvaPct = 20, style, placeholder = "PU HT", disabled = false, id, onKeyDown,
 }) {
   const inputRef = useRef(null);
   const [ouvert, setOuvert] = useState(false);
@@ -39,7 +39,7 @@ export default function ChampPrixHT({
 
   return (
     <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 3 }}>
-      <input ref={inputRef} type="number" placeholder={placeholder} disabled={disabled} style={style} {...inputProps} />
+      <input ref={inputRef} id={id} type="number" placeholder={placeholder} disabled={disabled} style={style} onKeyDown={onKeyDown} {...inputProps} />
       {!disabled && (
         <button
           type="button"
@@ -67,4 +67,3 @@ export default function ChampPrixHT({
     </span>
   );
 }
-
