@@ -171,7 +171,7 @@ export default function ArticlesListePage() {
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexShrink: 0, alignItems: "center" }}>
             <div style={{ position: "relative", width: 300 }}>
-              <input placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+              <input data-search-field placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
               {recherche && (
                 <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
               )}
