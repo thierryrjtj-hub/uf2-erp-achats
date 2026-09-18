@@ -481,9 +481,15 @@ export default function TCODetailPage() {
   // ou moins, paysage au-delà — reste modifiable manuellement via le menu à
   // côté du bouton "Imprimer le comparatif" si besoin.
   const orientation = orientationManuelle || (offresAvecTotaux.length > 2 ? "landscape" : "portrait");
-  const dense = lignesDemande.length > 10;
-  const cozy = lignesDemande.length <= 3;
-  const padCellule = dense ? "2px 4px" : cozy ? "7px 4px" : "4px 4px";
+  const nbLignesTco = lignesDemande.length;
+  const dense = nbLignesTco > 10;
+  const cozy = nbLignesTco <= 3;
+  // Resserrement plus agressif par paliers, pour que le tableau + le bloc
+  // totaux + la zone de signature tiennent toujours sur une seule page,
+  // même à 16 lignes et jusqu'à 4 fournisseurs.
+  const tailleTexteTco = nbLignesTco > 14 ? 7.5 : nbLignesTco > 10 ? 8.5 : 10.5;
+  const padCellule = nbLignesTco > 14 ? "1px 3px" : nbLignesTco > 10 ? "1.5px 3px" : cozy ? "7px 4px" : "4px 4px";
+  const tdTco = { padding: padCellule, fontSize: tailleTexteTco, borderBottom: "1px solid #1a1a1a" };
 
   return (
     <AuthGuard>
@@ -496,6 +502,7 @@ export default function TCODetailPage() {
           .page-impression { page-break-after: always; }
           .page-impression:last-child { page-break-after: auto; }
           tr, td, th { break-inside: avoid; }
+          * { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
         }
         .tco-imprimable { display: none; }
         @media print { .tco-imprimable { display: block; } }
@@ -964,7 +971,7 @@ export default function TCODetailPage() {
             </div>
 
             <div>
-              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
+              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: tailleTexteTco, tableLayout: "fixed" }}>
                 <colgroup>
                   {(() => {
                     // Largeurs en % de la page (jamais en px fixe) : le tableau tient
@@ -1071,7 +1078,7 @@ export default function TCODetailPage() {
                           return (
                             <Fragment key={o.id}>
                               <td style={styleCell1}>{estMoinsCher && pastilleEtoile}{lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}</td>
-                              <td style={styleCell}>{lo.remise_pct ? `${lo.remise_pct}%` : ""}</td>
+                              <td style={styleCell}>{lo.prix_unitaire_ht && lo.remise_pct ? `${lo.remise_pct}%` : ""}</td>
                               <td style={styleCellDer}>{m != null ? `${m.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}</td>
                             </Fragment>
                           );
@@ -1086,7 +1093,7 @@ export default function TCODetailPage() {
             <div style={{ height: 10 }} />
 
             <div>
-              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: dense ? 9 : 10.5, tableLayout: "fixed" }}>
+              <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: tailleTexteTco, tableLayout: "fixed" }}>
                 <colgroup>
                   {(() => {
                     const FIXE = { no: 2.5, article: 15, qte: 4, unite: 4.5, gap: 0.5, preco: 13 };
