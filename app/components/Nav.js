@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
@@ -46,6 +47,7 @@ const LINKS = [
 export default function Nav() {
   const router = useRouter();
   const pathname = usePathname();
+  const [aideOuverte, setAideOuverte] = useState(false);
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -123,6 +125,27 @@ export default function Nav() {
           <IconLogout />
           <span className="nav-label">Déconnexion</span>
         </button>
+        <button
+          onClick={() => setAideOuverte((o) => !o)}
+          className="no-print"
+          style={{
+            width: "100%", fontSize: 12, border: "1px solid rgba(255,255,255,0.15)",
+            background: "transparent", color: "#A9C2BB", padding: "6px 12px",
+            borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            marginTop: 8,
+          }}
+        >
+          ⌨ <span className="nav-label">Raccourcis clavier</span>
+        </button>
+        {aideOuverte && (
+          <div style={{ background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: 10, marginTop: 6, fontSize: 11, color: "#D8E8E2", lineHeight: 1.6 }}>
+            <div><strong>Ctrl+F</strong> — recherche de la page</div>
+            <div><strong>↓ / ↑</strong> — naviguer les suggestions</div>
+            <div><strong>Entrée</strong> — valider le champ / la suggestion</div>
+            <div><strong>Entrée</strong> (comparatif, colonne PU HT) — passe à la ligne suivante, puis au fournisseur suivant</div>
+            <div><strong>Échap</strong> — fermer une liste de suggestions</div>
+          </div>
+        )}
         <p className="nav-footer" style={{ fontSize: 10.5, color: "#7A9C93", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
           Créé par Judicaël Randrianaivo
         </p>
