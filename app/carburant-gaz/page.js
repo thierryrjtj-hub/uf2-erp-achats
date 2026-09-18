@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import Autocomplete from "../components/Autocomplete";
@@ -27,7 +28,7 @@ export default function CarburantGazPage() {
   const [filtreVehicule, setFiltreVehicule] = useState("");
 
   const charger = async () => {
-    const { data } = await supabase.from("carburant_gaz").select("*").order("date_operation", { ascending: false }).limit(5000);
+    const { data } = await supabase.from("carburant_gaz").select("*, demande:demande_id(id, numero), commande:commande_id(id, numero)").order("date_operation", { ascending: false }).limit(5000);
     setListe(data || []);
     const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
     setArticlesBase(art || []);
@@ -92,7 +93,7 @@ export default function CarburantGazPage() {
       statut: "Basculée en commande", observation, created_by: userId,
       date_da: form.date_operation || null, numero_da: numeroDa,
     }).select().single();
-    if (!demande) return;
+    if (!demande) return {};
 
     const designation = form.article || form.type;
     await supabase.from("lignes_demande").insert({
@@ -111,7 +112,7 @@ export default function CarburantGazPage() {
       assujetti_tva: assujetti, montant_ht: montantHt, montant_tva: tva, montant_ttc: montant,
       statut_paiement: "Impayé", observation, created_by: userId,
     }).select().single();
-    if (!bc) return;
+    if (!bc) return { demande };
 
     const { data: ligneBc } = await supabase.from("lignes_bc").insert({
       bc_id: bc.id, designation, quantite: Number(form.quantite) || 1, unite: form.unite,
@@ -125,19 +126,23 @@ export default function CarburantGazPage() {
     if (reception && ligneBc) {
       await supabase.from("lignes_reception").insert({ reception_id: reception.id, ligne_bc_id: ligneBc.id, quantite_livree: Number(form.quantite) || 1 });
     }
+    return { demande, bc };
   };
 
   const creer = async () => {
     if (!form.vehicule_equipement.trim() || !form.article.trim()) return;
     setEnvoi(true);
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("carburant_gaz").insert({
+    const { data: ligne } = await supabase.from("carburant_gaz").insert({
       date_operation: form.date_operation, type: form.type, vehicule_equipement: form.vehicule_equipement,
       article: form.article, carte_fournisseur: form.carte_fournisseur || null, quantite: form.quantite === "" ? null : Number(form.quantite),
       unite: form.unite, montant: form.montant === "" ? null : Number(form.montant),
       responsable: form.responsable || null, observation: form.observation || null, created_by: user?.id || null,
-    });
-    await creerDemandeEtBc(form, user?.id || null);
+    }).select().single();
+    const { demande, bc } = (await creerDemandeEtBc(form, user?.id || null)) || {};
+    if (ligne && demande && bc) {
+      await supabase.from("carburant_gaz").update({ demande_id: demande.id, commande_id: bc.id }).eq("id", ligne.id);
+    }
     setEnvoi(false);
     setForm(empty);
     setNouveauOuvert(false);
@@ -246,6 +251,7 @@ export default function CarburantGazPage() {
               <th style={thStyle}>Quantité</th>
               <th style={thStyle}>Montant</th>
               <th style={thStyle}>Responsable</th>
+              <th style={thStyle}>DA / BC liés</th>
               <th style={thStyle}></th>
             </tr>
           </thead>
@@ -272,6 +278,10 @@ export default function CarburantGazPage() {
                       <td style={tdStyle}><input type="number" value={editForm.montant} onChange={(e) => setEditForm({ ...editForm, montant: e.target.value })} style={{ ...inputStyle, width: 110 }} /></td>
                       <td style={tdStyle}><input value={editForm.responsable} onChange={(e) => setEditForm({ ...editForm, responsable: e.target.value })} style={{ ...inputStyle, width: 110 }} /></td>
                       <td style={tdStyle}>
+                        {p.demande?.numero && <Link href={`/demandes/${p.demande.id}`} style={{ display: "block", fontSize: 12 }}>{p.demande.numero}</Link>}
+                        {p.commande?.numero && <Link href={`/commandes/${p.commande.id}`} style={{ display: "block", fontSize: 12 }}>{p.commande.numero}</Link>}
+                      </td>
+                      <td style={tdStyle}>
                         <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 6 }}>OK</button>
                         <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
                       </td>
@@ -286,6 +296,11 @@ export default function CarburantGazPage() {
                       <td style={tdStyle}>{p.quantite ? `${p.quantite} ${p.unite || ""}` : "—"}</td>
                       <td style={tdStyle}>{p.montant ? `${Number(p.montant).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "—"}</td>
                       <td style={tdStyle}>{p.responsable || "—"}</td>
+                      <td style={tdStyle}>
+                        {p.demande?.numero && <Link href={`/demandes/${p.demande.id}`} style={{ display: "block", fontSize: 12 }}>{p.demande.numero}</Link>}
+                        {p.commande?.numero && <Link href={`/commandes/${p.commande.id}`} style={{ display: "block", fontSize: 12 }}>{p.commande.numero}</Link>}
+                        {!p.demande?.numero && !p.commande?.numero && "—"}
+                      </td>
                       <td style={tdStyle}>
                         <button onClick={() => modifier(p)} style={linkBtn}>Modifier</button>
                         {role === "acheteur" && <button onClick={() => supprimer(p.id)} style={{ ...linkBtn, color: "#B3261E" }}>Suppr.</button>}
