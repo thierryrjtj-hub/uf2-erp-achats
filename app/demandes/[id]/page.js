@@ -86,6 +86,7 @@ export default function TCODetailPage() {
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
   const [generating, setGenerating] = useState(false);
+  const [sauvegardesPrixEnCours, setSauvegardesPrixEnCours] = useState(0);
   const [rechercheFournisseur, setRechercheFournisseur] = useState("");
   const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", fonction: "Buyer" });
 
@@ -286,16 +287,29 @@ export default function TCODetailPage() {
   };
 
   const majPrix = async (offreId, ligneDemandeId, field, value) => {
-    const existante = lignesOffre.find((x) => x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId);
-    setLignesOffre((prev) =>
-      prev.map((x) => (x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId ? { ...x, [field]: value } : x))
-    );
-    if (existante) {
-      await supabase.from("lignes_offre").update({ [field]: value === "" ? null : Number(value) }).eq("id", existante.id);
+    setSauvegardesPrixEnCours((n) => n + 1);
+    try {
+      const existante = lignesOffre.find((x) => x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId);
+      const payload = { [field]: value === "" ? null : Number(value) };
+      if (existante) {
+        setLignesOffre((prev) =>
+          prev.map((x) => (x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId ? { ...x, [field]: value } : x))
+        );
+        await supabase.from("lignes_offre").update(payload).eq("id", existante.id);
+      } else {
+        // Aucune ligne d'offre pour ce couple fournisseur/article pour l'instant :
+        // on la crée, sinon la saisie (calculette comprise) était silencieusement perdue.
+        const { data: nouvelle } = await supabase.from("lignes_offre").insert({ offre_id: offreId, ligne_demande_id: ligneDemandeId, ...payload }).select().single();
+        if (nouvelle) setLignesOffre((prev) => [...prev, nouvelle]);
+      }
       if (field === "prix_unitaire_ht" && value !== "") {
         const ld = lignesDemande.find((l) => l.id === ligneDemandeId);
         if (ld) await supabase.from("articles").update({ dernier_prix_ht: Number(value) }).ilike("designation", ld.designation);
       }
+    } finally {
+      // Petit délai avant de rouvrir "Générer les BC"/impression : le temps que
+      // le calcul du moins cher se rafraîchisse bien à l'écran avant de s'y fier.
+      setTimeout(() => setSauvegardesPrixEnCours((n) => Math.max(0, n - 1)), 600);
     }
   };
 
@@ -369,6 +383,9 @@ export default function TCODetailPage() {
     if (Object.keys(groupes).length === 0) return;
     setGenerating(true);
 
+    const lignesReellementCouvertes = new Set();
+    const echecs = [];
+
     for (const [offreId, lignes] of Object.entries(groupes)) {
       const offre = offresAvecTotaux.find((o) => o.id === offreId);
       if (!offre) continue;
@@ -394,7 +411,7 @@ export default function TCODetailPage() {
       const assujetti = offre.assujetti_tva !== false;
       const tva = assujetti ? montantHT * 0.2 : 0;
 
-      const { data: bc } = await supabase
+      const { data: bc, error: erreurBc } = await supabase
         .from("commandes")
         .insert({
           demande_id: id,
@@ -408,16 +425,30 @@ export default function TCODetailPage() {
         .select()
         .single();
 
+      // Une ligne n'est marquée "couverte" que si le BC ET ses lignes ont
+      // réellement été créés avec succès — sinon elle reste disponible pour
+      // une nouvelle tentative de génération au lieu d'être bloquée à tort.
       if (bc) {
-        await supabase.from("lignes_bc").insert(lignesBcPayload.map((l) => ({ ...l, bc_id: bc.id })));
+        const { error: erreurLignes } = await supabase.from("lignes_bc").insert(lignesBcPayload.map((l) => ({ ...l, bc_id: bc.id })));
+        if (!erreurLignes) {
+          lignes.forEach((ld) => lignesReellementCouvertes.add(ld.id));
+        } else {
+          echecs.push(offre.fournisseur_nom);
+        }
+      } else {
+        echecs.push(offre.fournisseur_nom);
       }
     }
 
-    const nouvellesCouvertes = new Set(Object.values(groupes).flat().map((l) => l.id));
-    const restants = lignesDemande.filter((ld) => !dejaCouvertes.has(ld.id) && !nouvellesCouvertes.has(ld.id));
+    const restants = lignesDemande.filter((ld) => !dejaCouvertes.has(ld.id) && !lignesReellementCouvertes.has(ld.id));
     await supabase.from("demandes").update({ statut: restants.length === 0 ? "Basculée en commande" : "Partiellement traitée" }).eq("id", id);
     setGenerating(false);
-    router.push("/commandes");
+    if (echecs.length > 0) {
+      alert(`Attention : le BC n'a pas pu être créé pour ${echecs.join(", ")}. Les lignes correspondantes restent disponibles pour une nouvelle tentative — les autres BC ont bien été créés.`);
+      charger();
+    } else {
+      router.push("/commandes");
+    }
   };
 
   const marquerNonDisponible = async (ligne) => {
@@ -663,7 +694,9 @@ export default function TCODetailPage() {
               <option value="portrait">Forcer portrait</option>
               <option value="landscape">Forcer paysage</option>
             </select>
-            <button onClick={() => window.print()} style={buttonStyle}>Imprimer le comparatif</button>
+            <button onClick={() => window.print()} disabled={sauvegardesPrixEnCours > 0} style={buttonStyle}>
+              {sauvegardesPrixEnCours > 0 ? "Enregistrement des prix..." : "Imprimer le comparatif"}
+            </button>
           </div>
         </div>
 
@@ -865,9 +898,12 @@ export default function TCODetailPage() {
             <p style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
               Le point (radio) coché sur chaque article indique le fournisseur retenu pour cet article (par défaut le moins cher). Change-le si besoin avant de générer les bons de commande — un BC distinct sera créé par fournisseur retenu, seulement pour les articles pas encore attribués.
             </p>
-            <button onClick={genererBC} disabled={generating} style={buttonStyle}>
-              {generating ? "Génération..." : "Générer le(s) bon(s) de commande"}
+            <button onClick={genererBC} disabled={generating || sauvegardesPrixEnCours > 0} style={buttonStyle}>
+              {generating ? "Génération..." : sauvegardesPrixEnCours > 0 ? "Enregistrement des prix..." : "Générer le(s) bon(s) de commande"}
             </button>
+            {sauvegardesPrixEnCours > 0 && (
+              <p style={{ fontSize: 11.5, color: "#8A6100", marginTop: 6 }}>Un instant — le calcul du fournisseur le moins cher se met à jour après ta dernière saisie de prix.</p>
+            )}
           </div>
         )}
         {offresAvecTotaux.length > 0 && lignesDemande.length > 0 && lignesDemande.every((ld) => dejaCouvertes.has(ld.id)) && (
@@ -1014,14 +1050,16 @@ export default function TCODetailPage() {
                           const lo = o.lignesOffre.find((x) => x.ligne_demande_id === ld.id) || {};
                           const m = montantLigne(o, ld);
                           const estMoinsCher = moinsCherParLigne[ld.id] === o.id && !!lo.prix_unitaire_ht;
-                          const fond = estMoinsCher ? { background: "#EAF7EE" } : {};
-                          const cadreMoinsCher = estMoinsCher ? { borderTop: "2px solid #1a1a1a", borderBottom: "2px solid #1a1a1a" } : {};
-                          const styleCell1 = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...(idx === 0 ? boxEdge("right", { last: finRangee, firstCol: true }) : { borderLeft: "1.5px solid #1a1a1a" }), ...cadreMoinsCher };
-                          const styleCell = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...cadreMoinsCher };
-                          const styleCellDer = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...boxEdge("right", { last: finRangee, lastCol: idx === page.length - 1 }), ...cadreMoinsCher, fontWeight: estMoinsCher ? 700 : 400, color: estMoinsCher ? "#1B7A4C" : "#1a1a1a" };
+                          const fond = estMoinsCher ? { background: "#D6D6D6" } : {};
+                          const styleCell1 = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...(idx === 0 ? boxEdge("right", { last: finRangee, firstCol: true }) : { borderLeft: "1.5px solid #1a1a1a" }) };
+                          const styleCell = { ...tdTco, padding: padCellule, textAlign: "right", ...fond };
+                          const styleCellDer = { ...tdTco, padding: padCellule, textAlign: "right", ...fond, ...boxEdge("right", { last: finRangee, lastCol: idx === page.length - 1 }), fontWeight: estMoinsCher ? 700 : 400, color: estMoinsCher ? "#1B7A4C" : "#1a1a1a" };
+                          const pastilleEtoile = (
+                            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 11, height: 11, borderRadius: "50%", background: "#1a1a1a", color: "#fff", fontSize: 7, lineHeight: 1, marginRight: 3, verticalAlign: "middle" }}>★</span>
+                          );
                           return (
                             <Fragment key={o.id}>
-                              <td style={styleCell1}>{lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}{estMoinsCher ? " ★" : ""}</td>
+                              <td style={styleCell1}>{estMoinsCher && pastilleEtoile}{lo.prix_unitaire_ht ? `${Number(lo.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}</td>
                               <td style={styleCell}>{lo.remise_pct ? `${lo.remise_pct}%` : ""}</td>
                               <td style={styleCellDer}>{m != null ? `${m.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""}</td>
                             </Fragment>
@@ -1186,4 +1224,4 @@ function boxEdge(group, { first = false, last = false, firstCol = false, lastCol
 const lblStyle = { fontSize: 8.5, color: "#888", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 };
 const thBlank = { borderBottom: "none", padding: 0 };
 const thTco = { padding: "3px 5px 5px", fontSize: 8, fontWeight: 600, textAlign: "left", color: "#888", textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1.5px solid #1a1a1a" };
-const tdTco = { padding: "4px", fontSize: 10, borderBottom: "0.75px solid #eee" };
+const tdTco = { padding: "4px", fontSize: 10, borderBottom: "1px solid #1a1a1a" };
