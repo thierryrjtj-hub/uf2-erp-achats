@@ -13,6 +13,8 @@ export default function Autocomplete({ value, onChange, onSelect, suggestions, p
   const [ouvert, setOuvert] = useState(false);
   const [surligne, setSurligne] = useState(0);
   const blurTimeout = useRef(null);
+  const itemRefs = useRef([]);
+  const dropdownRef = useRef(null);
 
   const filtrees = value.trim()
     ? suggestions.filter((s) => s.toLowerCase().includes(value.trim().toLowerCase())).slice(0, 8)
@@ -23,6 +25,24 @@ export default function Autocomplete({ value, onChange, onSelect, suggestions, p
   useEffect(() => {
     setSurligne(0);
   }, [value, ouvert]);
+
+  // La liste défile automatiquement pour garder la suggestion surlignée au
+  // clavier visible, sans devoir manipuler la barre de défilement à la main.
+  // Calcul manuel (plutôt que scrollIntoView, peu fiable ici selon les
+  // navigateurs) : on ne fait défiler que si l'élément surligné dépasse la
+  // zone actuellement visible du conteneur, dans un sens ou dans l'autre.
+  useEffect(() => {
+    const conteneur = dropdownRef.current;
+    const item = itemRefs.current[surligne];
+    if (!conteneur || !item) return;
+    const hautItem = item.offsetTop;
+    const basItem = hautItem + item.offsetHeight;
+    if (hautItem < conteneur.scrollTop) {
+      conteneur.scrollTop = hautItem;
+    } else if (basItem > conteneur.scrollTop + conteneur.clientHeight) {
+      conteneur.scrollTop = basItem - conteneur.clientHeight;
+    }
+  }, [surligne, filtrees.length]);
 
   const choisir = (s) => {
     if (onSelect) onSelect(s); else onChange(s);
@@ -58,10 +78,11 @@ export default function Autocomplete({ value, onChange, onSelect, suggestions, p
         {...inputAttrs}
       />
       {ouvert && filtrees.length > 0 && (
-        <div style={dropdownStyle}>
+        <div ref={dropdownRef} style={dropdownStyle}>
           {filtrees.map((s, i) => (
             <div
               key={i}
+              ref={(el) => { itemRefs.current[i] = el; }}
               onMouseDown={(e) => { e.preventDefault(); if (blurTimeout.current) clearTimeout(blurTimeout.current); choisir(s); }}
               onMouseEnter={() => setSurligne(i)}
               style={{ ...itemStyle, background: i === surligne ? "#F5F4F1" : "#fff" }}
