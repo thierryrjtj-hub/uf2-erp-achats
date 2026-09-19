@@ -108,9 +108,9 @@ export default function PetiteCaissePage() {
     }).select().single();
     if (!demande) return {};
 
-    await supabase.from("lignes_demande").insert({
+    const { data: ligneDemande } = await supabase.from("lignes_demande").insert({
       demande_id: demande.id, designation: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
-    });
+    }).select().single();
 
     const fournisseurChoisi = fournisseurs.find((f) => f.nom === form.fournisseur);
     const fournisseurId = fournisseurChoisi ? fournisseurChoisi.id : await idFournisseurDivers();
@@ -127,7 +127,7 @@ export default function PetiteCaissePage() {
     if (!bc) return { demande };
 
     const { data: ligneBc } = await supabase.from("lignes_bc").insert({
-      bc_id: bc.id, designation: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
+      bc_id: bc.id, ligne_demande_id: ligneDemande?.id || null, designation: form.article, quantite: Number(form.quantite) || 1, unite: form.unite,
       prix_unitaire_ht: montantHt / (Number(form.quantite) || 1), remise_pct: 0, montant_ht: montantHt,
     }).select().single();
 
