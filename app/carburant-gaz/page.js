@@ -96,9 +96,9 @@ export default function CarburantGazPage() {
     if (!demande) return {};
 
     const designation = form.article || form.type;
-    await supabase.from("lignes_demande").insert({
+    const { data: ligneDemande } = await supabase.from("lignes_demande").insert({
       demande_id: demande.id, designation, quantite: Number(form.quantite) || 1, unite: form.unite,
-    });
+    }).select().single();
 
     const fournisseurChoisi = fournisseurs.find((f) => f.nom === form.carte_fournisseur);
     const fournisseurId = fournisseurChoisi ? fournisseurChoisi.id : await idFournisseurDivers();
@@ -115,7 +115,7 @@ export default function CarburantGazPage() {
     if (!bc) return { demande };
 
     const { data: ligneBc } = await supabase.from("lignes_bc").insert({
-      bc_id: bc.id, designation, quantite: Number(form.quantite) || 1, unite: form.unite,
+      bc_id: bc.id, ligne_demande_id: ligneDemande?.id || null, designation, quantite: Number(form.quantite) || 1, unite: form.unite,
       prix_unitaire_ht: montantHt / (Number(form.quantite) || 1), remise_pct: 0, montant_ht: montantHt,
     }).select().single();
 
