@@ -11,7 +11,7 @@ export const cardStyle = {
   background: "#fff",
   borderRadius: 12,
   padding: 20,
-  boxShadow: "0 1px 3px rgba(16,24,40,0.05)",
+  boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 3px 8px rgba(16,24,40,0.06)",
   border: "1px solid #ECEBE6",
 };
 
@@ -22,39 +22,43 @@ export const inputStyle = {
   fontSize: 13,
   background: "#fff",
   color: TEXT,
+  boxShadow: "inset 0 1px 3px rgba(16,24,40,0.07)",
 };
 
 export const buttonStyle = {
   padding: "8px 16px",
   borderRadius: 7,
   border: "none",
-  background: BRAND,
+  background: `linear-gradient(180deg, ${BRAND} 0%, #17302B 100%)`,
   color: "#fff",
   fontSize: 13,
   fontWeight: 500,
   cursor: "pointer",
+  boxShadow: "0 2px 4px rgba(16,24,40,0.18), inset 0 1px 0 rgba(255,255,255,0.14)",
 };
 
 export const buttonSecondaryStyle = {
   padding: "8px 16px",
   borderRadius: 7,
   border: "1px solid #DDDBD3",
-  background: "#fff",
+  background: "linear-gradient(180deg, #ffffff 0%, #F7F6F2 100%)",
   color: TEXT,
   fontSize: 13,
   fontWeight: 500,
   cursor: "pointer",
+  boxShadow: "0 1px 2px rgba(16,24,40,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
 };
 
 export const buttonDangerStyle = {
   padding: "8px 16px",
   borderRadius: 7,
   border: "none",
-  background: "#B3261E",
+  background: "linear-gradient(180deg, #C4362D 0%, #9B1F19 100%)",
   color: "#fff",
   fontSize: 13,
   fontWeight: 500,
   cursor: "pointer",
+  boxShadow: "0 2px 4px rgba(16,24,40,0.18), inset 0 1px 0 rgba(255,255,255,0.14)",
 };
 
 export const linkBtn = {
@@ -111,6 +115,9 @@ export const sectionTitleStyle = {
   marginBottom: 14,
 };
 
+// Voyant lumineux (LED) : un badge avec une légère lueur colorée, pour les
+// statuts (BC, demandes...) — reprend le même bg/color que badge() mais avec
+// un halo qui donne un effet "voyant allumé" plutôt qu'une simple pastille.
 export const badge = (bg, color) => ({
   fontSize: 11.5,
   padding: "3px 10px",
@@ -119,6 +126,7 @@ export const badge = (bg, color) => ({
   color,
   fontWeight: 500,
   display: "inline-block",
+  boxShadow: `0 0 0 1px ${color}22, 0 0 6px ${color}33`,
 });
 
 export const COLORS = {
