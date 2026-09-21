@@ -41,6 +41,7 @@ const LINKS = [
     ],
   },
   { href: "/journal", label: "Journal d'audit", icon: IconList },
+  { href: "/controle-qualite", label: "Contrôle qualité", icon: IconList },
   { href: "/sauvegarde", label: "Sauvegarde", icon: IconSave },
 ];
 
