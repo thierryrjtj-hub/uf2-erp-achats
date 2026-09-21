@@ -57,9 +57,9 @@ export default function Nav() {
 
   return (
     <div className="nav-sidebar no-print" style={{ width: 226, height: "100vh", position: "sticky", top: 0, background: BRAND, display: "flex", flexDirection: "column", flexShrink: 0 }}>
-      <div className="nav-logo-chip" style={{ padding: "22px 18px 18px" }}>
-        <div style={{ background: "#fff", borderRadius: 10, padding: "8px 12px", display: "inline-block" }}>
-          <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 36, display: "block" }} />
+      <div className="nav-logo-chip" style={{ padding: "14px 10px 10px" }}>
+        <div style={{ background: "#fff", borderRadius: 8, padding: "10px 12px", width: "100%", boxSizing: "border-box" }}>
+          <img src="/logo-hv.png" alt="UNIFOODS" style={{ width: "100%", height: 36, objectFit: "contain", display: "block" }} />
         </div>
       </div>
 
@@ -80,6 +80,10 @@ export default function Nav() {
                   background: actif ? "rgba(255,255,255,0.12)" : "transparent",
                   fontWeight: actif ? 600 : 400,
                   borderLeft: actif ? `3px solid ${ACCENT}` : "3px solid transparent",
+                  boxShadow: actif
+                    ? `inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 2px rgba(0,0,0,0.15), 0 0 10px ${ACCENT}33`
+                    : "none",
+                  transition: "background 0.12s ease, box-shadow 0.12s ease",
                 }}
               >
                 <Icon color={actif ? ACCENT : "#A9C2BB"} />
