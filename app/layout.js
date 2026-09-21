@@ -34,14 +34,18 @@ export default function RootLayout({ children }) {
           input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #1B2430 !important;
-            box-shadow: 0 0 0 2px rgba(27,36,48,0.08);
+            box-shadow: inset 0 1px 3px rgba(16,24,40,0.07), 0 0 0 2px rgba(27,36,48,0.08);
           }
           a { color: inherit; }
 
           /* ---- Boutons : retour visuel clair au survol et au clic, partout ---- */
-          button:not(:disabled) { cursor: pointer; transition: filter 0.12s ease, transform 0.05s ease; }
-          button:not(:disabled):hover { filter: brightness(0.92); }
-          button:not(:disabled):active { filter: brightness(0.8); transform: translateY(1px); }
+          button:not(:disabled) { cursor: pointer; transition: filter 0.12s ease, transform 0.06s ease, box-shadow 0.06s ease; }
+          button:not(:disabled):hover { filter: brightness(0.94); }
+          button:not(:disabled):active {
+            filter: brightness(0.85);
+            transform: translateY(2px);
+            box-shadow: 0 1px 1px rgba(16,24,40,0.14) !important;
+          }
 
           /* ---- Impression : le menu ne doit jamais apparaître, et le contenu doit occuper toute la page ---- */
           .no-print { }
