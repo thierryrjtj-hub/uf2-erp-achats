@@ -74,20 +74,17 @@ export default function Nav() {
                 title={l.label}
                 style={{
                   display: "flex", alignItems: "center", gap: 10,
-                  padding: "9px 12px", borderRadius: 8,
+                  padding: "9px 12px", borderRadius: 999,
                   fontSize: 13.5, textDecoration: "none",
                   color: actif ? "#fff" : "#A9C2BB",
                   background: actif ? "rgba(255,255,255,0.12)" : "transparent",
                   fontWeight: actif ? 600 : 400,
-                  borderLeft: actif ? `3px solid ${ACCENT}` : "3px solid transparent",
-                  boxShadow: actif
-                    ? `inset 0 1px 0 rgba(255,255,255,0.12), inset 0 -1px 2px rgba(0,0,0,0.15), 0 0 10px ${ACCENT}33`
-                    : "none",
-                  transition: "background 0.12s ease, box-shadow 0.12s ease",
+                  transition: "background 0.12s ease",
                 }}
               >
-                <Icon color={actif ? ACCENT : "#A9C2BB"} />
-                <span className="nav-label">{l.label}</span>
+                <Icon color={actif ? "#fff" : "#A9C2BB"} />
+                <span className="nav-label" style={{ flex: 1 }}>{l.label}</span>
+                {actif && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", flexShrink: 0 }} />}
               </Link>
               {l.children && actif && (
                 <div className="nav-souslabel" style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 2, marginBottom: 2, background: BRAND }}>
