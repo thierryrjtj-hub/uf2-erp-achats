@@ -124,8 +124,14 @@ function NouveauFournisseurInner() {
         </div>
 
         <div style={rowStyle}>
-          <input type="number" placeholder="Délai paiement (jours)" value={form.conditions_paiement_jours} onChange={(e) => setForm({ ...form, conditions_paiement_jours: e.target.value })} style={{ ...inputStyle, width: 180 }} />
-          <input type="number" placeholder="Remise par défaut (%)" value={form.remise_par_defaut_pct} onChange={(e) => setForm({ ...form, remise_par_defaut_pct: e.target.value })} style={{ ...inputStyle, width: 180 }} />
+          <div>
+            <label style={miniLabel}>Délai paiement (jours)</label>
+            <input type="number" placeholder="Délai paiement (jours)" value={form.conditions_paiement_jours} onChange={(e) => setForm({ ...form, conditions_paiement_jours: e.target.value })} style={{ ...inputStyle, width: 180 }} />
+          </div>
+          <div>
+            <label style={miniLabel}>Remise par défaut (%)</label>
+            <input type="number" placeholder="Remise par défaut (%)" value={form.remise_par_defaut_pct} onChange={(e) => setForm({ ...form, remise_par_defaut_pct: e.target.value })} style={{ ...inputStyle, width: 180 }} />
+          </div>
         </div>
 
         <div style={rowStyle}>
@@ -162,4 +168,5 @@ function NouveauFournisseurInner() {
 }
 
 const rowStyle = { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 };
+const miniLabel = { display: "block", fontSize: 11, color: "#888", marginBottom: 3 };
 const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 3 };
