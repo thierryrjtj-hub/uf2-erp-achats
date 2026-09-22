@@ -358,6 +358,14 @@ export default function CommandeDetailPage() {
     majEditLigne(key, "designation", val);
   };
 
+  const onPrixEditBlur = async (designation, prix) => {
+    const match = articlesBase.find((a) => a.designation.toLowerCase() === (designation || "").toLowerCase());
+    if (match && prix && Number(prix) !== Number(match.dernier_prix_ht)) {
+      await supabase.from("articles").update({ dernier_prix_ht: Number(prix) }).eq("id", match.id);
+      setArticlesBase((prev) => prev.map((a) => (a.id === match.id ? { ...a, dernier_prix_ht: Number(prix) } : a)));
+    }
+  };
+
   // Suit la chaîne "continue par" jusqu'au dernier article en vigueur (protection anti-boucle)
   const resoudreSuccesseurArticle = (article) => {
     let courant = article;
@@ -517,7 +525,7 @@ export default function CommandeDetailPage() {
                 />
                 <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
                 <input placeholder="unité" value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteEditBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 90 }} />
-                <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => majEditLigne(l.key, "prix_unitaire_ht", v)} tvaPct={bc.assujetti_tva === false ? 0 : 20} style={{ ...inputStyle, width: 110 }} />
+                <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => majEditLigne(l.key, "prix_unitaire_ht", v)} onBlurSync={(v) => onPrixEditBlur(l.designation, v)} tvaPct={bc.assujetti_tva === false ? 0 : 20} style={{ ...inputStyle, width: 110 }} />
                 <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
                 <button onClick={() => retirerEditLigne(l.key)} style={linkBtn}>Retirer</button>
               </div>
