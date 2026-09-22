@@ -11,7 +11,7 @@ import { useRef, useState } from "react";
 //   ET quand la calculatrice valide, pour rester cohérent avec les champs qui
 //   n'enregistrent qu'à la perte de focus)
 export default function ChampPrixHT({
-  value, defaultValue, onChange, onCommit, tvaPct = 20, style, placeholder = "PU HT", disabled = false, id, onKeyDown,
+  value, defaultValue, onChange, onCommit, onBlurSync, tvaPct = 20, style, placeholder = "PU HT", disabled = false, id, onKeyDown,
 }) {
   const inputRef = useRef(null);
   const [ouvert, setOuvert] = useState(false);
@@ -24,18 +24,24 @@ export default function ChampPrixHT({
       const htStr = String(ht);
       if (onChange) {
         onChange(htStr);
+        if (onBlurSync) onBlurSync(htStr);
       } else {
         if (inputRef.current) inputRef.current.value = htStr;
         if (onCommit) onCommit(htStr);
+        if (onBlurSync) onBlurSync(htStr);
       }
     }
     setOuvert(false);
     setTtc("");
   };
 
+  // onBlurSync : appelé à la perte de focus (en mode contrôlé comme non
+  // contrôlé) et quand la calculatrice valide — pour les appelants qui
+  // veulent répercuter le prix ailleurs (ex. dernier_prix_ht de la fiche
+  // article), sans dépendre du mécanisme de commit habituel du champ.
   const inputProps = onChange
-    ? { value, onChange: (e) => onChange(e.target.value) }
-    : { defaultValue, onBlur: (e) => onCommit && onCommit(e.target.value) };
+    ? { value, onChange: (e) => onChange(e.target.value), onBlur: (e) => onBlurSync && onBlurSync(e.target.value) }
+    : { defaultValue, onBlur: (e) => { onCommit && onCommit(e.target.value); onBlurSync && onBlurSync(e.target.value); } };
 
   return (
     <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 3 }}>
