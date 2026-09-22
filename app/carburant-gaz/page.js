@@ -5,7 +5,8 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
-import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
+import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn, boutonSelonModif } from "../components/ui";
+import { useDirty } from "../../lib/useDirty";
 import { chargerAvecCache, invaliderCache } from "../../lib/cache";
 import { formatDate } from "../../lib/format";
 
@@ -25,6 +26,7 @@ export default function CarburantGazPage() {
   const [envoi, setEnvoi] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const suiviEditForm = useDirty(editForm);
   const [filtreType, setFiltreType] = useState("");
   const [filtreVehicule, setFiltreVehicule] = useState("");
 
@@ -153,11 +155,13 @@ export default function CarburantGazPage() {
 
   const modifier = (p) => {
     setEditId(p.id);
-    setEditForm({
+    const initial = {
       date_operation: p.date_operation, type: p.type, vehicule_equipement: p.vehicule_equipement,
       article: p.article || "", carte_fournisseur: p.carte_fournisseur || "", quantite: p.quantite ?? "", unite: p.unite || "L",
       montant: p.montant ?? "", responsable: p.responsable || "", observation: p.observation || "",
-    });
+    };
+    setEditForm(initial);
+    suiviEditForm.reinitialiser(initial);
   };
 
   const enregistrerEdition = async () => {
@@ -297,7 +301,7 @@ export default function CarburantGazPage() {
                         {p.commande?.numero && <Link href={`/commandes/${p.commande.id}`} style={{ display: "block", fontSize: 12 }}>{p.commande.numero}</Link>}
                       </td>
                       <td style={tdStyle}>
-                        <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 6 }}>OK</button>
+                        <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 6 }}>OK</button>
                         <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
                       </td>
                     </>
