@@ -9,56 +9,54 @@ export const TEXT = "#242322";       // gris-brun chaud pour le texte (au lieu d
 
 export const cardStyle = {
   background: "#fff",
-  borderRadius: 12,
+  borderRadius: 16,
   padding: 20,
-  boxShadow: "0 1px 2px rgba(16,24,40,0.04), 0 3px 8px rgba(16,24,40,0.06)",
-  border: "1px solid #ECEBE6",
+  boxShadow: "0 2px 8px rgba(16,24,40,0.08), 0 1px 3px rgba(16,24,40,0.04)",
+  border: "none",
 };
 
 export const inputStyle = {
-  padding: "8px 10px",
-  borderRadius: 7,
+  padding: "9px 14px",
+  borderRadius: 999,
   border: "1px solid #DDDBD3",
   fontSize: 13,
   background: "#fff",
   color: TEXT,
-  boxShadow: "inset 0 1px 3px rgba(16,24,40,0.07)",
 };
 
 export const buttonStyle = {
-  padding: "8px 16px",
-  borderRadius: 7,
+  padding: "9px 20px",
+  borderRadius: 999,
   border: "none",
-  background: `linear-gradient(180deg, ${BRAND} 0%, #17302B 100%)`,
+  background: BRAND,
   color: "#fff",
   fontSize: 13,
   fontWeight: 500,
   cursor: "pointer",
-  boxShadow: "0 2px 4px rgba(16,24,40,0.18), inset 0 1px 0 rgba(255,255,255,0.14)",
+  boxShadow: "0 1px 3px rgba(16,24,40,0.12)",
 };
 
 export const buttonSecondaryStyle = {
-  padding: "8px 16px",
-  borderRadius: 7,
+  padding: "9px 20px",
+  borderRadius: 999,
   border: "1px solid #DDDBD3",
-  background: "linear-gradient(180deg, #ffffff 0%, #F7F6F2 100%)",
+  background: "#fff",
   color: TEXT,
   fontSize: 13,
   fontWeight: 500,
   cursor: "pointer",
-  boxShadow: "0 1px 2px rgba(16,24,40,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
 };
 
 export const buttonDangerStyle = {
-  padding: "8px 16px",
-  borderRadius: 7,
+  padding: "9px 20px",
+  borderRadius: 999,
   border: "none",
-  background: "linear-gradient(180deg, #C4362D 0%, #9B1F19 100%)",
+  background: "#B3261E",
   color: "#fff",
   fontSize: 13,
   fontWeight: 500,
   cursor: "pointer",
-  boxShadow: "0 2px 4px rgba(16,24,40,0.18), inset 0 1px 0 rgba(255,255,255,0.14)",
+  boxShadow: "0 1px 3px rgba(16,24,40,0.12)",
 };
 
 export const linkBtn = {
