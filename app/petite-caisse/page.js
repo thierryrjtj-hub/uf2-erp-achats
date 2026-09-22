@@ -5,9 +5,10 @@ import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
-import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
+import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn, boutonSelonModif } from "../components/ui";
 import { formatDate } from "../../lib/format";
 import { chargerAvecCache, invaliderCache } from "../../lib/cache";
+import { useDirty } from "../../lib/useDirty";
 
 const empty = {
   date_demande: new Date().toISOString().slice(0, 10), article: "", quantite: 1, unite: "pcs",
@@ -41,6 +42,7 @@ export default function PetiteCaissePage() {
   const [envoi, setEnvoi] = useState(false);
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const suiviEditForm = useDirty(editForm);
   const [filtreStatut, setFiltreStatut] = useState("");
 
   const charger = async () => {
@@ -166,12 +168,14 @@ export default function PetiteCaissePage() {
 
   const modifier = (p) => {
     setEditId(p.id);
-    setEditForm({
+    const initial = {
       date_demande: p.date_demande, motif: p.motif, montant_demande: p.montant_demande,
       article: p.article || p.motif || "", quantite: p.quantite ?? 1, unite: p.unite || "pcs", prix_unitaire: p.prix_unitaire ?? "",
       signataire_direction: p.signataire_direction || "", date_signature: p.date_signature || "",
       montant_depense: p.montant_depense ?? "", justificatif: p.justificatif || "", observation: p.observation || "",
-    });
+    };
+    setEditForm(initial);
+    suiviEditForm.reinitialiser(initial);
   };
 
   const enregistrerEdition = async () => {
@@ -307,7 +311,7 @@ export default function PetiteCaissePage() {
                         {p.commande?.numero && <Link href={`/commandes/${p.commande.id}`} style={{ display: "block", fontSize: 12 }}>{p.commande.numero}</Link>}
                       </td>
                       <td style={tdStyle} colSpan={2}>
-                        <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 6 }}>Enregistrer</button>
+                        <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 6 }}>Enregistrer</button>
                         <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
                       </td>
                     </>
