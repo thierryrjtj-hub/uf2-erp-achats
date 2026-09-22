@@ -281,7 +281,7 @@ export default function DashboardPage() {
                           setAlertesLivraison((prev) => prev.filter((x) => x.id !== c.id));
                         }}
                         title={estEnlevement ? "Récupération déjà planifiée — masquer jusqu'à ce que le retard s'aggrave" : "J'ai relancé le fournisseur — masquer jusqu'à ce que le retard s'aggrave"}
-                        style={{ border: "1px solid #8A6100", background: "#fff", color: "#8A6100", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
+                        style={{ border: "none", background: "#1E3A34", color: "#fff", borderRadius: 999, padding: "6px 14px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
                       >
                         {estEnlevement ? "Déjà planifié" : "Relancer"}
                       </button>
@@ -337,7 +337,7 @@ export default function DashboardPage() {
                         setAlertesReappro((prev) => prev.filter((x) => x.designation !== a.designation));
                       }}
                       title="J'ai avisé les personnes concernées — masquer jusqu'à ce que le retard s'aggrave"
-                      style={{ border: "1px solid #8A6100", background: "#fff", color: "#8A6100", borderRadius: 6, padding: "4px 8px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
+                      style={{ border: "none", background: "#1E3A34", color: "#fff", borderRadius: 999, padding: "6px 14px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
                     >
                       Traité
                     </button>
@@ -359,10 +359,12 @@ export default function DashboardPage() {
 
 function ResumeCard({ href, valeur, label, couleur }) {
   return (
-    <Link href={href} style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: "14px 20px", textDecoration: "none", color: "inherit", minWidth: 160, display: "flex", alignItems: "center", gap: 12 }}>
-      <span style={{ width: 8, height: 8, borderRadius: "50%", background: couleur, flexShrink: 0 }} />
+    <Link href={href} style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 8px rgba(16,24,40,0.08), 0 1px 3px rgba(16,24,40,0.04)", padding: "16px 20px", textDecoration: "none", color: "inherit", minWidth: 170, display: "flex", alignItems: "center", gap: 14 }}>
+      <span style={{ width: 42, height: 42, borderRadius: "50%", background: `${couleur}1F`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <span style={{ width: 12, height: 12, borderRadius: "50%", background: couleur }} />
+      </span>
       <div>
-        <div style={{ fontSize: 22, fontWeight: 700 }}>{valeur}</div>
+        <div style={{ fontSize: 23, fontWeight: 700 }}>{valeur}</div>
         <div style={{ fontSize: 12, color: "#888" }}>{label}</div>
       </div>
     </Link>
@@ -371,7 +373,7 @@ function ResumeCard({ href, valeur, label, couleur }) {
 
 function Section({ titre, couleur, fond, children }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
+    <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 2px 8px rgba(16,24,40,0.08), 0 1px 3px rgba(16,24,40,0.04)", padding: 20, marginBottom: 16 }}>
       <h2 style={{ fontSize: 14, marginBottom: 10, color: couleur }}>{titre}</h2>
       {children}
     </div>
@@ -380,7 +382,7 @@ function Section({ titre, couleur, fond, children }) {
 
 function LigneAlerte({ href, children }) {
   return (
-    <Link href={href} style={{ display: "block", fontSize: 13, padding: "8px 10px", borderRadius: 6, background: "#FAFAF8", marginBottom: 6, color: "#1B2430", textDecoration: "none" }}>
+    <Link href={href} style={{ display: "block", fontSize: 13, padding: "9px 12px", borderRadius: 10, background: "#F7F6F2", marginBottom: 6, color: "#1B2430", textDecoration: "none" }}>
       {children}
     </Link>
   );
@@ -432,13 +434,13 @@ function GraphiqueTendance({ points }) {
 
 // Bloc agenda / rendez-vous rapide — un simple pense-bête, pas un vrai calendrier.
 function BlocAgenda({ agenda, onAjouter, onFait }) {
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [heure, setHeure] = useState("");
   const [titre, setTitre] = useState("");
 
   const soumettre = () => {
     onAjouter(date, heure, titre);
-    setDate(""); setHeure(""); setTitre("");
+    setDate(new Date().toISOString().slice(0, 10)); setHeure(""); setTitre("");
   };
 
   return (
