@@ -111,7 +111,7 @@ export default function LoginPage() {
   if (etape === "changerMdp") {
     return (
       <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
-        <form onSubmit={handleChangerMdp} style={{ background: "#fff", padding: 32, borderRadius: 12, width: 340, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
+        <form onSubmit={handleChangerMdp} style={{ background: "#fff", padding: 32, borderRadius: 20, width: 340, boxShadow: "0 2px 8px rgba(16,24,40,0.08), 0 1px 3px rgba(16,24,40,0.04)" }}>
           <div style={{ textAlign: "center", marginBottom: 20 }}>
           <div style={{ display: "inline-block", background: "#fff", borderRadius: 14, padding: "14px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
             <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block" }} />
@@ -140,7 +140,7 @@ export default function LoginPage() {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
-      <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 32, borderRadius: 12, width: 340, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}>
+      <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 32, borderRadius: 20, width: 340, boxShadow: "0 2px 8px rgba(16,24,40,0.08), 0 1px 3px rgba(16,24,40,0.04)" }}>
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <div style={{ display: "inline-block", background: "#fff", borderRadius: 14, padding: "14px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
             <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block" }} />
@@ -210,26 +210,27 @@ function IconEyeOff() {
 
 const inputStyle = {
   width: "100%",
-  padding: "8px 10px",
-  borderRadius: 6,
+  padding: "10px 16px",
+  borderRadius: 999,
   border: "1px solid #ddd",
   fontSize: 14,
   boxSizing: "border-box",
 };
 
 const oeilBtn = {
-  position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+  position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
   border: "none", background: "none", cursor: "pointer", padding: 4, display: "flex", alignItems: "center",
 };
 
 const buttonStyle = {
   width: "100%",
   marginTop: 20,
-  padding: "10px",
-  borderRadius: 6,
+  padding: "11px",
+  borderRadius: 999,
   border: "none",
   background: "#1E3A34",
   color: "#fff",
   fontSize: 14,
   cursor: "pointer",
+  boxShadow: "0 1px 3px rgba(16,24,40,0.15)",
 };
