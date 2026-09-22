@@ -40,8 +40,13 @@ const LINKS = [
       { href: "/articles/categories", label: "Gérer les catégories" },
     ],
   },
-  { href: "/journal", label: "Journal d'audit", icon: IconList },
-  { href: "/controle-qualite", label: "Contrôle qualité", icon: IconList },
+  {
+    href: "/journal", label: "Administration", icon: IconList,
+    children: [
+      { href: "/journal", label: "Journal d'audit" },
+      { href: "/controle-qualite", label: "Contrôle qualité" },
+    ],
+  },
   { href: "/sauvegarde", label: "Sauvegarde", icon: IconSave },
 ];
 
