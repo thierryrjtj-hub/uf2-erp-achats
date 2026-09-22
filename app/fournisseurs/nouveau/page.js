@@ -28,6 +28,7 @@ function NouveauFournisseurInner() {
   const [form, setForm] = useState(empty);
   const [envoi, setEnvoi] = useState(false);
   const [charge, setCharge] = useState(!editId);
+  const [tvaOrigine, setTvaOrigine] = useState(null);
 
   useState(() => {
     if (editId) {
@@ -42,17 +43,42 @@ function NouveauFournisseurInner() {
             conditions_paiement_jours: f.conditions_paiement_jours || 30, remise_par_defaut_pct: f.remise_par_defaut_pct || 0,
             moment_paiement: f.moment_paiement || "À réception facture", acompte_pct: f.acompte_pct || 0, solde_a: f.solde_a || "À la livraison",
           });
+          setTvaOrigine(f.tva_defaut_pct ?? 20);
         }
         setCharge(true);
       })();
     }
   });
 
+  // Si le statut taxable/non-taxable du fournisseur change, tous ses BC déjà
+  // créés (hors "Annulée") sont resynchronisés automatiquement — toujours à
+  // partir de la somme de leurs lignes, jamais d'un montant global du BC qui
+  // pourrait déjà être faux (même principe que le Contrôle qualité).
+  const resynchroniserBcExistants = async () => {
+    const assujetti = Number(form.tva_defaut_pct) !== 0;
+    const { data: commandes } = await supabase.from("commandes").select("id").eq("fournisseur_id", editId).neq("statut", "Annulée");
+    for (const c of commandes || []) {
+      const { data: lignes } = await supabase.from("lignes_bc").select("montant_ht").eq("bc_id", c.id);
+      const sommeLignes = (lignes || []).reduce((s, l) => s + (Number(l.montant_ht) || 0), 0);
+      const montantHt = Math.round(sommeLignes * 100) / 100;
+      const montantTva = assujetti ? Math.round(montantHt * 0.2 * 100) / 100 : 0;
+      const montantTtc = Math.round((montantHt + montantTva) * 100) / 100;
+      await supabase.from("commandes").update({
+        assujetti_tva: assujetti, montant_ht: montantHt, montant_tva: montantTva, montant_ttc: montantTtc,
+      }).eq("id", c.id);
+    }
+  };
+
   const enregistrer = async () => {
     if (!form.nom.trim()) return;
     setEnvoi(true);
     if (editId) {
       await supabase.from("fournisseurs").update(form).eq("id", editId);
+      const etaitAssujetti = tvaOrigine !== null && tvaOrigine !== 0;
+      const estAssujetti = Number(form.tva_defaut_pct) !== 0;
+      if (tvaOrigine !== null && etaitAssujetti !== estAssujetti) {
+        await resynchroniserBcExistants();
+      }
     } else {
       await supabase.from("fournisseurs").insert(form);
     }
