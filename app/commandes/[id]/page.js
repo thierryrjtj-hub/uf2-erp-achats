@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
+import { chargerAvecCache } from "../../../lib/cache";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import ChampPrixHT from "../../components/ChampPrixHT";
@@ -38,6 +39,8 @@ export default function CommandeDetailPage() {
   const [fournisseurDetail, setFournisseurDetail] = useState(null);
   const [offreLiee, setOffreLiee] = useState(null);
   const [receptions, setReceptions] = useState([]); // historique complet, avec .lignes
+  const [editionReceptionId, setEditionReceptionId] = useState(null);
+  const [receptionEditee, setReceptionEditee] = useState({ date: "", quantites: {} });
   const [saisie, setSaisie] = useState(nouvelleSaisie());
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
@@ -147,7 +150,9 @@ export default function CommandeDetailPage() {
   }, []);
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id, categorie:categories(nom)").limit(10000);
+      const data = await chargerAvecCache("articles-liste-categorie", () =>
+        supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id, categorie:categories(nom)").limit(10000).then((r) => r.data)
+      );
       setArticlesBase(data || []);
     })();
   }, []);
@@ -184,6 +189,23 @@ export default function CommandeDetailPage() {
   };
 
   const majQuantiteSaisie = (ligneBcId, val) => setQuantitesSaisie((prev) => ({ ...prev, [ligneBcId]: val }));
+
+  // Corrige une réception déjà enregistrée : la date réelle (heure d'origine
+  // conservée) et/ou les quantités livrées ligne par ligne.
+  const enregistrerEditionReception = async (r) => {
+    if (receptionEditee.date) {
+      const ancienne = new Date(r.date_reception_reelle);
+      const [annee, mois, jour] = receptionEditee.date.split("-").map(Number);
+      const nouvelle = new Date(ancienne);
+      nouvelle.setFullYear(annee, mois - 1, jour);
+      await supabase.from("receptions").update({ date_reception_reelle: nouvelle.toISOString() }).eq("id", r.id);
+    }
+    for (const [ligneReceptionId, quantite] of Object.entries(receptionEditee.quantites)) {
+      await supabase.from("lignes_reception").update({ quantite_livree: Number(quantite) || 0 }).eq("id", ligneReceptionId);
+    }
+    await charger();
+    setEditionReceptionId(null);
+  };
 
   const enregistrerReception = async () => {
     setEnregistrement(true);
@@ -586,16 +608,57 @@ export default function CommandeDetailPage() {
         {receptions.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Historique des réceptions</div>
-            {receptions.map((r) => (
-              <div key={r.id} style={{ fontSize: 12, padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
-                Le <strong>{new Date(r.date_reception_reelle).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> — {r.receptionnaire} ({r.type_livraison}{r.numero_bl ? `, BL ${r.numero_bl}` : ""}) —
-                {" "}{r.lignes.map((x) => `${lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}: ${x.quantite_livree}`).join(", ")}
-                {" "}— saisi par {r.confirme_par}
-                {r.receptionnaire === "Import historique" && (
-                  <span style={{ color: "#1B4C7A", marginLeft: 6 }} title="Date d'import de l'historique — pas la date réelle de réception">📥 (date d'import, pas la date réelle)</span>
-                )}
-              </div>
-            ))}
+            {receptions.map((r) => {
+              const enEdition = editionReceptionId === r.id;
+              return (
+                <div key={r.id} style={{ fontSize: 12, padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
+                  Le{" "}
+                  {enEdition ? (
+                    <input
+                      type="date"
+                      defaultValue={new Date(r.date_reception_reelle).toISOString().slice(0, 10)}
+                      onChange={(e) => setReceptionEditee((prev) => ({ ...prev, date: e.target.value }))}
+                      style={{ ...inputStyle, width: 140, display: "inline-block" }}
+                    />
+                  ) : (
+                    <strong>{new Date(r.date_reception_reelle).toLocaleString("fr-FR")}</strong>
+                  )}
+                  {" "}— {r.receptionnaire} ({r.type_livraison}{r.numero_bl ? `, BL ${r.numero_bl}` : ""}) —{" "}
+                  {enEdition ? (
+                    <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 8, verticalAlign: "middle" }}>
+                      {r.lignes.map((x) => (
+                        <span key={x.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          {lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}:
+                          <input
+                            type="number"
+                            defaultValue={x.quantite_livree}
+                            onChange={(e) => setReceptionEditee((prev) => ({ ...prev, quantites: { ...prev.quantites, [x.id]: e.target.value } }))}
+                            style={{ ...inputStyle, width: 70 }}
+                          />
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    r.lignes.map((x) => `${lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}: ${x.quantite_livree}`).join(", ")
+                  )}
+                  {" "}— saisi par {r.confirme_par}
+                  {r.receptionnaire === "Import historique" && (
+                    <span style={{ color: "#1B4C7A", marginLeft: 6 }} title="Date d'import de l'historique — pas la date réelle de réception">📥 (date d'import, pas la date réelle)</span>
+                  )}
+                  {" "}
+                  {role === "acheteur" && (
+                    enEdition ? (
+                      <>
+                        <button onClick={() => enregistrerEditionReception(r)} style={{ ...linkBtn, marginLeft: 8 }}>Enregistrer</button>
+                        <button onClick={() => setEditionReceptionId(null)} style={{ ...linkBtn, marginLeft: 8, color: "#888" }}>Annuler</button>
+                      </>
+                    ) : (
+                      <button onClick={() => { setEditionReceptionId(r.id); setReceptionEditee({ date: "", quantites: {} }); }} style={{ ...linkBtn, marginLeft: 8 }}>Modifier</button>
+                    )
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
