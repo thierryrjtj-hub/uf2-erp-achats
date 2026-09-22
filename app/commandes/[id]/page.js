@@ -10,7 +10,7 @@ import ChampPrixHT from "../../components/ChampPrixHT";
 import { useRole } from "../../../lib/useRole";
 import { useUserId } from "../../../lib/useUserId";
 import BandeauLectureSeule from "../../components/BandeauLectureSeule";
-import { thStyle, tdStyle, linkBtn, buttonStyle, inputStyle } from "../../components/ui";
+import { thStyle, tdStyle, linkBtn, buttonStyle, inputStyle, boutonSelonModif } from "../../components/ui";
 import { IconPrint, IconTrash } from "../../components/Icons";
 import { montantEnLettresAriary } from "../../../lib/nombreEnLettres";
 import { formatDate } from "../../../lib/format";
@@ -362,11 +362,14 @@ export default function CommandeDetailPage() {
     charger();
   };
 
+  const [snapshotEditLignes, setSnapshotEditLignes] = useState("");
   const commencerEdition = () => {
-    setEditLignes(lignes.map((l) => ({
+    const initiales = lignes.map((l) => ({
       key: l.id, designation: l.designation, quantite: l.quantite, unite: l.unite,
       prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct || 0, date_livraison: l.date_livraison || "",
-    })));
+    }));
+    setEditLignes(initiales);
+    setSnapshotEditLignes(JSON.stringify(initiales));
     setModeEdition(true);
   };
 
@@ -448,9 +451,6 @@ export default function CommandeDetailPage() {
   const derniere = receptions[receptions.length - 1];
   const transmissionModifiee = snapshotTransmission && JSON.stringify(transmission) !== snapshotTransmission;
   const factureModifiee = snapshotFacture && JSON.stringify(facture) !== snapshotFacture;
-  // Bouton "à enregistrer" : ressort nettement tant qu'il y a une modification
-  // non sauvegardée sur cette section, reprend son style normal une fois enregistré.
-  const styleBoutonModifie = { ...buttonStyle, background: "#C85A2A", boxShadow: "0 0 0 3px rgba(200,90,42,0.25), 0 2px 4px rgba(16,24,40,0.18)", fontWeight: 700 };
 
   return (
     <AuthGuard>
@@ -565,7 +565,7 @@ export default function CommandeDetailPage() {
             ))}
             <div style={{ display: "flex", gap: 8, marginTop: 8, marginBottom: 20, flexWrap: "wrap" }}>
               <button onClick={ajouterEditLigne} style={{ ...buttonStyle, background: "#888" }}>+ Ajouter une ligne</button>
-              <button onClick={enregistrerEdition} disabled={enregistrementEdition} style={buttonStyle}>
+              <button onClick={enregistrerEdition} disabled={enregistrementEdition} style={boutonSelonModif(JSON.stringify(editLignes) !== snapshotEditLignes)}>
                 {enregistrementEdition ? "Enregistrement..." : "Enregistrer les modifications"}
               </button>
               <button onClick={() => setModeEdition(false)} style={{ ...buttonStyle, background: "#fff", color: "#1B2430", border: "1px solid #ddd" }}>Annuler</button>
@@ -830,7 +830,7 @@ export default function CommandeDetailPage() {
           <p style={{ fontSize: 11, color: "#999", marginTop: 6 }}>Se remplit automatiquement à chaque étape (si vide), mais reste modifiable — plus jamais écrasée une fois que tu l'as personnalisée.</p>
         </div>
 
-        <button onClick={enregistrerTransmission} style={transmissionModifiee ? styleBoutonModifie : buttonStyle}>
+        <button onClick={enregistrerTransmission} style={boutonSelonModif(transmissionModifiee)}>
           {transmissionModifiee ? "● Enregistrer le suivi (modifié)" : "Enregistrer le suivi"}
         </button>
       </div>
@@ -898,7 +898,7 @@ export default function CommandeDetailPage() {
             </select>
           )}
         </div>
-        <button onClick={enregistrerFacture} style={factureModifiee ? styleBoutonModifie : buttonStyle}>
+        <button onClick={enregistrerFacture} style={boutonSelonModif(factureModifiee)}>
           {factureModifiee ? "● Enregistrer (modifié)" : "Enregistrer"}
         </button>
       </div>
