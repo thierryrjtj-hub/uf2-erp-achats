@@ -45,6 +45,7 @@ export default function CommandeDetailPage() {
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
   const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", statut_paiement: "Impayé", date_paiement: "", mode_paiement: "", observation_facture: "" });
+  const [snapshotFacture, setSnapshotFacture] = useState("");
   const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", telephone: "+261 38 77 419 60", email: "judicael.randrianaivo@unifoods.mg" });
   const [transmission, setTransmission] = useState({
     dateEnvoiSignature: "", dateRetourSignature: "", destinataireSignature: "",
@@ -52,6 +53,7 @@ export default function CommandeDetailPage() {
     dateEnvoiPaiement: "", dateDisponibilitePaiement: "", destinatairePaiement: "",
     docBcSigne: false, docPvReception: false, docBl: false, docFactureFournisseur: false,
   });
+  const [snapshotTransmission, setSnapshotTransmission] = useState("");
   const [accuses, setAccuses] = useState([]);
   const [nouvelAccuse, setNouvelAccuse] = useState({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", observation: "" });
   const [dateSignature, setDateSignature] = useState("");
@@ -109,26 +111,30 @@ export default function CommandeDetailPage() {
     }
 
     if (c) {
-      setFacture({
+      const factureChargee = {
         numero_facture: c.numero_facture || "",
         date_facture: c.date_facture || "",
         statut_paiement: c.statut_paiement || "Impayé",
         date_paiement: c.date_paiement || "",
         mode_paiement: c.mode_paiement || "",
         observation_facture: c.observation_facture || "",
-      });
+      };
+      setFacture(factureChargee);
+      setSnapshotFacture(JSON.stringify(factureChargee));
       setDateSignature(c.date_signature || "");
       setObservation(c.observation || "");
       setObjet(c.objet || "");
       setUtilisateurFinal(c.utilisateur_final || "");
-      setTransmission({
+      const transmissionChargee = {
         dateEnvoiSignature: c.date_envoi_signature || "", dateRetourSignature: c.date_retour_signature || "",
         destinataireSignature: c.destinataire_signature || "", dateEnvoiPaiement: c.date_envoi_paiement || "",
         dateDisponibilitePaiement: c.date_disponibilite_paiement || "", destinatairePaiement: c.destinataire_paiement || "",
         dateEnvoiFournisseur: c.date_envoi_fournisseur || "", modeEnvoiFournisseur: c.mode_envoi_fournisseur || "Livraison fournisseur",
         nomCoursier: c.nom_coursier || "", docBcSigne: !!c.doc_bc_signe, docPvReception: !!c.doc_pv_reception,
         docBl: !!c.doc_bl, docFactureFournisseur: !!c.doc_facture_fournisseur,
-      });
+      };
+      setTransmission(transmissionChargee);
+      setSnapshotTransmission(JSON.stringify(transmissionChargee));
     }
     const { data: acc } = await supabase.from("accuses_reception_facture").select("*").eq("bc_id", id).order("date_accuse", { ascending: false });
     setAccuses(acc || []);
@@ -440,6 +446,11 @@ export default function CommandeDetailPage() {
 
   const resteGlobal = lignes.some((l) => cumulLivre(l.id) < Number(l.quantite));
   const derniere = receptions[receptions.length - 1];
+  const transmissionModifiee = snapshotTransmission && JSON.stringify(transmission) !== snapshotTransmission;
+  const factureModifiee = snapshotFacture && JSON.stringify(facture) !== snapshotFacture;
+  // Bouton "à enregistrer" : ressort nettement tant qu'il y a une modification
+  // non sauvegardée sur cette section, reprend son style normal une fois enregistré.
+  const styleBoutonModifie = { ...buttonStyle, background: "#C85A2A", boxShadow: "0 0 0 3px rgba(200,90,42,0.25), 0 2px 4px rgba(16,24,40,0.18)", fontWeight: 700 };
 
   return (
     <AuthGuard>
@@ -819,7 +830,9 @@ export default function CommandeDetailPage() {
           <p style={{ fontSize: 11, color: "#999", marginTop: 6 }}>Se remplit automatiquement à chaque étape (si vide), mais reste modifiable — plus jamais écrasée une fois que tu l'as personnalisée.</p>
         </div>
 
-        <button onClick={enregistrerTransmission} style={buttonStyle}>Enregistrer le suivi</button>
+        <button onClick={enregistrerTransmission} style={transmissionModifiee ? styleBoutonModifie : buttonStyle}>
+          {transmissionModifiee ? "● Enregistrer le suivi (modifié)" : "Enregistrer le suivi"}
+        </button>
       </div>
       )}
 
@@ -885,7 +898,9 @@ export default function CommandeDetailPage() {
             </select>
           )}
         </div>
-        <button onClick={enregistrerFacture} style={buttonStyle}>Enregistrer</button>
+        <button onClick={enregistrerFacture} style={factureModifiee ? styleBoutonModifie : buttonStyle}>
+          {factureModifiee ? "● Enregistrer (modifié)" : "Enregistrer"}
+        </button>
       </div>
       </>
       )}
