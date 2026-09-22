@@ -7,6 +7,7 @@ import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
 import { formatDate } from "../../lib/format";
+import { chargerAvecCache, invaliderCache } from "../../lib/cache";
 
 const empty = {
   date_demande: new Date().toISOString().slice(0, 10), article: "", quantite: 1, unite: "pcs",
@@ -45,9 +46,9 @@ export default function PetiteCaissePage() {
   const charger = async () => {
     const { data } = await supabase.from("petite_caisse").select("*, demande:demande_id(id, numero), commande:commande_id(id, numero)").order("date_demande", { ascending: false }).limit(5000);
     setListe(data || []);
-    const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
+    const art = await chargerAvecCache("articles", () => supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000).then((r) => r.data));
     setArticlesBase(art || []);
-    const { data: f } = await supabase.from("fournisseurs").select("id, nom, tva_defaut_pct").order("nom").limit(10000);
+    const f = await chargerAvecCache("fournisseurs", () => supabase.from("fournisseurs").select("id, nom, tva_defaut_pct").order("nom").limit(10000).then((r) => r.data));
     setFournisseurs(f || []);
     setLoading(false);
   };
@@ -89,6 +90,7 @@ export default function PetiteCaissePage() {
     const { data: existant } = await supabase.from("fournisseurs").select("id").eq("nom", NOM_FOURNISSEUR_DIVERS).maybeSingle();
     if (existant) return existant.id;
     const { data: cree } = await supabase.from("fournisseurs").insert({ nom: NOM_FOURNISSEUR_DIVERS, type_reglement: "Espèces" }).select().single();
+    if (cree) invaliderCache("fournisseurs");
     return cree?.id || null;
   };
 
