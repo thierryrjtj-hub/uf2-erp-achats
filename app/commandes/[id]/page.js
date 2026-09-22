@@ -211,7 +211,15 @@ export default function CommandeDetailPage() {
       await supabase.from("lignes_reception").insert(payload);
     }
 
-    await supabase.from("commandes").update({ statut: toutLivreApres ? "Clôturée" : "Livraison en cours" }).eq("id", id);
+    const misesAJourCommande = { statut: toutLivreApres ? "Clôturée" : "Livraison en cours" };
+    // Une fois le BC totalement réceptionné, l'observation générique "en attente
+    // de livraison/d'enlèvement/de réalisation" n'a plus lieu d'être — on ne
+    // l'efface que si elle correspond bien à ce texte automatique (pour ne
+    // jamais écraser une observation que l'acheteur aurait modifiée à la main).
+    if (toutLivreApres && bc.observation?.startsWith("BC signé, envoyé au fournisseur — en attente")) {
+      misesAJourCommande.observation = "";
+    }
+    await supabase.from("commandes").update(misesAJourCommande).eq("id", id);
     setSaisie(nouvelleSaisie());
     setQuantitesSaisie({});
     setEnregistrement(false);
