@@ -3,20 +3,23 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
-import { inputStyle, thStyle, tdStyle, buttonStyle } from "../components/ui";
+import { useRole } from "../../lib/useRole";
+import { inputStyle, thStyle, tdStyle, buttonStyle, cardStyle } from "../components/ui";
 
 const REGLES = [
-  { id: "tva_incoherente", label: "TVA du BC ne correspond pas au statut réel du fournisseur" },
-  { id: "non_taxable_montants", label: "BC non taxable avec montant_ht ≠ montant_ttc ou montant_tva ≠ 0" },
-  { id: "taxable_montants", label: "BC taxable avec montant_ttc incohérent (≠ HT × 1,2)" },
-  { id: "somme_lignes", label: "Somme des lignes ≠ montant_ht du BC" },
+  { id: "tva_incoherente", label: "TVA du BC ne correspond pas au statut réel du fournisseur", corrigeable: true },
+  { id: "non_taxable_montants", label: "BC non taxable avec montant_ht ≠ montant_ttc ou montant_tva ≠ 0", corrigeable: true },
+  { id: "taxable_montants", label: "BC taxable avec montant_ttc incohérent (≠ HT × 1,2)", corrigeable: true },
+  { id: "somme_lignes", label: "Somme des lignes ≠ montant_ht du BC", corrigeable: true },
 ];
 
 export default function ControleQualitePage() {
+  const role = useRole();
   const [loading, setLoading] = useState(true);
   const [anomalies, setAnomalies] = useState([]);
   const [filtreRegle, setFiltreRegle] = useState("");
   const [derniereVerif, setDerniereVerif] = useState(null);
+  const [correctionEnCours, setCorrectionEnCours] = useState(null);
 
   const verifier = async () => {
     setLoading(true);
@@ -84,6 +87,27 @@ export default function ControleQualitePage() {
     return m;
   }, [anomalies]);
 
+  // Corrige un BC en se basant TOUJOURS sur la somme réelle de ses lignes
+  // (jamais sur un montant global du BC, qui peut déjà être faux — la leçon
+  // de l'incident TVA précédent) et sur le vrai statut TVA du fournisseur.
+  const corrigerAnomalie = async (a) => {
+    if (!confirm(`Corriger automatiquement le BC ${a.numero} ? Les montants seront recalculés à partir de ses lignes et du statut TVA réel du fournisseur.`)) return;
+    setCorrectionEnCours(a.bcId + a.regle);
+    const { data: commande } = await supabase.from("commandes").select("fournisseur_id").eq("id", a.bcId).single();
+    const { data: fournisseur } = commande ? await supabase.from("fournisseurs").select("tva_defaut_pct").eq("id", commande.fournisseur_id).single() : { data: null };
+    const { data: lignes } = await supabase.from("lignes_bc").select("montant_ht").eq("bc_id", a.bcId);
+    const sommeLignes = (lignes || []).reduce((s, l) => s + (Number(l.montant_ht) || 0), 0);
+    const assujetti = fournisseur ? fournisseur.tva_defaut_pct !== 0 : true;
+    const montantHt = Math.round(sommeLignes * 100) / 100;
+    const montantTva = assujetti ? Math.round(montantHt * 0.2 * 100) / 100 : 0;
+    const montantTtc = Math.round((montantHt + montantTva) * 100) / 100;
+    await supabase.from("commandes").update({
+      assujetti_tva: assujetti, montant_ht: montantHt, montant_tva: montantTva, montant_ttc: montantTtc,
+    }).eq("id", a.bcId);
+    setCorrectionEnCours(null);
+    verifier();
+  };
+
   return (
     <AuthGuard>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -91,7 +115,7 @@ export default function ControleQualitePage() {
         <button onClick={verifier} disabled={loading} style={buttonStyle}>{loading ? "Vérification..." : "Relancer la vérification"}</button>
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
+      <div style={{ ...cardStyle, marginBottom: 16 }}>
         <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
           Règles vérifiées (BC hors "Annulée") :
         </p>
@@ -113,7 +137,7 @@ export default function ControleQualitePage() {
         {derniereVerif && <p style={{ fontSize: 11, color: "#999", marginTop: 10 }}>Dernière vérification : {derniereVerif.toLocaleString("fr-FR")}</p>}
       </div>
 
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
+      <div style={cardStyle}>
         {loading && <p style={{ color: "#888", fontSize: 13 }}>Vérification en cours...</p>}
         {!loading && filtrees.length === 0 && <p style={{ color: "#1B7A4C", fontSize: 13 }}>✓ Aucune anomalie détectée{filtreRegle ? " pour cette règle" : ""}.</p>}
         {!loading && filtrees.length > 0 && (
@@ -125,18 +149,34 @@ export default function ControleQualitePage() {
                 <th style={thStyle}>Règle violée</th>
                 <th style={thStyle}>Détail</th>
                 <th style={thStyle}></th>
+                <th style={thStyle}></th>
               </tr>
             </thead>
             <tbody>
-              {filtrees.map((a, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                  <td style={tdStyle}>{a.numero}</td>
-                  <td style={tdStyle}>{a.fournisseur}</td>
-                  <td style={tdStyle}>{REGLES.find((r) => r.id === a.regle)?.label}</td>
-                  <td style={{ ...tdStyle, color: "#666" }}>{a.detail}</td>
-                  <td style={tdStyle}><Link href={`/commandes/${a.bcId}`} style={{ color: "#1B4C7A" }}>Ouvrir le BC</Link></td>
-                </tr>
-              ))}
+              {filtrees.map((a, i) => {
+                const regle = REGLES.find((r) => r.id === a.regle);
+                const enCours = correctionEnCours === a.bcId + a.regle;
+                return (
+                  <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                    <td style={tdStyle}>{a.numero}</td>
+                    <td style={tdStyle}>{a.fournisseur}</td>
+                    <td style={tdStyle}>{regle?.label}</td>
+                    <td style={{ ...tdStyle, color: "#666" }}>{a.detail}</td>
+                    <td style={tdStyle}><Link href={`/commandes/${a.bcId}`} style={{ color: "#1B4C7A" }}>Ouvrir le BC</Link></td>
+                    <td style={tdStyle}>
+                      {role === "acheteur" && regle?.corrigeable && (
+                        <button
+                          onClick={() => corrigerAnomalie(a)}
+                          disabled={enCours}
+                          style={{ border: "none", background: "#1E3A34", color: "#fff", borderRadius: 999, padding: "5px 12px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
+                        >
+                          {enCours ? "Correction..." : "Corriger"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
