@@ -2,6 +2,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
+import { chargerAvecCache } from "../../../lib/cache";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import ChampPrixHT from "../../components/ChampPrixHT";
@@ -37,8 +38,12 @@ function NouveauBCDirectInner() {
 
   useEffect(() => {
     (async () => {
-      const { data: f } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
-      const { data: a } = await supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id").limit(10000);
+      const f = await chargerAvecCache("fournisseurs-liste", () =>
+        supabase.from("fournisseurs").select("*").order("nom").limit(10000).then((r) => r.data)
+      );
+      const a = await chargerAvecCache("articles-liste-prix", () =>
+        supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id").limit(10000).then((r) => r.data)
+      );
       setFournisseurs(f || []);
       setArticlesBase(a || []);
 
@@ -234,9 +239,16 @@ function NouveauBCDirectInner() {
           <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
             {bois && (
               <input
+                id={`date-livraison-${l.key}`}
                 type="date"
                 value={l.date_livraison}
                 onChange={(e) => updateLigne(l.key, "date_livraison", e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Tab" || e.shiftKey) return;
+                  e.preventDefault();
+                  document.getElementById(`quantite-${l.key}`)?.focus();
+                  document.getElementById(`quantite-${l.key}`)?.select?.();
+                }}
                 title="Date de livraison réelle (un voyage = une ligne)"
                 style={{ ...inputStyle, width: 150 }}
               />
@@ -245,10 +257,16 @@ function NouveauBCDirectInner() {
               placeholder="Désignation"
               value={l.designation}
               onChange={(val) => onDesignationChange(l.key, val)}
+              onSelect={(val) => {
+                onDesignationChange(l.key, val);
+                if (estBoisDeChauffage(val)) {
+                  setTimeout(() => document.getElementById(`date-livraison-${l.key}`)?.focus(), 0);
+                }
+              }}
               suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
               style={{ flex: 2, minWidth: 160 }}
             />
-            <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
+            <input id={`quantite-${l.key}`} type="number" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
             <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 80 }} />
             <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => updateLigne(l.key, "prix_unitaire_ht", v)} tvaPct={assujettiTva ? 20 : 0} style={{ ...inputStyle, width: 110 }} />
             <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => updateLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
@@ -273,4 +291,3 @@ function NouveauBCDirectInner() {
     </AuthGuard>
   );
 }
-
