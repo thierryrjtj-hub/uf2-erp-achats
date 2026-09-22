@@ -36,6 +36,13 @@ export const buttonStyle = {
   boxShadow: "0 1px 3px rgba(16,24,40,0.12)",
 };
 
+// Bouton "Enregistrer" mis en évidence tant qu'il y a une modification non
+// sauvegardée sur le formulaire correspondant (voir lib/useDirty.js) —
+// reprend son style normal une fois enregistré.
+export const boutonSelonModif = (modifie) => (modifie
+  ? { ...buttonStyle, background: "#C85A2A", boxShadow: "0 0 0 3px rgba(200,90,42,0.25), 0 2px 4px rgba(16,24,40,0.18)", fontWeight: 700 }
+  : buttonStyle);
+
 export const buttonSecondaryStyle = {
   padding: "9px 20px",
   borderRadius: 999,
