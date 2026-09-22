@@ -200,6 +200,7 @@ function CommandesInner() {
         ],
         rows,
         currencyKeys: ["montantHt", "montantTva", "montantTtc"],
+        dateKeys: ["date", "dateFacture"],
         totalsKeys: ["montantHt", "montantTva", "montantTtc"],
       }],
     });
@@ -246,6 +247,7 @@ function CommandesInner() {
         ],
         rows,
         currencyKeys: ["montantTtc"],
+        dateKeys: ["dateFacture"],
         totalsKeys: ["montantTtc"],
       }],
     });
@@ -375,12 +377,15 @@ function CommandesInner() {
                       <span style={{ fontSize: 12, color: reception.statut === "Totale" ? "#1B7A4C" : "#8A6100" }}>
                         {estPrestation
                           ? (reception.statut === "Totale" ? "Prestation effectuée" : "Prestation partielle")
-                          : (reception.statut === "Totale" ? "Livré" : "Livré partiellement")}<br />
+                          : reception.receptionnaire === "Magasin"
+                            ? (reception.statut === "Totale" ? "Livré au Magasin" : "Livré partiellement au Magasin")
+                            : (reception.statut === "Totale" ? "Livré" : "Livré partiellement")}
+                        {reception.receptionnaire !== "Magasin" && <br />}
                         {reception.receptionnaire === "Import historique" ? (
                           <span style={{ color: "#1B4C7A" }} title="Date d'import de l'historique, pas la date réelle de réception">📥 import historique</span>
-                        ) : (
+                        ) : reception.receptionnaire !== "Magasin" ? (
                           <span style={{ color: "#999" }}>par {reception.receptionnaire || reception.confirme_par}</span>
-                        )}
+                        ) : null}
                       </span>
                     ) : (
                       <span style={{ fontSize: 12, color: "#999" }}>{estPrestation ? "Prestation non effectuée" : "Non livré"}</span>
