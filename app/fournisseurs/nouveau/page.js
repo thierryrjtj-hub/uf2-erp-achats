@@ -4,7 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
-import { inputStyle, buttonStyle } from "../../components/ui";
+import { inputStyle, buttonStyle, boutonSelonModif } from "../../components/ui";
+import { useDirty } from "../../../lib/useDirty";
 
 const empty = {
   nom: "", contact: "", telephone: "", email: "", adresse: "", code_postal: "",
@@ -26,6 +27,7 @@ function NouveauFournisseurInner() {
   const searchParams = useSearchParams();
   const editId = searchParams.get("id");
   const [form, setForm] = useState(empty);
+  const suiviForm = useDirty(form);
   const [envoi, setEnvoi] = useState(false);
   const [charge, setCharge] = useState(!editId);
   const [tvaOrigine, setTvaOrigine] = useState(null);
@@ -35,14 +37,16 @@ function NouveauFournisseurInner() {
       (async () => {
         const { data: f } = await supabase.from("fournisseurs").select("*").eq("id", editId).maybeSingle();
         if (f) {
-          setForm({
+          const formCharge = {
             nom: f.nom, contact: f.contact || "", telephone: f.telephone || "", email: f.email || "",
             adresse: f.adresse || "", code_postal: f.code_postal || "", nif: f.nif || "", stat: f.stat || "",
             rcs: f.rcs || "", cin: f.cin || "", type_reglement: f.type_reglement || "Chèque",
             tva_defaut_pct: f.tva_defaut_pct ?? 20, activite: f.activite || "",
             conditions_paiement_jours: f.conditions_paiement_jours || 30, remise_par_defaut_pct: f.remise_par_defaut_pct || 0,
             moment_paiement: f.moment_paiement || "À réception facture", acompte_pct: f.acompte_pct || 0, solde_a: f.solde_a || "À la livraison",
-          });
+          };
+          setForm(formCharge);
+          suiviForm.reinitialiser(formCharge);
           setTvaOrigine(f.tva_defaut_pct ?? 20);
         }
         setCharge(true);
@@ -159,7 +163,7 @@ function NouveauFournisseurInner() {
         </div>
 
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={enregistrer} disabled={envoi} style={buttonStyle}>{envoi ? "Enregistrement..." : (editId ? "Enregistrer" : "Ajouter")}</button>
+          <button onClick={enregistrer} disabled={envoi} style={boutonSelonModif(suiviForm.modifie)}>{envoi ? "Enregistrement..." : (editId ? "Enregistrer" : "Ajouter")}</button>
           <button onClick={() => router.push("/fournisseurs")} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
         </div>
       </div>
