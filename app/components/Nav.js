@@ -45,6 +45,7 @@ const LINKS = [
     children: [
       { href: "/journal", label: "Journal d'audit" },
       { href: "/controle-qualite", label: "Contrôle qualité" },
+      { href: "/erreurs", label: "Journal des erreurs" },
     ],
   },
   { href: "/sauvegarde", label: "Sauvegarde", icon: IconSave },
