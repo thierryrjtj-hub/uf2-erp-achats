@@ -352,6 +352,7 @@ export default function CommandeDetailPage() {
       const final = resoudreSuccesseurArticle(matchBrut);
       majEditLigne(key, "designation", final.designation);
       if (final.unite_defaut) majEditLigne(key, "unite", final.unite_defaut);
+      if (final.dernier_prix_ht) majEditLigne(key, "prix_unitaire_ht", final.dernier_prix_ht);
       return;
     }
     majEditLigne(key, "designation", val);
