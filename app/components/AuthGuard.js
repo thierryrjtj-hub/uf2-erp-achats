@@ -59,6 +59,34 @@ export default function AuthGuard({ children }) {
     return () => document.removeEventListener("keydown", surCtrlF);
   }, []);
 
+  // Journal des erreurs techniques : capture globale des erreurs JS non
+  // gérées (bugs de code, promesses rejetées non interceptées) pour garder
+  // une trace consultable dans Administration > Journal des erreurs, plutôt
+  // que de les laisser disparaître une fois le message fermé ou la page
+  // rechargée. Ne capture PAS les erreurs Supabase renvoyées normalement en
+  // { error } (celles-ci doivent être signalées explicitement par la page
+  // qui les reçoit, ce n'est pas encore fait partout).
+  useEffect(() => {
+    const enregistrerErreur = async (message, contexte) => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("erreurs_techniques").insert({
+          message: String(message).slice(0, 2000), contexte, url: window.location.pathname, utilisateur_id: user?.id || null,
+        });
+      } catch {
+        // si l'enregistrement de l'erreur échoue lui-même, on n'insiste pas
+      }
+    };
+    const surErreur = (e) => enregistrerErreur(e.message || String(e.error || e), "Erreur JavaScript non gérée");
+    const surRejetNonGere = (e) => enregistrerErreur(e.reason?.message || String(e.reason), "Promesse rejetée non interceptée");
+    window.addEventListener("error", surErreur);
+    window.addEventListener("unhandledrejection", surRejetNonGere);
+    return () => {
+      window.removeEventListener("error", surErreur);
+      window.removeEventListener("unhandledrejection", surRejetNonGere);
+    };
+  }, []);
+
   if (!ready) return <p style={{ padding: 24 }}>Chargement...</p>;
 
   return (
