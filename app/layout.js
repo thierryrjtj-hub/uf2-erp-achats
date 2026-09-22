@@ -38,6 +38,9 @@ export default function RootLayout({ children }) {
           }
           a { color: inherit; }
 
+          /* ---- Menu latéral : surbrillance au survol des titres cliquables ---- */
+          .nav-sidebar a:hover { background: rgba(255,255,255,0.1) !important; }
+
           /* ---- Boutons : retour visuel clair au survol et au clic, partout ---- */
           button:not(:disabled) { cursor: pointer; transition: filter 0.12s ease, transform 0.06s ease; }
           button:not(:disabled):hover { filter: brightness(0.94); }
