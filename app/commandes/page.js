@@ -170,7 +170,7 @@ function CommandesInner() {
         numeroFacture: c.numero_facture || "",
         dateFacture: c.date_facture || "",
         statutPaiement: c.statut_paiement || "Impayé",
-        recu: reception ? new Date(reception.date_reception_reelle).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "",
+        recu: reception ? new Date(reception.date_reception_reelle).toLocaleString("fr-FR") : "",
         confirmePar: reception ? reception.confirme_par : "",
         importeHistorique: importe ? "Oui (date de réception = date d'import, pas la date réelle)" : "",
         observation: c.observation || "",
