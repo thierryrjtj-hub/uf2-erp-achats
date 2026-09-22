@@ -44,7 +44,7 @@ export default function CommandeDetailPage() {
   const [saisie, setSaisie] = useState(nouvelleSaisie());
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
-  const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", statut_paiement: "Impayé", date_paiement: "", mode_paiement: "", observation_facture: "" });
+  const [facture, setFacture] = useState({ numero_facture: "", date_facture: "", montant_facture: "", statut_paiement: "Impayé", date_paiement: "", mode_paiement: "", observation_facture: "" });
   const [snapshotFacture, setSnapshotFacture] = useState("");
   const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", telephone: "+261 38 77 419 60", email: "judicael.randrianaivo@unifoods.mg" });
   const [transmission, setTransmission] = useState({
@@ -114,6 +114,7 @@ export default function CommandeDetailPage() {
       const factureChargee = {
         numero_facture: c.numero_facture || "",
         date_facture: c.date_facture || "",
+        montant_facture: c.montant_facture ?? c.montant_ttc ?? "",
         statut_paiement: c.statut_paiement || "Impayé",
         date_paiement: c.date_paiement || "",
         mode_paiement: c.mode_paiement || "",
@@ -351,9 +352,15 @@ export default function CommandeDetailPage() {
   };
 
   const enregistrerFacture = async () => {
+    const ecart = Math.abs((Number(facture.montant_facture) || 0) - (Number(bc.montant_ttc) || 0)) > 1;
+    if (ecart && !facture.observation_facture.trim()) {
+      alert("Le montant facturé diffère du montant du BC — merci de préciser la cause dans l'observation (ex. livraison partielle, commande arrêtée...) avant d'enregistrer.");
+      return;
+    }
     await supabase.from("commandes").update({
       numero_facture: facture.numero_facture,
       date_facture: facture.date_facture || null,
+      montant_facture: facture.montant_facture === "" ? null : Number(facture.montant_facture),
       statut_paiement: facture.statut_paiement,
       mode_paiement: facture.statut_paiement === "Payé" ? facture.mode_paiement || null : null,
       date_paiement: facture.statut_paiement === "Payé" ? (facture.date_paiement || new Date().toISOString().slice(0, 10)) : null,
@@ -879,12 +886,29 @@ export default function CommandeDetailPage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
           <input placeholder="N° de facture" value={facture.numero_facture} onChange={(e) => setFacture({ ...facture, numero_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <input type="date" value={facture.date_facture} onChange={(e) => setFacture({ ...facture, date_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <div>
+            <input
+              type="number"
+              placeholder="Montant facturé (Ar)"
+              value={facture.montant_facture}
+              onChange={(e) => setFacture({ ...facture, montant_facture: e.target.value })}
+              title="Par défaut le montant du BC — à corriger si la facture réelle diffère (livraison partielle, commande arrêtée...)"
+              style={{
+                ...inputStyle, width: 160,
+                ...(Math.abs((Number(facture.montant_facture) || 0) - (Number(bc.montant_ttc) || 0)) > 1
+                  ? { borderColor: "#C85A2A", color: "#C85A2A", fontWeight: 600 } : {}),
+              }}
+            />
+            {Math.abs((Number(facture.montant_facture) || 0) - (Number(bc.montant_ttc) || 0)) > 1 && (
+              <div style={{ fontSize: 10.5, color: "#C85A2A", marginTop: 2 }}>≠ montant BC ({Number(bc.montant_ttc).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar) — observation obligatoire</div>
+            )}
+          </div>
           <span style={{ ...inputStyle, background: "#F5F4F1", color: "#555", display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }} title="Calculée automatiquement : date facture + délai de paiement du fournisseur, non modifiable ici">
             Échéance : {facture.date_facture
               ? formatDate(new Date(new Date(facture.date_facture).getTime() + (fournisseurDetail?.conditions_paiement_jours || 30) * 86400000).toISOString())
               : "—"} ({fournisseurDetail?.conditions_paiement_jours || 30}j)
           </span>
-          <input placeholder="Observation" value={facture.observation_facture} onChange={(e) => setFacture({ ...facture, observation_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder="Observation (obligatoire si écart avec le montant BC)" value={facture.observation_facture} onChange={(e) => setFacture({ ...facture, observation_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <select value={facture.statut_paiement} onChange={(e) => setFacture({ ...facture, statut_paiement: e.target.value })} style={inputStyle}>
             <option>Impayé</option>
             <option>Payé</option>
