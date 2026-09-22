@@ -9,7 +9,8 @@ import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
 import ChampPrixHT from "../components/ChampPrixHT";
 import { formatDate } from "../../lib/format";
-import { inputStyle, buttonStyle, linkBtn } from "../components/ui";
+import { inputStyle, buttonStyle, linkBtn, boutonSelonModif } from "../components/ui";
+import { useDirty } from "../../lib/useDirty";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 function matchRecherche(a, q) {
@@ -30,6 +31,7 @@ export default function ArticlesListePage() {
   const [tri, setTri] = useState({ colonne: "designation", sens: "asc" });
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const suiviEditForm = useDirty(editForm);
 
   const charger = async () => {
     const { data } = await supabase.from("articles").select("*, categorie:categories(id, nom)").order("designation").limit(10000);
@@ -98,11 +100,13 @@ export default function ArticlesListePage() {
 
   const modifier = (a) => {
     setEditId(a.id);
-    setEditForm({
+    const initial = {
       designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie_id: a.categorie_id || "",
       dernier_prix_ht: a.dernier_prix_ht ?? "", endormi: !!a.endormi, continue_par_id: a.continue_par_id || "",
       continueParTexte: a.continue_par_id ? (designationParId[a.continue_par_id] || "") : "",
-    });
+    };
+    setEditForm(initial);
+    suiviEditForm.reinitialiser(initial);
   };
 
   const enregistrerEdition = async () => {
@@ -243,7 +247,7 @@ export default function ArticlesListePage() {
                           )}
                         </div>
                       </div>
-                      <button onClick={enregistrerEdition} style={{ ...buttonStyle, marginRight: 8 }}>Enregistrer</button>
+                      <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 8 }}>Enregistrer</button>
                       <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
                     </div>
                   ) : (
