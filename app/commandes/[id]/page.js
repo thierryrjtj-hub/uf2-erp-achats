@@ -16,7 +16,7 @@ import { formatDate } from "../../../lib/format";
 
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
 const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins", "Prestation / Travaux"];
-const nouvelleSaisie = () => ({ receptionnaire: "Magasin", receptionnaireAutre: "", numeroBl: "", typeLivraison: "Livraison fournisseur", dateLivraisonTerrain: "" });
+const nouvelleSaisie = () => ({ receptionnaire: "Magasin", receptionnaireAutre: "", numeroBl: "", typeLivraison: "Livraison fournisseur", dateLivraisonTerrain: new Date().toISOString().slice(0, 10) });
 const estBoisDeChauffage = (designation) => {
   const d = (designation || "").toLowerCase();
   return d.includes("bois de chauffage") || d.includes("bois chauffage");
@@ -468,7 +468,7 @@ export default function CommandeDetailPage() {
           </div>
         </div>
 
-        <p style={{ fontSize: 14, marginBottom: 16 }}><strong>Fournisseur :</strong> {bc.fournisseur_nom}</p>
+        <p style={{ fontSize: 14, marginBottom: 16 }}><strong>Fournisseur :</strong> {bc.fournisseur_id ? <Link href={`/fournisseurs/nouveau?id=${bc.fournisseur_id}`} style={{ color: "#1B4C7A" }}>{bc.fournisseur_nom}</Link> : bc.fournisseur_nom}</p>
 
         {demande && (
           <p className="no-print" style={{ fontSize: 13, marginBottom: 16 }}>
