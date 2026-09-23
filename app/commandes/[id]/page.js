@@ -309,7 +309,7 @@ export default function CommandeDetailPage() {
   const majDateEnvoiSignature = (date) => {
     setTransmission((prev) => ({ ...prev, dateEnvoiSignature: date }));
     if (bc?.statut === "A faire") setBc((prev) => (prev ? { ...prev, statut: "En cours" } : prev));
-    if (!observation.trim()) setObservation("BC en cours de signature — envoyé pour signature à la direction");
+    if (!observation.trim()) setObservation("En cours de signature — direction");
   };
 
   // Date de retour signé saisie : pré-remplit (sans écraser si déjà rempli) la date d'envoi
@@ -325,7 +325,7 @@ export default function CommandeDetailPage() {
 
   // Ne remplace la suggestion que si l'observation est encore vide ou déjà
   // une suggestion automatique (jamais un texte que l'acheteur a personnalisé).
-  const observationEstAutoGeneree = () => !observation.trim() || observation.startsWith("BC en cours de signature") || observation.startsWith("BC signé, envoyé au fournisseur");
+  const observationEstAutoGeneree = () => !observation.trim() || observation.startsWith("En cours de signature") || observation.startsWith("BC signé, envoyé au fournisseur");
 
   const majDateRetourSignature = (date) => {
     setTransmission((prev) => ({
