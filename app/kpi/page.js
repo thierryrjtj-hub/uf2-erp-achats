@@ -54,14 +54,20 @@ export default function KpiPage() {
     })();
   }, []);
 
+  // Le "vrai" montant d'un achat, pour tous les totaux/KPI : le montant
+  // facturé une fois connu (peut différer du BC — livraison partielle,
+  // commande arrêtée...), sinon le montant du BC par défaut. Même logique
+  // que dans l'historique, pour rester cohérent partout.
+  const montantReel = (c) => Number(c.montant_facture ?? c.montant_ttc) || 0;
+
   const stats = useMemo(() => {
-    const totalTTC = commandes.reduce((s, c) => s + Number(c.montant_ttc || 0), 0);
+    const totalTTC = commandes.reduce((s, c) => s + montantReel(c), 0);
     const nowMonth = new Date().toISOString().slice(0, 7);
     const commandesMois = commandes.filter((c) => (c.date || "").slice(0, 7) === nowMonth);
-    const totalMois = commandesMois.reduce((s, c) => s + Number(c.montant_ttc || 0), 0);
+    const totalMois = commandesMois.reduce((s, c) => s + montantReel(c), 0);
 
     const parFournisseur = {};
-    commandes.forEach((c) => { parFournisseur[c.fournisseur_nom] = (parFournisseur[c.fournisseur_nom] || 0) + Number(c.montant_ttc || 0); });
+    commandes.forEach((c) => { parFournisseur[c.fournisseur_nom] = (parFournisseur[c.fournisseur_nom] || 0) + montantReel(c); });
     const topFournisseurs = Object.entries(parFournisseur).sort((a, b) => b[1] - a[1]);
 
     const parArticle = {};
@@ -89,7 +95,7 @@ export default function KpiPage() {
       .sort((a, b) => a.cycleJours - b.cycleJours);
 
     const impayes = commandes.filter((c) => c.statut_paiement !== "Payé");
-    const totalImpaye = impayes.reduce((s, c) => s + Number(c.montant_ttc || 0), 0);
+    const totalImpaye = impayes.reduce((s, c) => s + montantReel(c), 0);
 
     const demandesEnAttente = demandes.filter((d) => d.statut !== "Basculée en commande").length;
     const bcNonRecus = commandes.filter((c) => !receptions.some((r) => r.bc_id === c.id)).length;
@@ -131,7 +137,7 @@ export default function KpiPage() {
       d.setDate(1);
       d.setMonth(d.getMonth() - i);
       const cle = d.toISOString().slice(0, 7);
-      const montant = commandes.filter((c) => (c.date || "").slice(0, 7) === cle).reduce((s, c) => s + Number(c.montant_ttc || 0), 0);
+      const montant = commandes.filter((c) => (c.date || "").slice(0, 7) === cle).reduce((s, c) => s + montantReel(c), 0);
       parMois.push({ mois: cle, label: MOIS_LABEL[d.getMonth()], montant });
     }
 
@@ -319,4 +325,3 @@ function BarRow({ label, value, max, suffix = "" }) {
 }
 
 const miniExportBtn = { fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", cursor: "pointer" };
-
