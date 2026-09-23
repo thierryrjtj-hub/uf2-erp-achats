@@ -74,9 +74,25 @@ export default function Autocomplete({ value, onChange, onSelect, suggestions, p
         onFocus={() => setOuvert(true)}
         onBlur={() => { blurTimeout.current = setTimeout(() => setOuvert(false), 150); }}
         onKeyDown={onKeyDown}
-        style={{ ...inputStyle, ...style, width: "100%" }}
+        style={{ ...inputStyle, ...style, width: "100%", paddingRight: value ? 26 : inputStyle.padding.split(" ")[1] }}
         {...inputAttrs}
       />
+      {value && (
+        <button
+          type="button"
+          tabIndex={-1}
+          onMouseDown={(e) => { e.preventDefault(); onChange(""); }}
+          aria-label="Effacer"
+          title="Effacer"
+          style={{
+            position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+            border: "none", background: "none", color: "#999", cursor: "pointer",
+            fontSize: 15, lineHeight: 1, padding: 2, display: "flex",
+          }}
+        >
+          ×
+        </button>
+      )}
       {ouvert && filtrees.length > 0 && (
         <div ref={dropdownRef} style={dropdownStyle}>
           {filtrees.map((s, i) => (
