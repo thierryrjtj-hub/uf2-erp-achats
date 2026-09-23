@@ -10,7 +10,7 @@ import { IconCopy, IconBan, IconTrash } from "../components/Icons";
 import { useRole } from "../../lib/useRole";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
-const GROUPE_TERMINAL = new Set(["Basculée en commande", "Clôturée", "Annulée"]);
+const GROUPE_TERMINAL = new Set(["Basculée en commande", "Clôturée", "Annulée", "En stand-by"]);
 
 export default function DemandesListePage() {
   return (
@@ -152,6 +152,20 @@ function DemandesInner() {
     charger();
   };
 
+  // Met une demande de côté (ex: risque de surstock, doublon temporaire à
+  // vérifier...) sans l'annuler — elle sort de "à traiter" mais reste
+  // visible et réactivable à tout moment.
+  const standByDemande = async (d) => {
+    if (d.statut === "En stand-by") {
+      await supabase.from("demandes").update({ statut: "A faire" }).eq("id", d.id);
+      charger();
+      return;
+    }
+    const motif = prompt(`Pourquoi mettre en stand-by la demande ${d.numero} ? (optionnel)`);
+    await supabase.from("demandes").update({ statut: "En stand-by", observation: motif?.trim() || d.observation }).eq("id", d.id);
+    charger();
+  };
+
   const supprimerDemande = async (d) => {
     const { data: bcLies } = await supabase.from("commandes").select("id, numero").eq("demande_id", d.id);
     if (bcLies && bcLies.length > 0) {
@@ -257,6 +271,11 @@ function DemandesInner() {
                         <button onClick={() => annulerDemande(d)} style={{ ...linkBtn, color: d.statut === "Annulée" ? "#1B7A4C" : "#8A6100", display: "inline-flex", alignItems: "center" }} title={d.statut === "Annulée" ? "Réactiver" : "Annuler"}>
                           <IconBan />
                         </button>
+                        {(d.statut === "En stand-by" || !["Basculée en commande", "Clôturée", "Annulée"].includes(d.statut)) && (
+                          <button onClick={() => standByDemande(d)} style={{ ...linkBtn, color: d.statut === "En stand-by" ? "#1B7A4C" : "#8A6100" }} title={d.statut === "En stand-by" ? "Réactiver (sortir du stand-by)" : "Mettre en stand-by"}>
+                            {d.statut === "En stand-by" ? "▶" : "⏸"}
+                          </button>
+                        )}
                         {role === "acheteur" && (
                           <button onClick={() => supprimerDemande(d)} style={{ ...linkBtn, color: "#B3261E", display: "inline-flex", alignItems: "center" }} title="Supprimer">
                             <IconTrash />
