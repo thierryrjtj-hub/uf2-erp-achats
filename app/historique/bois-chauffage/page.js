@@ -15,6 +15,7 @@ function premierJourAnnee() { return `${new Date().getFullYear()}-01-01`; }
 
 export default function BoisChauffagePage() {
   const [evenements, setEvenements] = useState([]); // { date, fournisseur, m3, montant }
+  const [evenementsSansDate, setEvenementsSansDate] = useState([]); // lignes sans date de voyage fiable, jamais fondues dans un total
   const [loading, setLoading] = useState(true);
   const [dateDebut, setDateDebut] = useState(premierJourMois());
   const [dateFin, setDateFin] = useState(todayISO());
@@ -39,8 +40,9 @@ export default function BoisChauffagePage() {
       }
 
       // Date retenue par ligne : la date de livraison réelle saisie sur la ligne
-      // (un voyage/jour = une ligne) si elle existe, sinon la date de réception
-      // globale du BC (anciennes données, avant ce champ) en dernier recours.
+      // (un voyage/jour = une ligne) si elle existe. Sinon, la ligne n'a pas de
+      // date fiable par voyage — on la garde à part (affichée individuellement,
+      // jamais fondue dans un total journalier qui serait faux).
       const evts = lignesReceptionList.map((lr) => {
         const reception = (receptionsList || []).find((r) => r.id === lr.reception_id);
         const commande = reception ? (commandesList || []).find((c) => c.id === reception.bc_id) : null;
@@ -49,14 +51,17 @@ export default function BoisChauffagePage() {
         const pu = ligneBc ? Number(ligneBc.prix_unitaire_ht) || 0 : 0;
         const remise = ligneBc ? Number(ligneBc.remise_pct) || 0 : 0;
         return {
-          date: ligneBc?.date_livraison ? ligneBc.date_livraison.slice(0, 10) : (reception?.date_reception_reelle ? reception.date_reception_reelle.slice(0, 10) : null),
+          date: ligneBc?.date_livraison ? ligneBc.date_livraison.slice(0, 10) : null,
+          dateApprochee: reception?.date_reception_reelle ? reception.date_reception_reelle.slice(0, 10) : null,
+          numeroBc: commande?.numero || "-",
           fournisseur: commande?.fournisseur_nom || "Inconnu",
           m3: qte,
           montant: qte * pu * (1 - remise / 100),
         };
-      }).filter((e) => e.date && e.m3 > 0);
+      }).filter((e) => e.m3 > 0 && (e.date || e.dateApprochee));
 
-      setEvenements(evts);
+      setEvenements(evts.filter((e) => e.date));
+      setEvenementsSansDate(evts.filter((e) => !e.date));
       setLoading(false);
     })();
   }, []);
@@ -207,6 +212,38 @@ export default function BoisChauffagePage() {
                 </div>
               )}
             </div>
+
+            {evenementsSansDate.length > 0 && (
+              <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #FFE0B2", padding: 20 }}>
+                <h2 style={{ fontSize: 15, marginBottom: 6, color: "#8A6100" }}>Lignes sans date de voyage précise ({evenementsSansDate.length})</h2>
+                <p style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
+                  Ces livraisons n'ont pas de date fiable par voyage (données anciennes, avant la saisie systématique) —
+                  affichées ligne par ligne plutôt que fondues dans un total journalier qui serait faux.
+                </p>
+                <div style={{ maxHeight: 260, overflow: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>N° BC</th>
+                        <th style={thStyle}>Fournisseur</th>
+                        <th style={thStyle}>Quantité (m³)</th>
+                        <th style={thStyle}>Date approchée (réception du BC)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {evenementsSansDate.map((e, i) => (
+                        <tr key={i}>
+                          <td style={tdStyle}>{e.numeroBc}</td>
+                          <td style={tdStyle}>{e.fournisseur}</td>
+                          <td style={tdStyle}>{e.m3.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td style={tdStyle}>{e.dateApprochee ? formatDate(e.dateApprochee) : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
