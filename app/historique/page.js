@@ -20,7 +20,7 @@ export default function HistoriquePage() {
 
   useEffect(() => {
     (async () => {
-      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, montant_facture, statut, date_signature, observation").limit(10000);
+      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, montant_facture, statut, date_signature, observation, mode_envoi_fournisseur, nom_coursier").limit(10000);
       const { data: lignesBc } = await supabase.from("lignes_bc").select("*").limit(10000);
       const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle, receptionnaire, observation").limit(10000);
       const { data: lignesReceptionList } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
@@ -60,6 +60,9 @@ export default function HistoriquePage() {
           date_signature: bc?.date_signature || "-",
           date_reception: derniereReception?.date_reception_reelle ? derniereReception.date_reception_reelle.slice(0, 10) : "-",
           receptionnaire: derniereReception?.receptionnaire || "-",
+          mode_envoi: bc?.mode_envoi_fournisseur === "Enlèvement par nos soins" && bc?.nom_coursier
+            ? `Enlèvement par ${bc.nom_coursier}`
+            : (bc?.mode_envoi_fournisseur || "-"),
           observation_reception: derniereReception?.observation || "",
           categorie: art?.categorie?.nom || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
           demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
@@ -84,7 +87,7 @@ export default function HistoriquePage() {
             id: `pending-${ld.id}`,
             date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
             designation: ld.designation, quantite: ld.quantite, unite: ld.unite, quantite_livree: 0,
-            fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-", receptionnaire: "-",
+            fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-", receptionnaire: "-", mode_envoi: "-",
             categorie: art?.categorie?.nom || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
             demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
             prix_unitaire_ht: null, remise_pct: null, montant_ht: 0, montant_ttc: 0, bc_total_ttc: 0, bc_montant_facture: 0, bc_id_pour_total: null, etat_livraison: "-",
@@ -155,7 +158,7 @@ export default function HistoriquePage() {
     const rows = filtrees.map((l) => ({
       dateDa: l.date_da, article: l.designation, qte: Number(l.quantite), qteLivree: l.bc_numero !== "-" ? Number(l.quantite_livree) : "", unite: l.unite,
       fournisseur: l.fournisseur_nom, bc: l.bc_numero, dateBc: l.bc_date, dateSignature: l.date_signature, dateReception: l.date_reception,
-      receptionnaire: l.receptionnaire, etat: l.etat_livraison, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
+      receptionnaire: l.receptionnaire, modeEnvoi: l.mode_envoi, etat: l.etat_livraison, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
       pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: l.remise_pct != null ? Number(l.remise_pct) : "",
       montantHt: Number(l.montant_ht) || 0, montantTtc: Number(l.montant_ttc) || 0, totalBc: Number(l.bc_total_ttc) || 0,
       montantFacture: Number(l.bc_montant_facture) || 0,
@@ -184,6 +187,7 @@ export default function HistoriquePage() {
             { header: "Fournisseur", key: "fournisseur", width: 20 }, { header: "N° BC", key: "bc", width: 16 },
             { header: "Date BC (création)", key: "dateBc", width: 14 }, { header: "Date signature (envoi commande)", key: "dateSignature", width: 16 },
             { header: "Date réception livraison", key: "dateReception", width: 15 }, { header: "Réceptionnaire", key: "receptionnaire", width: 15 },
+            { header: "Mode envoi / Coursier", key: "modeEnvoi", width: 20 },
             { header: "État livraison", key: "etat", width: 14 }, { header: "Catégorie", key: "categorie", width: 20 },
             { header: "Service demandeur", key: "service", width: 16 }, { header: "Demandeur", key: "demandeur", width: 16 },
             { header: "Usage / Projet", key: "usage", width: 22 }, { header: "PU HT", key: "pu", width: 12 },
@@ -275,7 +279,7 @@ export default function HistoriquePage() {
                 <colgroup>
                   <col style={{ width: 80 }} /><col style={{ width: 230 }} /><col style={{ width: 80 }} /><col style={{ width: 85 }} /><col style={{ width: 60 }} />
                   <col style={{ width: 170 }} /><col style={{ width: 140 }} /><col style={{ width: 80 }} /><col style={{ width: 90 }} />
-                  <col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 100 }} /><col style={{ width: 120 }} />
+                  <col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 130 }} /><col style={{ width: 100 }} /><col style={{ width: 120 }} />
                   <col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 210 }} /><col style={{ width: 90 }} />
                   <col style={{ width: 70 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} />
                   <col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 220 }} />
@@ -293,6 +297,7 @@ export default function HistoriquePage() {
                     <th style={thStyle}>Date signature</th>
                     <th style={thStyle}>Date réception</th>
                     <th style={thStyle}>Réceptionnaire</th>
+                    <th style={thStyle}>Mode envoi / Coursier</th>
                     <th style={thStyle}>État livraison</th>
                     <th style={thStyle}>Catégorie</th>
                     <th style={thStyle}>Service demandeur</th>
@@ -335,6 +340,7 @@ export default function HistoriquePage() {
                       <td style={tdStyle}>{formatDate(l.date_signature) || "-"}</td>
                       <td style={tdStyle}>{formatDate(l.date_reception) || "-"}</td>
                       <td style={tdStyle}>{l.receptionnaire}</td>
+                      <td style={tdStyle}>{l.mode_envoi}</td>
                       <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
                       <td style={tdStyle}>{l.categorie || "-"}</td>
                       <td style={tdStyle}>{l.service || "-"}</td>
@@ -355,7 +361,7 @@ export default function HistoriquePage() {
                 </tbody>
                 <tfoot>
                   <tr style={{ borderTop: "2px solid #ddd" }}>
-                    <td colSpan={18} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length})</td>
+                    <td colSpan={19} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length})</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.totalBc.toLocaleString("fr-FR")} Ar</td>
