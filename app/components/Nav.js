@@ -152,6 +152,12 @@ export default function Nav() {
             <div><strong>Entrée</strong> — valider le champ / la suggestion</div>
             <div><strong>Entrée</strong> (comparatif, colonne PU HT) — passe à la ligne suivante, puis au fournisseur suivant</div>
             <div><strong>Échap</strong> — fermer une liste de suggestions</div>
+            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.15)" }}>
+              <strong>Ouvrir un onglet</strong> (hors saisie) :<br />
+              T tableau de bord · D demandes (DN nouvelle, DP petite caisse, DC carburant/gaz) · C commandes ·
+              H historique (HB bois de chauffage) · K KPI · F fournisseurs (FA ajouter) ·
+              AR articles (ARN ajouter, ARG catégories) · AD administration (ADJ journal, ADQ qualité, ADE erreurs) · S sauvegarde
+            </div>
           </div>
         )}
         <p className="nav-footer" style={{ fontSize: 10.5, color: "#7A9C93", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
