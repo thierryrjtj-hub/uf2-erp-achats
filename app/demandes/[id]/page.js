@@ -816,7 +816,7 @@ export default function TCODetailPage() {
                       </div>
                       <textarea
                         className="no-print"
-                        placeholder="Observation (dispo, conditions, précision article...)"
+                        data-casse-normale placeholder="Observation (dispo, conditions, précision article...)"
                         defaultValue={o.observation || ""}
                         onBlur={(e) => majOffre(o.id, "observation", e.target.value)}
                         style={{ ...inputStyle, width: "100%", minHeight: 30, fontWeight: 400, fontSize: 11, marginTop: 6, resize: "vertical" }}
