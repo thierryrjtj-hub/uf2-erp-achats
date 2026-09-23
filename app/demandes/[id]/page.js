@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo, Fragment } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
+import { chargerAvecCache } from "../../../lib/cache";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import ChampPrixHT from "../../components/ChampPrixHT";
@@ -442,10 +443,40 @@ export default function TCODetailPage() {
     }
 
     const restants = lignesDemande.filter((ld) => !dejaCouvertes.has(ld.id) && !lignesReellementCouvertes.has(ld.id));
-    await supabase.from("demandes").update({ statut: restants.length === 0 ? "Basculée en commande" : "Partiellement traitée" }).eq("id", id);
+
+    // Parmi les lignes restantes, celles sans aucun prix renseigné par aucun
+    // fournisseur (comme un "commande arrêtée" sur ces articles précis) sont
+    // transférées automatiquement vers une nouvelle demande dédiée, pour
+    // pouvoir les rechercher ailleurs ou aviser les demandeurs de leur
+    // indisponibilité — au lieu de rester bloquées dans le TCO déjà généré.
+    const restantsSansPrix = restants.filter((ld) => !offresAvecTotaux.some((o) => montantLigne(o, ld) != null));
+    let statutFinal = restants.length === 0 ? "Basculée en commande" : "Partiellement traitée";
+
+    if (restantsSansPrix.length > 0) {
+      const { data: nouvelleDemandeReliquat } = await supabase.from("demandes").insert({
+        demandeur: demande.demandeur, service: demande.service,
+        motif_projet: `Reliquat sans prix — ${demande.numero} — ${demande.motif_projet || ""}`,
+        observation: `Article(s) sans aucun prix renseigné par un fournisseur lors du comparatif de ${demande.numero}`,
+        statut: "A faire", created_by: demande.created_by,
+      }).select().single();
+      if (nouvelleDemandeReliquat) {
+        for (const ld of restantsSansPrix) {
+          await supabase.from("lignes_demande").update({
+            demande_id: nouvelleDemandeReliquat.id, non_disponible_localement: true,
+          }).eq("id", ld.id);
+        }
+        const restantsAvecPrix = restants.filter((ld) => !restantsSansPrix.some((r) => r.id === ld.id));
+        statutFinal = restantsAvecPrix.length === 0 ? "Basculée en commande" : "Partiellement traitée";
+      }
+    }
+
+    await supabase.from("demandes").update({ statut: statutFinal }).eq("id", id);
     setGenerating(false);
-    if (echecs.length > 0) {
-      alert(`Attention : le BC n'a pas pu être créé pour ${echecs.join(", ")}. Les lignes correspondantes restent disponibles pour une nouvelle tentative — les autres BC ont bien été créés.`);
+    if (echecs.length > 0 || restantsSansPrix.length > 0) {
+      const morceaux = [];
+      if (echecs.length > 0) morceaux.push(`le BC n'a pas pu être créé pour ${echecs.join(", ")} — les lignes correspondantes restent disponibles pour une nouvelle tentative`);
+      if (restantsSansPrix.length > 0) morceaux.push(`${restantsSansPrix.length} article(s) sans aucun prix ont été transférés vers une nouvelle demande dédiée (à rechercher ailleurs ou à signaler aux demandeurs)`);
+      alert(`Attention : ${morceaux.join(" ; ")}.`);
       charger();
     } else {
       router.push("/commandes");
