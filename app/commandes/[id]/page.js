@@ -339,7 +339,11 @@ export default function CommandeDetailPage() {
 
   // Ne remplace la suggestion que si l'observation est encore vide ou déjà
   // une suggestion automatique (jamais un texte que l'acheteur a personnalisé).
-  const observationEstAutoGeneree = () => !observation.trim() || observation.startsWith("En cours de signature") || observation.startsWith("BC signé, envoyé au fournisseur");
+  const observationEstAutoGeneree = () =>
+    !observation.trim()
+    || observation.startsWith("En cours de signature")
+    || observation.startsWith("BC en cours de signature") // ancien texte, présent sur les BC déjà signés avant ce changement
+    || observation.startsWith("BC signé, envoyé au fournisseur");
 
   const majDateRetourSignature = (date) => {
     setTransmission((prev) => ({
