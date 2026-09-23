@@ -22,12 +22,14 @@ export default function KpiPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: c } = await supabase.from("commandes").select("*").limit(10000);
-      const { data: l } = await supabase.from("lignes_bc").select("*").limit(10000);
-      const { data: d } = await supabase.from("demandes").select("*").limit(10000);
-      const { data: r } = await supabase.from("receptions").select("*").limit(10000);
-      const { data: lr } = await supabase.from("lignes_reception").select("*").limit(10000);
-      const { data: art } = await supabase.from("articles").select("id, designation, endormi, continue_par_id, categorie:categories(nom)").limit(10000);
+      const [{ data: c }, { data: l }, { data: d }, { data: r }, { data: lr }, { data: art }] = await Promise.all([
+        supabase.from("commandes").select("*").limit(10000),
+        supabase.from("lignes_bc").select("*").limit(10000),
+        supabase.from("demandes").select("*").limit(10000),
+        supabase.from("receptions").select("*").limit(10000),
+        supabase.from("lignes_reception").select("*").limit(10000),
+        supabase.from("articles").select("id, designation, endormi, continue_par_id, categorie:categories(nom)").limit(10000),
+      ]);
       setCommandes(c || []);
       setLignesBc(l || []);
       setDemandes(d || []);
@@ -325,3 +327,4 @@ function BarRow({ label, value, max, suffix = "" }) {
 }
 
 const miniExportBtn = { fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", cursor: "pointer" };
+
