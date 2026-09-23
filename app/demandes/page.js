@@ -33,11 +33,13 @@ function DemandesInner() {
   const [tri, setTri] = useState({ colonne: "defaut", sens: "desc" });
 
   const charger = async () => {
-    const { data } = await supabase.from("demandes").select("*").order("created_at", { ascending: false }).limit(10000);
+    const [{ data }, { data: nonDispo }, { data: toutesLignes }] = await Promise.all([
+      supabase.from("demandes").select("*").order("created_at", { ascending: false }).limit(10000),
+      supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true).limit(10000),
+      supabase.from("lignes_demande").select("demande_id, designation, quantite, unite").limit(10000),
+    ]);
     setListe(data || []);
-    const { data: nonDispo } = await supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true).limit(10000);
     setDemandesAvecNonDispo(new Set((nonDispo || []).map((x) => x.demande_id)));
-    const { data: toutesLignes } = await supabase.from("lignes_demande").select("demande_id, designation, quantite, unite").limit(10000);
     const articlesMap = {};
     (toutesLignes || []).forEach((l) => {
       if (!articlesMap[l.demande_id]) articlesMap[l.demande_id] = [];
