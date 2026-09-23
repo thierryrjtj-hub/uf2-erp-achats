@@ -124,8 +124,8 @@ export default function LoginPage() {
       <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
         <form onSubmit={handleChangerMdp} style={{ background: "#fff", padding: 32, borderRadius: 20, width: 340, boxShadow: "0 2px 8px rgba(16,24,40,0.08), 0 1px 3px rgba(16,24,40,0.04)" }}>
           <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ display: "inline-block", background: "#fff", borderRadius: 14, padding: "14px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-            <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block" }} />
+          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff", borderRadius: 14, padding: "14px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block", margin: "0 auto" }} />
           </div>
         </div>
         <h1 style={{ fontSize: 18, marginBottom: 4, textAlign: "center" }}>{t("premiereConnexion")}</h1>
@@ -153,8 +153,8 @@ export default function LoginPage() {
     <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center" }}>
       <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 32, borderRadius: 20, width: 340, boxShadow: "0 2px 8px rgba(16,24,40,0.08), 0 1px 3px rgba(16,24,40,0.04)" }}>
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ display: "inline-block", background: "#fff", borderRadius: 14, padding: "14px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-            <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block" }} />
+          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", background: "#fff", borderRadius: 14, padding: "14px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block", margin: "0 auto" }} />
           </div>
         </div>
         <h1 style={{ fontSize: 20, marginBottom: 4, textAlign: "center" }}>{t("titreApp")}</h1>
