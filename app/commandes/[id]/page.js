@@ -625,6 +625,11 @@ export default function CommandeDetailPage() {
                 <input id={`quantite-edit-${l.key}`} type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
                 <input placeholder="unité" value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteEditBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 90 }} />
                 <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => majEditLigne(l.key, "prix_unitaire_ht", v)} onBlurSync={(v) => onPrixEditBlur(l.designation, v)} tvaPct={bc.assujetti_tva === false ? 0 : 20} style={{ ...inputStyle, width: 110 }} />
+                {l.prix_unitaire_ht !== "" && (
+                  <span style={{ fontSize: 11, color: "#888", alignSelf: "center", whiteSpace: "nowrap" }}>
+                    {Number(l.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar
+                  </span>
+                )}
                 <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
                 <button onClick={() => retirerEditLigne(l.key)} style={linkBtn}>Retirer</button>
               </div>
