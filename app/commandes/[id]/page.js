@@ -315,15 +315,40 @@ export default function CommandeDetailPage() {
   // Date de retour signé saisie : pré-remplit (sans écraser si déjà rempli) la date d'envoi
   // fournisseur avec la même date, marque la date de signature officielle du BC, et suggère
   // une observation de suivi.
+  // Suggestion d'observation adaptée au mode d'envoi choisi : le nom du
+  // coursier remplace le texte générique pour un enlèvement par nos soins.
+  const suggestionObservationEnvoi = (mode, coursier) => {
+    if (estPrestation || mode === "Prestation / Travaux") return "BC signé, envoyé au fournisseur — en attente de réalisation des travaux/prestation";
+    if (mode === "Enlèvement par nos soins") return `BC signé, envoyé au fournisseur — en attente enlèvement par ${coursier?.trim() || "le coursier"}`;
+    return "BC signé, envoyé au fournisseur — en attente livraison";
+  };
+
+  // Ne remplace la suggestion que si l'observation est encore vide ou déjà
+  // une suggestion automatique (jamais un texte que l'acheteur a personnalisé).
+  const observationEstAutoGeneree = () => !observation.trim() || observation.startsWith("BC en cours de signature") || observation.startsWith("BC signé, envoyé au fournisseur");
+
   const majDateRetourSignature = (date) => {
     setTransmission((prev) => ({
       ...prev, dateRetourSignature: date,
       dateEnvoiFournisseur: prev.dateEnvoiFournisseur || date,
     }));
     setDateSignature(date);
-    if (!observation.trim() || observation.startsWith("BC en cours de signature")) {
-      setObservation(estPrestation ? "BC signé, envoyé au fournisseur — en attente de réalisation des travaux/prestation" : "BC signé, envoyé au fournisseur — en attente de livraison ou d'enlèvement par nos soins");
+    if (observationEstAutoGeneree()) {
+      setObservation(suggestionObservationEnvoi(transmission.modeEnvoiFournisseur, transmission.nomCoursier));
     }
+  };
+
+  // Régénère la suggestion d'observation dès que le mode d'envoi ou le nom du
+  // coursier change (mais seulement une fois la signature déjà en retour,
+  // sinon il n'y a encore rien à suggérer).
+  const majModeOuCoursier = (champ, valeur) => {
+    setTransmission((prev) => {
+      const suivant = { ...prev, [champ]: valeur };
+      if (prev.dateRetourSignature && observationEstAutoGeneree()) {
+        setObservation(suggestionObservationEnvoi(suivant.modeEnvoiFournisseur, suivant.nomCoursier));
+      }
+      return suivant;
+    });
   };
 
   const ajouterAccuse = async () => {
@@ -827,7 +852,7 @@ export default function CommandeDetailPage() {
             </div>
             <div>
               <label style={miniLabel}>Mode</label>
-              <select value={transmission.modeEnvoiFournisseur} onChange={(e) => setTransmission({ ...transmission, modeEnvoiFournisseur: e.target.value })} style={inputStyle}>
+              <select value={transmission.modeEnvoiFournisseur} onChange={(e) => majModeOuCoursier("modeEnvoiFournisseur", e.target.value)} style={inputStyle}>
                 <option>Livraison fournisseur</option>
                 <option>Enlèvement par nos soins</option>
                 <option>Prestation / Travaux</option>
@@ -836,7 +861,7 @@ export default function CommandeDetailPage() {
             {transmission.modeEnvoiFournisseur === "Enlèvement par nos soins" && (
               <div>
                 <label style={miniLabel}>Nom du coursier</label>
-                <input placeholder="Nom" value={transmission.nomCoursier} onChange={(e) => setTransmission({ ...transmission, nomCoursier: e.target.value })} style={{ ...inputStyle, width: 150 }} />
+                <input placeholder="Nom" value={transmission.nomCoursier} onChange={(e) => majModeOuCoursier("nomCoursier", e.target.value)} style={{ ...inputStyle, width: 150 }} />
               </div>
             )}
           </div>
