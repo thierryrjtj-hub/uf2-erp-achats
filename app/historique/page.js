@@ -20,7 +20,7 @@ export default function HistoriquePage() {
 
   useEffect(() => {
     (async () => {
-      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, montant_facture, statut, date_signature, observation, mode_envoi_fournisseur, nom_coursier").limit(10000);
+      const { data: bcList } = await supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, montant_facture, numero_facture, date_facture, statut, date_signature, observation, mode_envoi_fournisseur, nom_coursier").limit(10000);
       const { data: lignesBc } = await supabase.from("lignes_bc").select("*").limit(10000);
       const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle, receptionnaire, observation").limit(10000);
       const { data: lignesReceptionList } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
@@ -69,6 +69,7 @@ export default function HistoriquePage() {
           prix_unitaire_ht: l.prix_unitaire_ht, remise_pct: l.remise_pct, montant_ht: montantHt, montant_ttc: montantTtc,
           bc_total_ttc: Number(bc?.montant_ttc) || 0,
           bc_montant_facture: bc?.montant_facture != null ? Number(bc.montant_facture) : Number(bc?.montant_ttc) || 0,
+          bc_numero_facture: bc?.numero_facture || "-", bc_date_facture: bc?.date_facture || null,
           bc_id_pour_total: bc?.id || null,
           etat_livraison: etatLivraison,
           statut: bc?.statut || "-", observation: bc?.observation || "",
@@ -90,7 +91,7 @@ export default function HistoriquePage() {
             fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-", receptionnaire: "-", mode_envoi: "-",
             categorie: art?.categorie?.nom || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
             demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
-            prix_unitaire_ht: null, remise_pct: null, montant_ht: 0, montant_ttc: 0, bc_total_ttc: 0, bc_montant_facture: 0, bc_id_pour_total: null, etat_livraison: "-",
+            prix_unitaire_ht: null, remise_pct: null, montant_ht: 0, montant_ttc: 0, bc_total_ttc: 0, bc_montant_facture: 0, bc_numero_facture: "-", bc_date_facture: null, bc_id_pour_total: null, etat_livraison: "-",
             statut: dmd?.statut === "Partiellement traitée" ? "Partiellement traitée" : "A faire",
             observation: dmd?.statut === "Partiellement traitée" ? "Reste à traiter — devis en cours" : "En attente de devis / TCO",
             date_tri: dmd?.created_at ? dmd.created_at.slice(0, 10) : "",
@@ -162,6 +163,8 @@ export default function HistoriquePage() {
       pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: l.remise_pct != null ? Number(l.remise_pct) : "",
       montantHt: Number(l.montant_ht) || 0, montantTtc: Number(l.montant_ttc) || 0, totalBc: Number(l.bc_total_ttc) || 0,
       montantFacture: Number(l.bc_montant_facture) || 0,
+      numeroFacture: l.bc_numero_facture !== "-" ? l.bc_numero_facture : "",
+      dateFacture: l.bc_date_facture || "",
       statut: l.statut, observation: l.observation,
     }));
 
@@ -194,12 +197,14 @@ export default function HistoriquePage() {
             { header: "Remise %", key: "remise", width: 9 }, { header: "Montant HT", key: "montantHt", width: 14 },
             { header: "Montant TTC", key: "montantTtc", width: 14 }, { header: "Total BC (TTC)", key: "totalBc", width: 14 },
             { header: "Montant facturé (BC)", key: "montantFacture", width: 16 },
+            { header: "N° facture", key: "numeroFacture", width: 16 },
+            { header: "Date facture", key: "dateFacture", width: 13 },
             { header: "Statut", key: "statut", width: 16 }, { header: "Observation", key: "observation", width: 26 },
           ],
           rows,
           currencyKeys: ["pu", "montantHt", "montantTtc", "totalBc", "montantFacture"],
           percentKeys: ["remise"],
-          dateKeys: ["dateDa", "dateBc", "dateSignature", "dateReception"],
+          dateKeys: ["dateDa", "dateBc", "dateSignature", "dateReception", "dateFacture"],
         },
         {
           name: "KPI",
@@ -282,7 +287,7 @@ export default function HistoriquePage() {
                   <col style={{ width: 90 }} /><col style={{ width: 90 }} /><col style={{ width: 130 }} /><col style={{ width: 100 }} /><col style={{ width: 120 }} />
                   <col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 210 }} /><col style={{ width: 90 }} />
                   <col style={{ width: 70 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} /><col style={{ width: 100 }} />
-                  <col style={{ width: 110 }} /><col style={{ width: 100 }} /><col style={{ width: 220 }} />
+                  <col style={{ width: 110 }} /><col style={{ width: 110 }} /><col style={{ width: 90 }} /><col style={{ width: 100 }} /><col style={{ width: 220 }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -309,6 +314,8 @@ export default function HistoriquePage() {
                     <th style={thStyle}>Montant TTC</th>
                     <th style={thStyle}>Total BC (TTC)</th>
                     <th style={thStyle}>Montant facturé (BC)</th>
+                    <th style={thStyle}>N° facture</th>
+                    <th style={thStyle}>Date facture</th>
                     <th style={thStyle}>Statut</th>
                     <th style={thStyle}>Observation</th>
                   </tr>
@@ -354,6 +361,8 @@ export default function HistoriquePage() {
                       <td style={{ ...tdStyle, fontWeight: 600, ...(Math.abs((l.bc_montant_facture || 0) - (l.bc_total_ttc || 0)) > 1 ? { color: "#C85A2A" } : {}) }}>
                         {l.bc_montant_facture ? `${Number(l.bc_montant_facture).toLocaleString("fr-FR")} Ar` : "-"}
                       </td>
+                      <td style={tdStyle}>{l.bc_numero_facture}</td>
+                      <td style={tdStyle}>{l.bc_date_facture ? formatDate(l.bc_date_facture) : "-"}</td>
                       <td style={tdStyle}>{l.statut}</td>
                       <td style={tdStyle}>{l.observation}</td>
                     </tr>
@@ -366,7 +375,7 @@ export default function HistoriquePage() {
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.totalBc.toLocaleString("fr-FR")} Ar</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.totalFacture.toLocaleString("fr-FR")} Ar</td>
-                    <td colSpan={2} style={tdStyle}></td>
+                    <td colSpan={4} style={tdStyle}></td>
                   </tr>
                 </tfoot>
               </table>
