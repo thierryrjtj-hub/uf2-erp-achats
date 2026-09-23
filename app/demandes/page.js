@@ -154,15 +154,22 @@ function DemandesInner() {
 
   // Met une demande de côté (ex: risque de surstock, doublon temporaire à
   // vérifier...) sans l'annuler — elle sort de "à traiter" mais reste
-  // visible et réactivable à tout moment.
+  // visible et réactivable à tout moment. Chaque bascule (mise en stand-by
+  // et reprise) laisse une trace horodatée, permanente et jamais effacée,
+  // dans historique_stand_by — distincte de l'observation libre, éditable.
   const standByDemande = async (d) => {
+    const dateDuJour = new Date().toLocaleDateString("fr-FR");
     if (d.statut === "En stand-by") {
-      await supabase.from("demandes").update({ statut: "A faire" }).eq("id", d.id);
+      const ligne = `[${dateDuJour}] Reprise du traitement`;
+      const trace = d.historique_stand_by ? `${d.historique_stand_by}\n${ligne}` : ligne;
+      await supabase.from("demandes").update({ statut: "A faire", historique_stand_by: trace }).eq("id", d.id);
       charger();
       return;
     }
     const motif = prompt(`Pourquoi mettre en stand-by la demande ${d.numero} ? (optionnel)`);
-    await supabase.from("demandes").update({ statut: "En stand-by", observation: motif?.trim() || d.observation }).eq("id", d.id);
+    const ligne = `[${dateDuJour}] Mise en stand-by${motif?.trim() ? ` — ${motif.trim()}` : ""}`;
+    const trace = d.historique_stand_by ? `${d.historique_stand_by}\n${ligne}` : ligne;
+    await supabase.from("demandes").update({ statut: "En stand-by", historique_stand_by: trace }).eq("id", d.id);
     charger();
   };
 
@@ -272,7 +279,14 @@ function DemandesInner() {
                           <IconBan />
                         </button>
                         {(d.statut === "En stand-by" || !["Basculée en commande", "Clôturée", "Annulée"].includes(d.statut)) && (
-                          <button onClick={() => standByDemande(d)} style={{ ...linkBtn, color: d.statut === "En stand-by" ? "#1B7A4C" : "#8A6100" }} title={d.statut === "En stand-by" ? "Réactiver (sortir du stand-by)" : "Mettre en stand-by"}>
+                          <button
+                            onClick={() => standByDemande(d)}
+                            style={{ ...linkBtn, color: d.statut === "En stand-by" ? "#1B7A4C" : "#8A6100" }}
+                            title={
+                              (d.statut === "En stand-by" ? "Réactiver (sortir du stand-by)" : "Mettre en stand-by")
+                              + (d.historique_stand_by ? `\n\nHistorique :\n${d.historique_stand_by}` : "")
+                            }
+                          >
                             {d.statut === "En stand-by" ? "▶" : "⏸"}
                           </button>
                         )}
