@@ -38,12 +38,10 @@ function NouveauBCDirectInner() {
 
   useEffect(() => {
     (async () => {
-      const f = await chargerAvecCache("fournisseurs-liste", () =>
-        supabase.from("fournisseurs").select("*").order("nom").limit(10000).then((r) => r.data)
-      );
-      const a = await chargerAvecCache("articles-liste-prix", () =>
-        supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id").limit(10000).then((r) => r.data)
-      );
+      const [f, a] = await Promise.all([
+        chargerAvecCache("fournisseurs-liste", () => supabase.from("fournisseurs").select("*").order("nom").limit(10000).then((r) => r.data)),
+        chargerAvecCache("articles-liste-prix", () => supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id").limit(10000).then((r) => r.data)),
+      ]);
       setFournisseurs(f || []);
       setArticlesBase(a || []);
 
@@ -60,9 +58,11 @@ function NouveauBCDirectInner() {
       };
 
       if (demandeId) {
-        const { data: d } = await supabase.from("demandes").select("*").eq("id", demandeId).maybeSingle();
+        const [{ data: d }, { data: ld }] = await Promise.all([
+          supabase.from("demandes").select("*").eq("id", demandeId).maybeSingle(),
+          supabase.from("lignes_demande").select("*").eq("demande_id", demandeId).order("created_at"),
+        ]);
         setDemande(d || null);
-        const { data: ld } = await supabase.from("lignes_demande").select("*").eq("demande_id", demandeId).order("created_at");
         if (ld && ld.length) {
           setLignes(ld.map((l) => {
             const artBrut = (a || []).find((x) => x.designation.toLowerCase() === l.designation.toLowerCase());
