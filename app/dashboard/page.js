@@ -65,11 +65,34 @@ export default function DashboardPage() {
 
   useEffect(() => {
     (async () => {
-      // ---- Demandes en attente de devis ----
-      const { data: demandes } = await supabase.from("demandes").select("id, numero, service, statut, created_at").not("statut", "in", '("Basculée en commande","Clôturée","Annulée")').limit(10000);
-      const { data: offres } = await supabase.from("offres").select("id, demande_id").limit(10000);
-      const { data: lignesOffre } = await supabase.from("lignes_offre").select("offre_id, prix_unitaire_ht").limit(10000);
+      // Toutes ces requêtes sont indépendantes les unes des autres (aucune ne
+      // dépend du résultat d'une autre) — elles partent donc toutes en même
+      // temps au lieu de s'enchaîner une par une, ce qui était la vraie cause
+      // de la lenteur de chargement du tableau de bord.
+      const [
+        { data: demandes }, { data: offres }, { data: lignesOffre },
+        { data: commandes }, { data: fournisseursData },
+        { data: lignesBc }, { data: receptions }, { data: lignesReception },
+        { data: relancesData }, { data: lignesNonDispo },
+        { data: articlesCategories }, { data: signalementsData },
+        { data: demandesStandBy },
+      ] = await Promise.all([
+        supabase.from("demandes").select("id, numero, service, statut, created_at").not("statut", "in", '("Basculée en commande","Clôturée","Annulée")').limit(10000),
+        supabase.from("offres").select("id, demande_id").limit(10000),
+        supabase.from("lignes_offre").select("offre_id, prix_unitaire_ht").limit(10000),
+        supabase.from("commandes").select("id, numero, fournisseur_nom, fournisseur_id, date, date_signature, date_envoi_signature, date_envoi_fournisseur, statut, statut_paiement, date_facture, date_estimee_reste, mode_envoi_fournisseur").limit(10000),
+        supabase.from("fournisseurs").select("id, conditions_paiement_jours").limit(10000),
+        supabase.from("lignes_bc").select("id, bc_id, designation, quantite").limit(10000),
+        supabase.from("receptions").select("id, bc_id").limit(10000),
+        supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000),
+        supabase.from("relance_livraison").select("bc_id, etape, jours_au_signalement").limit(10000),
+        supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true).limit(10000),
+        supabase.from("articles").select("id, designation, endormi, continue_par_id, categorie:categories(nom)").limit(10000),
+        supabase.from("reappro_signalements").select("designation, jours_avant_prochaine").limit(10000),
+        supabase.from("demandes").select("id, numero, demandeur, motif_projet, historique_stand_by").eq("statut", "En stand-by").limit(10000),
+      ]);
 
+      // ---- Demandes en attente de devis ----
       const devis = (demandes || []).filter((d) => {
         const j = joursDepuis(d.created_at);
         if (j === null || j < 1) return false;
@@ -81,13 +104,8 @@ export default function DashboardPage() {
       setAlertesDevis(devis);
 
       // ---- BC en attente de livraison ----
-      const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_nom, fournisseur_id, date, date_signature, date_envoi_signature, date_envoi_fournisseur, statut, statut_paiement, date_facture, date_estimee_reste, mode_envoi_fournisseur").limit(10000);
-      const { data: fournisseursData } = await supabase.from("fournisseurs").select("id, conditions_paiement_jours").limit(10000);
       const delaiParFournisseur = {};
       (fournisseursData || []).forEach((f) => { delaiParFournisseur[f.id] = f.conditions_paiement_jours || 30; });
-      const { data: lignesBc } = await supabase.from("lignes_bc").select("id, bc_id, designation, quantite").limit(10000);
-      const { data: receptions } = await supabase.from("receptions").select("id, bc_id").limit(10000);
-      const { data: lignesReception } = await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000);
 
       const resteABcId = {};
       (lignesBc || []).forEach((l) => {
@@ -113,7 +131,6 @@ export default function DashboardPage() {
         const j = joursDepuis(c.date_envoi_fournisseur);
         return j !== null && j >= 1;
       });
-      const { data: relancesData } = await supabase.from("relance_livraison").select("bc_id, etape, jours_au_signalement").limit(10000);
       const relanceParBc = {};
       (relancesData || []).forEach((r) => { relanceParBc[r.bc_id] = r; });
       const livraison = livraisonBrut
@@ -142,20 +159,22 @@ export default function DashboardPage() {
       const estimation = (commandes || []).filter((c) => enAttenteLivraisonBcId[c.id] && c.date_estimee_reste && c.date_estimee_reste <= todayISO());
       setAlertesEstimation(estimation);
 
-      // ---- Demandeurs à aviser (articles réellement non disponibles localement) ----
-      const { data: lignesNonDispo } = await supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true).limit(10000);
+      // ---- Demandeurs à aviser + lignes des demandes en stand-by : les deux
+      // requêtes restantes ne dépendent pas l'une de l'autre, donc en parallèle aussi ----
       const demandeIdsNonDispo = [...new Set((lignesNonDispo || []).map((l) => l.demande_id))];
-      let aAviser = [];
-      if (demandeIdsNonDispo.length > 0) {
-        const { data } = await supabase.from("demandes").select("id, numero, service, demandeur, observation").eq("demandeur_avise", false).in("id", demandeIdsNonDispo).limit(10000);
-        aAviser = data || [];
-      }
-      setAlertesImport(aAviser);
+      const [{ data: aAviserData }, { data: lignesStandBy }] = await Promise.all([
+        demandeIdsNonDispo.length > 0
+          ? supabase.from("demandes").select("id, numero, service, demandeur, observation").eq("demandeur_avise", false).in("id", demandeIdsNonDispo).limit(10000)
+          : Promise.resolve({ data: [] }),
+        (demandesStandBy && demandesStandBy.length)
+          ? supabase.from("lignes_demande").select("demande_id, designation").in("demande_id", demandesStandBy.map((d) => d.id))
+          : Promise.resolve({ data: [] }),
+      ]);
+      setAlertesImport(aAviserData || []);
 
       // ---- Réapprovisionnement à prévoir (articles au cycle habituel qui approche) ----
       const commandesParId = {};
       (commandes || []).forEach((c) => { commandesParId[c.id] = c; });
-      const { data: articlesCategories } = await supabase.from("articles").select("id, designation, endormi, continue_par_id, categorie:categories(nom)").limit(10000);
       const categorieParDesignation = {};
       const endormiParDesignation = {};
       const idVersDesignation = {};
@@ -170,19 +189,27 @@ export default function DashboardPage() {
           chaineParDesignation[a.designation.toLowerCase()] = idVersDesignation[a.continue_par_id];
         }
       });
-      const { data: signalementsData } = await supabase.from("reappro_signalements").select("designation, jours_avant_prochaine").limit(10000);
       const signalements = {};
       (signalementsData || []).forEach((s) => { signalements[s.designation] = s.jours_avant_prochaine; });
-      const frequences = calculerFrequenceAchats(lignesBc || [], commandesParId, chaineParDesignation);
+      // Réduit le volume traité pour ce calcul (le plus lourd du tableau de
+      // bord) aux 18 derniers mois — un article acheté au moins 3 fois sur
+      // cette période suffit largement pour détecter son cycle habituel.
+      // Les autres alertes (impayés, livraison...) continuent d'utiliser
+      // l'historique complet, inchangé.
+      const dateLimiteReappro = new Date();
+      dateLimiteReappro.setMonth(dateLimiteReappro.getMonth() - 18);
+      const bcRecentsIds = new Set(
+        (commandes || []).filter((c) => c.date && new Date(c.date) >= dateLimiteReappro).map((c) => c.id)
+      );
+      const lignesBcRecentes = (lignesBc || []).filter((l) => bcRecentsIds.has(l.bc_id));
+      const frequences = calculerFrequenceAchats(lignesBcRecentes, commandesParId, chaineParDesignation);
       const alertesReapproCalculees = articlesAReapprovisionner(frequences, 3, categorieParDesignation, signalements, endormiParDesignation);
       setAlertesReappro(alertesReapproCalculees);
 
       // ---- Demandes en stand-by dont le cycle de réapprovisionnement habituel revient ----
       // (la décision de relancer ou non t'appartient — on ne fait que signaler)
-      const { data: demandesStandBy } = await supabase.from("demandes").select("id, numero, demandeur, motif_projet, historique_stand_by").eq("statut", "En stand-by").limit(10000);
       let alertesStandByReappro = [];
       if (demandesStandBy && demandesStandBy.length) {
-        const { data: lignesStandBy } = await supabase.from("lignes_demande").select("demande_id, designation").in("demande_id", demandesStandBy.map((d) => d.id));
         const designationsDues = new Set(alertesReapproCalculees.map((a) => a.designation.toLowerCase()));
         alertesStandByReappro = demandesStandBy
           .map((d) => {
