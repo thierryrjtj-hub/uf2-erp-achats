@@ -107,6 +107,12 @@ export default function BoisChauffagePage() {
     }).filter((r) => r.totalM3 > 0);
   }, [fournisseurs, evenementsAnnee]);
 
+  const totalMensuelAnnee = useMemo(() => {
+    return MOIS.map((_, i) => recapAnnuel.reduce((s, r) => s + (r.parMois[i] || 0), 0));
+  }, [recapAnnuel]);
+  const totalGeneralAnnee = useMemo(() => totalMensuelAnnee.reduce((a, b) => a + b, 0), [totalMensuelAnnee]);
+  const totalMontantAnnee = useMemo(() => recapAnnuel.reduce((s, r) => s + r.totalMontant, 0), [recapAnnuel]);
+
   const anneesDisponibles = useMemo(() => {
     const ans = [...new Set(evenements.map((e) => e.date.slice(0, 4)))].sort();
     return ans.length ? ans : [String(new Date().getFullYear())];
@@ -120,6 +126,10 @@ export default function BoisChauffagePage() {
     const rowsAnnuel = recapAnnuel.map((r) => ({
       fournisseur: r.fournisseur, ...Object.fromEntries(MOIS.map((m, i) => [m, r.parMois[i]])), total: r.totalM3, montant: r.totalMontant,
     }));
+    rowsAnnuel.push({
+      fournisseur: "TOTAL MENSUEL", ...Object.fromEntries(MOIS.map((m, i) => [m, totalMensuelAnnee[i]])),
+      total: totalGeneralAnnee, montant: totalMontantAnnee,
+    });
 
     await exportExcel({
       filename: `bois-de-chauffage_${new Date().toISOString().slice(0, 10)}.xlsx`,
@@ -275,6 +285,14 @@ export default function BoisChauffagePage() {
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: "2px solid #ddd" }}>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>Total mensuel</td>
+                        {totalMensuelAnnee.map((v, i) => <td key={i} style={{ ...tdStyle, fontWeight: 700 }}>{v ? v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}</td>)}
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>{totalGeneralAnnee.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>{totalMontantAnnee.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               )}
