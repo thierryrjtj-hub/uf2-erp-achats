@@ -277,6 +277,13 @@ export default function CommandeDetailPage() {
   };
 
   const enregistrerTransmission = async () => {
+    // Dès qu'une date d'envoi au fournisseur est renseignée, le BC passe
+    // automatiquement en "Livraison en cours" — sauf s'il est déjà à un stade
+    // plus avancé (Clôturée, Annulée), qu'on ne fait jamais régresser.
+    const statutsAvances = ["Clôturée", "Annulée"];
+    const nouveauStatut = (transmission.dateEnvoiFournisseur && !statutsAvances.includes(bc.statut))
+      ? "Livraison en cours"
+      : bc.statut;
     await supabase.from("commandes").update({
       date_envoi_signature: transmission.dateEnvoiSignature || null,
       date_retour_signature: transmission.dateRetourSignature || null,
@@ -289,7 +296,7 @@ export default function CommandeDetailPage() {
       destinataire_paiement: transmission.destinatairePaiement,
       doc_bc_signe: transmission.docBcSigne, doc_pv_reception: transmission.docPvReception,
       doc_bl: transmission.docBl, doc_facture_fournisseur: transmission.docFactureFournisseur,
-      statut: bc.statut, date_signature: dateSignature || null, observation,
+      statut: nouveauStatut, date_signature: dateSignature || null, observation,
     }).eq("id", id);
     charger();
   };
