@@ -17,7 +17,7 @@ import { formatDate } from "../../../lib/format";
 
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
 const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins", "Prestation / Travaux"];
-const nouvelleSaisie = () => ({ receptionnaire: "Magasin", receptionnaireAutre: "", numeroBl: "", typeLivraison: "Livraison fournisseur", dateLivraisonTerrain: new Date().toISOString().slice(0, 10) });
+const nouvelleSaisie = () => ({ receptionnaire: "Magasin", receptionnaireAutre: "", numeroBl: "", typeLivraison: "Livraison fournisseur", dateLivraisonTerrain: new Date().toISOString().slice(0, 10), observation: "" });
 const estBoisDeChauffage = (designation) => {
   const d = (designation || "").toLowerCase();
   return d.includes("bois de chauffage") || d.includes("bois chauffage");
@@ -226,11 +226,22 @@ export default function CommandeDetailPage() {
       const nouveau = quantitesSaisie[l.id] !== undefined && quantitesSaisie[l.id] !== "" ? Number(quantitesSaisie[l.id]) : 0;
       return dejaCumul + nouveau >= Number(l.quantite);
     });
+    // Écart = livraison partielle (encore en attente) OU quantité reçue qui
+    // dépasse la quantité commandée sur au moins une ligne — dans les deux
+    // cas, il faut savoir pourquoi avant de pouvoir enregistrer.
+    const ecartSurplus = lignesAvecSaisie.some((l) => cumulLivre(l.id) + Number(quantitesSaisie[l.id] || 0) > Number(l.quantite));
+    if ((!toutLivreApres || ecartSurplus) && !saisie.observation.trim()) {
+      alert(ecartSurplus
+        ? "La quantité reçue dépasse la quantité commandée sur au moins un article — merci de préciser pourquoi dans l'observation avant d'enregistrer."
+        : "Livraison partielle — merci de préciser pourquoi (reste à livrer plus tard, fournisseur en rupture, commande arrêtée...) dans l'observation avant d'enregistrer.");
+      setEnregistrement(false);
+      return;
+    }
 
     const { data: nouvelle } = await supabase.from("receptions").insert({
       bc_id: id, receptionnaire: receptionnaireFinal, numero_bl: saisie.numeroBl, type_livraison: saisie.typeLivraison,
       date_livraison_terrain: saisie.dateLivraisonTerrain || null, confirme_par: emetteur.nom || emetteur.email,
-      statut: toutLivreApres ? "Totale" : "Partielle", numero: bc.numero_pvr,
+      statut: toutLivreApres ? "Totale" : "Partielle", numero: bc.numero_pvr, observation: saisie.observation || null,
     }).select().single();
 
     if (nouvelle) {
@@ -549,9 +560,16 @@ export default function CommandeDetailPage() {
               <div key={l.key} style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                 {estBoisDeChauffage(l.designation) && (
                   <input
+                    id={`date-livraison-edit-${l.key}`}
                     type="date"
                     value={l.date_livraison || ""}
                     onChange={(e) => majEditLigne(l.key, "date_livraison", e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Tab" || e.shiftKey) return;
+                      e.preventDefault();
+                      document.getElementById(`quantite-edit-${l.key}`)?.focus();
+                      document.getElementById(`quantite-edit-${l.key}`)?.select?.();
+                    }}
                     title="Date de livraison réelle (un voyage = une ligne)"
                     style={{ ...inputStyle, width: 150 }}
                   />
@@ -560,10 +578,16 @@ export default function CommandeDetailPage() {
                   placeholder="Désignation"
                   value={l.designation}
                   onChange={(val) => onDesignationEditChange(l.key, val)}
+                  onSelect={(val) => {
+                    onDesignationEditChange(l.key, val);
+                    if (estBoisDeChauffage(val)) {
+                      setTimeout(() => document.getElementById(`date-livraison-edit-${l.key}`)?.focus(), 0);
+                    }
+                  }}
                   suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
                   style={{ flex: 2, minWidth: 160 }}
                 />
-                <input type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
+                <input id={`quantite-edit-${l.key}`} type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
                 <input placeholder="unité" value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteEditBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 90 }} />
                 <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => majEditLigne(l.key, "prix_unitaire_ht", v)} onBlurSync={(v) => onPrixEditBlur(l.designation, v)} tvaPct={bc.assujetti_tva === false ? 0 : 20} style={{ ...inputStyle, width: 110 }} />
                 <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
@@ -660,6 +684,7 @@ export default function CommandeDetailPage() {
                     r.lignes.map((x) => `${lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}: ${x.quantite_livree}`).join(", ")
                   )}
                   {" "}— saisi par {r.confirme_par}
+                  {r.observation && <span style={{ color: "#C85A2A", marginLeft: 6 }}>— {r.observation}</span>}
                   {r.receptionnaire === "Import historique" && (
                     <span style={{ color: "#1B4C7A", marginLeft: 6 }} title="Date d'import de l'historique — pas la date réelle de réception">📥 (date d'import, pas la date réelle)</span>
                   )}
@@ -700,6 +725,12 @@ export default function CommandeDetailPage() {
               </select>
               <input placeholder="N° de Bon de Livraison (BL)" value={saisie.numeroBl} onChange={(e) => setSaisie({ ...saisie, numeroBl: e.target.value })} style={{ ...inputStyle, width: 180 }} />
               <input type="date" value={saisie.dateLivraisonTerrain} onChange={(e) => setSaisie({ ...saisie, dateLivraisonTerrain: e.target.value })} style={inputStyle} />
+              <input
+                placeholder="Observation (obligatoire si livraison partielle ou quantité en surplus)"
+                value={saisie.observation}
+                onChange={(e) => setSaisie({ ...saisie, observation: e.target.value })}
+                style={{ ...inputStyle, flex: 1, minWidth: 260 }}
+              />
             </div>
 
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 12 }}>
@@ -899,6 +930,11 @@ export default function CommandeDetailPage() {
                   ? { borderColor: "#C85A2A", color: "#C85A2A", fontWeight: 600 } : {}),
               }}
             />
+            {facture.montant_facture !== "" && (
+              <div style={{ fontSize: 10.5, color: "#888", marginTop: 2 }}>
+                {Number(facture.montant_facture).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar
+              </div>
+            )}
             {Math.abs((Number(facture.montant_facture) || 0) - (Number(bc.montant_ttc) || 0)) > 1 && (
               <div style={{ fontSize: 10.5, color: "#C85A2A", marginTop: 2 }}>≠ montant BC ({Number(bc.montant_ttc).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar) — observation obligatoire</div>
             )}
