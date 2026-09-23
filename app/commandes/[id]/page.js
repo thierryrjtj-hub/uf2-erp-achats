@@ -51,9 +51,10 @@ export default function CommandeDetailPage() {
     dateEnvoiSignature: "", dateRetourSignature: "", destinataireSignature: "",
     dateEnvoiFournisseur: "", modeEnvoiFournisseur: "Livraison fournisseur", nomCoursier: "",
     dateEnvoiPaiement: "", dateDisponibilitePaiement: "", destinatairePaiement: "",
-    docBcSigne: false, docPvReception: false, docBl: false, docFactureFournisseur: false,
+    docBcSigne: false, docPvReception: false, docBl: false, docFactureFournisseur: false, docFicheDecaissement: false,
   });
   const [snapshotTransmission, setSnapshotTransmission] = useState("");
+  const [estPetiteCaisse, setEstPetiteCaisse] = useState(false);
   const [accuses, setAccuses] = useState([]);
   const [nouvelAccuse, setNouvelAccuse] = useState({ date_accuse: "", date_facture: "", numero_facture: "", montant: "", observation: "" });
   const [dateSignature, setDateSignature] = useState("");
@@ -67,6 +68,8 @@ export default function CommandeDetailPage() {
 
   const charger = async () => {
     const { data: c } = await supabase.from("commandes").select("*").eq("id", id).single();
+    const { data: pc } = await supabase.from("petite_caisse").select("id").eq("commande_id", id).maybeSingle();
+    setEstPetiteCaisse(!!pc);
     const { data: l } = await supabase.from("lignes_bc").select("*").eq("bc_id", id);
     const { data: r } = await supabase.from("receptions").select("*").eq("bc_id", id).order("date_reception_reelle");
     let receptionsAvecLignes = [];
@@ -132,7 +135,7 @@ export default function CommandeDetailPage() {
         dateDisponibilitePaiement: c.date_disponibilite_paiement || "", destinatairePaiement: c.destinataire_paiement || "",
         dateEnvoiFournisseur: c.date_envoi_fournisseur || "", modeEnvoiFournisseur: c.mode_envoi_fournisseur || "Livraison fournisseur",
         nomCoursier: c.nom_coursier || "", docBcSigne: !!c.doc_bc_signe, docPvReception: !!c.doc_pv_reception,
-        docBl: !!c.doc_bl, docFactureFournisseur: !!c.doc_facture_fournisseur,
+        docBl: !!c.doc_bl, docFactureFournisseur: !!c.doc_facture_fournisseur, docFicheDecaissement: !!c.doc_fiche_decaissement,
       };
       setTransmission(transmissionChargee);
       setSnapshotTransmission(JSON.stringify(transmissionChargee));
@@ -295,7 +298,7 @@ export default function CommandeDetailPage() {
       date_disponibilite_paiement: transmission.dateDisponibilitePaiement || null,
       destinataire_paiement: transmission.destinatairePaiement,
       doc_bc_signe: transmission.docBcSigne, doc_pv_reception: transmission.docPvReception,
-      doc_bl: transmission.docBl, doc_facture_fournisseur: transmission.docFactureFournisseur,
+      doc_bl: transmission.docBl, doc_facture_fournisseur: transmission.docFactureFournisseur, doc_fiche_decaissement: transmission.docFicheDecaissement,
       statut: nouveauStatut, date_signature: dateSignature || null, observation,
     }).eq("id", id);
     charger();
@@ -860,6 +863,7 @@ export default function CommandeDetailPage() {
             {[
               ["docBcSigne", "BC signé"], ["docPvReception", "PV de réception"],
               ["docBl", "Bon de livraison (BL)"], ["docFactureFournisseur", "Facture fournisseur"],
+              ...(estPetiteCaisse ? [["docFicheDecaissement", "Fiche de décaissement petite caisse validée par la direction"]] : []),
             ].map(([champ, label]) => (
               <label key={champ} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
                 <input type="checkbox" checked={transmission[champ]} onChange={(e) => setTransmission({ ...transmission, [champ]: e.target.checked })} />
