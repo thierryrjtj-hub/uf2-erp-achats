@@ -87,6 +87,61 @@ export default function AuthGuard({ children }) {
     };
   }, []);
 
+  // Raccourcis clavier pour ouvrir un onglet sans la souris : on tape la (les)
+  // première(s) lettre(s) du nom, ex. D = Demandes, DN = Demandes > Nouvelle
+  // demande. Fonctionne uniquement quand on n'est pas en train de saisir du
+  // texte ailleurs. Une courte pause (600ms) après la dernière touche valide
+  // la navigation vers la correspondance la plus précise déjà tapée.
+  useEffect(() => {
+    const raccourcis = {
+      T: "/dashboard",
+      D: "/demandes", DL: "/demandes", DN: "/demandes/nouvelle", DP: "/petite-caisse", DC: "/carburant-gaz",
+      C: "/commandes",
+      H: "/historique", HV: "/historique", HB: "/historique/bois-chauffage",
+      K: "/kpi",
+      F: "/fournisseurs", FL: "/fournisseurs", FA: "/fournisseurs/nouveau",
+      AR: "/articles", ARL: "/articles", ARN: "/articles/nouveau", ARG: "/articles/categories",
+      AD: "/journal", ADJ: "/journal", ADQ: "/controle-qualite", ADE: "/erreurs",
+      S: "/sauvegarde",
+    };
+    let tampon = "";
+    let minuteur = null;
+
+    const aUnePossibiliteDePlus = (buf) => Object.keys(raccourcis).some((k) => k !== buf && k.startsWith(buf));
+
+    const naviguer = () => {
+      if (raccourcis[tampon]) router.push(raccourcis[tampon]);
+      tampon = "";
+    };
+
+    const surAppuiTouche = (e) => {
+      const el = document.activeElement;
+      const dansUnChamp = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+      if (dansUnChamp || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!/^[a-zA-Z]$/.test(e.key)) return;
+
+      const lettre = e.key.toUpperCase();
+      const essai = tampon + lettre;
+      if (raccourcis[essai] || aUnePossibiliteDePlus(essai)) {
+        tampon = essai;
+      } else if (raccourcis[lettre] || aUnePossibiliteDePlus(lettre)) {
+        tampon = lettre;
+      } else {
+        tampon = "";
+        return;
+      }
+
+      if (minuteur) clearTimeout(minuteur);
+      minuteur = setTimeout(naviguer, 600);
+    };
+
+    document.addEventListener("keydown", surAppuiTouche);
+    return () => {
+      document.removeEventListener("keydown", surAppuiTouche);
+      if (minuteur) clearTimeout(minuteur);
+    };
+  }, [router]);
+
   if (!ready) return <p style={{ padding: 24 }}>Chargement...</p>;
 
   return (
