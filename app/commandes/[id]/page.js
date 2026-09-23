@@ -203,6 +203,20 @@ export default function CommandeDetailPage() {
   // Corrige une réception déjà enregistrée : la date réelle (heure d'origine
   // conservée) et/ou les quantités livrées ligne par ligne.
   const enregistrerEditionReception = async (r) => {
+    // Même règle que pour une nouvelle réception : si la quantité livrée
+    // (après modification) laisse un écart avec la quantité commandée
+    // (partielle ou en surplus), l'observation du BC doit expliquer pourquoi.
+    const ecartSansExplication = r.lignes.some((x) => {
+      const ligneBc = lignes.find((l) => l.id === x.ligne_bc_id);
+      if (!ligneBc) return false;
+      const nouvelleQte = receptionEditee.quantites[x.id] !== undefined ? Number(receptionEditee.quantites[x.id]) || 0 : Number(x.quantite_livree) || 0;
+      const cumulAutresReceptions = cumulLivre(x.ligne_bc_id) - (Number(x.quantite_livree) || 0);
+      return (cumulAutresReceptions + nouvelleQte) !== Number(ligneBc.quantite);
+    });
+    if (ecartSansExplication && !observation.trim()) {
+      alert("La quantité livrée modifiée laisse un écart avec la quantité commandée — merci de préciser pourquoi dans l'observation du BC avant d'enregistrer.");
+      return;
+    }
     if (receptionEditee.date) {
       const ancienne = new Date(r.date_reception_reelle);
       const [annee, mois, jour] = receptionEditee.date.split("-").map(Number);
