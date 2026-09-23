@@ -37,12 +37,18 @@ function CommandesInner() {
   const [tri, setTri] = useState({ colonne: "defaut", sens: "desc" });
 
   const charger = async () => {
-    const { data: c } = await supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000);
-    const { data: r } = await supabase.from("receptions").select("*").limit(10000);
-    const { data: d } = await supabase.from("demandes").select("id, service, demandeur, motif_projet").limit(10000);
-    const { data: f } = await supabase.from("fournisseurs").select("id, conditions_paiement_jours").limit(10000);
-    const { data: lb } = await supabase.from("lignes_bc").select("bc_id, designation, quantite, unite").limit(10000);
-    const { data: art } = await supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000);
+    // Requêtes indépendantes : toutes en parallèle plutôt qu'à la suite,
+    // pour ne pas additionner les temps d'attente réseau un par un.
+    const [
+      { data: c }, { data: r }, { data: d }, { data: f }, { data: lb }, { data: art },
+    ] = await Promise.all([
+      supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000),
+      supabase.from("receptions").select("*").limit(10000),
+      supabase.from("demandes").select("id, service, demandeur, motif_projet").limit(10000),
+      supabase.from("fournisseurs").select("id, conditions_paiement_jours").limit(10000),
+      supabase.from("lignes_bc").select("bc_id, designation, quantite, unite").limit(10000),
+      supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000),
+    ]);
     setListe(c || []);
     setReceptions(r || []);
     setDemandes(d || []);
