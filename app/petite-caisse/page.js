@@ -136,8 +136,9 @@ export default function PetiteCaissePage() {
     }).select().single();
 
     const { data: reception } = await supabase.from("receptions").insert({
-      bc_id: bc.id, statut: "Totale", date_reception_reelle: form.date_demande,
-      receptionnaire: "Achat direct (petite caisse)", confirme_par: form.signataire_direction || "Petite caisse",
+      bc_id: bc.id, statut: "Totale", date_reception_reelle: form.date_demande, type_livraison: "Achat direct",
+      receptionnaire: `Achat direct par petite caisse, effectué par ${form.signataire_direction || "N/A"}, pour ${form.motif || form.article}`,
+      confirme_par: form.signataire_direction || "Petite caisse",
     }).select().single();
     if (reception && ligneBc) {
       await supabase.from("lignes_reception").insert({ reception_id: reception.id, ligne_bc_id: ligneBc.id, quantite_livree: Number(form.quantite) || 1 });
