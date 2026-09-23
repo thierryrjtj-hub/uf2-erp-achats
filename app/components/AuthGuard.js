@@ -104,13 +104,19 @@ export default function AuthGuard({ children }) {
       AD: "/journal", ADJ: "/journal", ADQ: "/controle-qualite", ADE: "/erreurs",
       S: "/sauvegarde",
     };
+    const raccourciActualiser = "R";
     let tampon = "";
     let minuteur = null;
 
-    const aUnePossibiliteDePlus = (buf) => Object.keys(raccourcis).some((k) => k !== buf && k.startsWith(buf));
+    const aUnePossibiliteDePlus = (buf) => buf !== raccourciActualiser && (raccourciActualiser.startsWith(buf) || Object.keys(raccourcis).some((k) => k !== buf && k.startsWith(buf)));
+    const estValide = (buf) => buf === raccourciActualiser || !!raccourcis[buf];
 
     const naviguer = () => {
-      if (raccourcis[tampon]) router.push(raccourcis[tampon]);
+      if (tampon === raccourciActualiser) {
+        window.location.reload();
+      } else if (raccourcis[tampon]) {
+        router.push(raccourcis[tampon]);
+      }
       tampon = "";
     };
 
@@ -122,9 +128,9 @@ export default function AuthGuard({ children }) {
 
       const lettre = e.key.toUpperCase();
       const essai = tampon + lettre;
-      if (raccourcis[essai] || aUnePossibiliteDePlus(essai)) {
+      if (estValide(essai) || aUnePossibiliteDePlus(essai)) {
         tampon = essai;
-      } else if (raccourcis[lettre] || aUnePossibiliteDePlus(lettre)) {
+      } else if (estValide(lettre) || aUnePossibiliteDePlus(lettre)) {
         tampon = lettre;
       } else {
         tampon = "";
@@ -148,6 +154,19 @@ export default function AuthGuard({ children }) {
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <Nav />
       <div style={{ flex: 1, height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <button
+          onClick={() => window.location.reload()}
+          className="no-print"
+          title="Actualiser la page (raccourci : R)"
+          style={{
+            position: "fixed", top: 12, right: 16, zIndex: 50,
+            width: 34, height: 34, borderRadius: "50%", border: "1px solid #DDDBD3",
+            background: "#fff", color: "#1E3A34", fontSize: 16, cursor: "pointer",
+            boxShadow: "0 1px 3px rgba(16,24,40,0.12)", display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          ↻
+        </button>
         <div className="content-pane" style={{ flex: 1, minHeight: 0, minWidth: 0, padding: "20px 32px 24px", maxWidth: 1400, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", overflow: "auto" }}>
           {children}
         </div>
