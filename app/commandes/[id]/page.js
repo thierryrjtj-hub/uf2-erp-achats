@@ -780,7 +780,7 @@ export default function CommandeDetailPage() {
               <input placeholder="N° de Bon de Livraison (BL)" value={saisie.numeroBl} onChange={(e) => setSaisie({ ...saisie, numeroBl: e.target.value })} style={{ ...inputStyle, width: 180 }} />
               <input type="date" value={saisie.dateLivraisonTerrain} onChange={(e) => setSaisie({ ...saisie, dateLivraisonTerrain: e.target.value })} style={inputStyle} />
               <input
-                placeholder="Observation (obligatoire si livraison partielle ou quantité en surplus)"
+                data-casse-normale placeholder="Observation (obligatoire si livraison partielle ou quantité en surplus)"
                 value={saisie.observation}
                 onChange={(e) => setSaisie({ ...saisie, observation: e.target.value })}
                 style={{ ...inputStyle, flex: 1, minWidth: 260 }}
@@ -919,7 +919,7 @@ export default function CommandeDetailPage() {
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
           <h2 style={{ fontSize: 15, marginBottom: 8 }}>Observation (visible dans l'Historique)</h2>
-          <input placeholder="Observation" value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+          <input data-casse-normale placeholder="Observation" value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
           <p style={{ fontSize: 11, color: "#999", marginTop: 6 }}>Se remplit automatiquement à chaque étape (si vide), mais reste modifiable — plus jamais écrasée une fois que tu l'as personnalisée.</p>
         </div>
 
@@ -961,7 +961,7 @@ export default function CommandeDetailPage() {
           <input type="date" placeholder="Date facture" value={nouvelAccuse.date_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, date_facture: e.target.value })} style={inputStyle} />
           <input placeholder="N° facture" value={nouvelAccuse.numero_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, numero_facture: e.target.value })} style={{ ...inputStyle, width: 140 }} />
           <input type="number" placeholder="Montant" value={nouvelAccuse.montant} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, montant: e.target.value })} style={{ ...inputStyle, width: 130 }} />
-          <input placeholder="Observation" value={nouvelAccuse.observation} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, observation: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input data-casse-normale placeholder="Observation" value={nouvelAccuse.observation} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, observation: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <button onClick={ajouterAccuse} style={buttonStyle}>+ Ajouter</button>
         </div>
       </div>
@@ -999,7 +999,7 @@ export default function CommandeDetailPage() {
               ? formatDate(new Date(new Date(facture.date_facture).getTime() + (fournisseurDetail?.conditions_paiement_jours || 30) * 86400000).toISOString())
               : "—"} ({fournisseurDetail?.conditions_paiement_jours || 30}j)
           </span>
-          <input placeholder="Observation (obligatoire si écart avec le montant BC)" value={facture.observation_facture} onChange={(e) => setFacture({ ...facture, observation_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input data-casse-normale placeholder="Observation (obligatoire si écart avec le montant BC)" value={facture.observation_facture} onChange={(e) => setFacture({ ...facture, observation_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <select value={facture.statut_paiement} onChange={(e) => setFacture({ ...facture, statut_paiement: e.target.value })} style={inputStyle}>
             <option>Impayé</option>
             <option>Payé</option>
