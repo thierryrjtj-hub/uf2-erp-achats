@@ -38,6 +38,25 @@ export default function RootLayout({ children }) {
           }
           a { color: inherit; }
 
+          /* ---- Champs de saisie en majuscules par défaut (affichage) ----
+             Volontairement visuel seulement : la valeur réellement tapée et
+             enregistrée garde sa casse d'origine (jamais forcée en base),
+             donc ça n'abîme jamais un email, un mot de passe ou un code
+             particulier — juste plus lisible/homogène à l'écran. Les champs
+             de connexion, dates, nombres restent en casse normale ; pour
+             exclure un champ précis (ex. une zone Observation longue), lui
+             ajouter l'attribut data-casse-normale. */
+          input[type="text"], input:not([type]), textarea, select {
+            text-transform: uppercase;
+          }
+          input[type="email"], input[type="password"], input[type="date"], input[type="time"],
+          input[type="number"], input[type="search"], textarea[data-casse-normale], input[data-casse-normale] {
+            text-transform: none;
+          }
+          input[type="text"]::placeholder, input:not([type])::placeholder, textarea::placeholder {
+            text-transform: none;
+          }
+
           /* ---- Menu latéral : surbrillance au survol des titres cliquables ---- */
           .nav-sidebar a:hover { background: rgba(255,255,255,0.1) !important; }
 
