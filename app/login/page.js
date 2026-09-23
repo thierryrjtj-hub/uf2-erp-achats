@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+import { LANGUES, creerTraducteur } from "../../lib/i18n";
 
 const MAX_TENTATIVES = 3;
 
@@ -17,12 +18,21 @@ export default function LoginPage() {
   const [confirmMdp, setConfirmMdp] = useState("");
   const [erreurMdp, setErreurMdp] = useState("");
   const [enregistrementMdp, setEnregistrementMdp] = useState(false);
+  const [langue, setLangue] = useState("fr");
   const router = useRouter();
+  const t = creerTraducteur(langue);
 
   useEffect(() => {
     const memorise = localStorage.getItem("uf2_username");
     if (memorise) setIdentifiant(memorise);
+    const langueMemorisee = localStorage.getItem("uf2_langue");
+    if (langueMemorisee) setLangue(langueMemorisee);
   }, []);
+
+  const changerLangue = (code) => {
+    setLangue(code);
+    localStorage.setItem("uf2_langue", code);
+  };
 
   useEffect(() => {
     if (!identifiant.trim()) { setBloque(false); return; }
@@ -76,6 +86,7 @@ export default function LoginPage() {
 
     localStorage.removeItem(cle);
     localStorage.setItem("uf2_username", identifiant.trim());
+    await supabase.from("profiles").update({ langue }).eq("id", session.user.id);
 
     // Première connexion : mot de passe temporaire à changer avant d'entrer dans l'appli
     const { data: profil } = await supabase.from("profiles").select("mot_de_passe_a_changer").eq("id", session.user.id).maybeSingle();
@@ -117,21 +128,21 @@ export default function LoginPage() {
             <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block" }} />
           </div>
         </div>
-        <h1 style={{ fontSize: 18, marginBottom: 4, textAlign: "center" }}>Première connexion</h1>
+        <h1 style={{ fontSize: 18, marginBottom: 4, textAlign: "center" }}>{t("premiereConnexion")}</h1>
           <p style={{ fontSize: 13, color: "#666", marginBottom: 20, textAlign: "center" }}>
-            Merci de choisir votre propre mot de passe — vous seul le connaîtrez à partir de maintenant.
+            {t("choisirMotDePasse")}
           </p>
 
-          <label style={{ fontSize: 13, display: "block", marginBottom: 4 }}>Nouveau mot de passe</label>
+          <label style={{ fontSize: 13, display: "block", marginBottom: 4 }}>{t("nouveauMotDePasse")}</label>
           <input type="password" value={nouveauMdp} onChange={(e) => setNouveauMdp(e.target.value)} required style={inputStyle} />
 
-          <label style={{ fontSize: 13, display: "block", margin: "12px 0 4px" }}>Confirmer le mot de passe</label>
+          <label style={{ fontSize: 13, display: "block", margin: "12px 0 4px" }}>{t("confirmerMotDePasse")}</label>
           <input type="password" value={confirmMdp} onChange={(e) => setConfirmMdp(e.target.value)} required style={inputStyle} />
 
           {erreurMdp && <p style={{ color: "#B3261E", fontSize: 13, marginTop: 12 }}>{erreurMdp}</p>}
 
           <button type="submit" disabled={enregistrementMdp} style={buttonStyle}>
-            {enregistrementMdp ? "Enregistrement..." : "Valider et entrer dans l'appli"}
+            {enregistrementMdp ? t("enregistrement") : t("validerEtEntrer")}
           </button>
         </form>
       </div>
@@ -146,10 +157,19 @@ export default function LoginPage() {
             <img src="/logo-hv.png" alt="UNIFOODS" style={{ height: 96, display: "block" }} />
           </div>
         </div>
-        <h1 style={{ fontSize: 20, marginBottom: 4, textAlign: "center" }}>Achats Locaux</h1>
-        <p style={{ fontSize: 13, color: "#666", marginBottom: 20, textAlign: "center" }}>Connexion</p>
+        <h1 style={{ fontSize: 20, marginBottom: 4, textAlign: "center" }}>{t("titreApp")}</h1>
+        <p style={{ fontSize: 13, color: "#666", marginBottom: 12, textAlign: "center" }}>{t("connexion")}</p>
 
-        <label style={{ fontSize: 13, display: "block", marginBottom: 4 }}>Nom d'utilisateur</label>
+        <select
+          value={langue}
+          onChange={(e) => changerLangue(e.target.value)}
+          title={t("langue")}
+          style={{ ...inputStyle, marginBottom: 20, fontSize: 12, padding: "6px 12px" }}
+        >
+          {LANGUES.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+        </select>
+
+        <label style={{ fontSize: 13, display: "block", marginBottom: 4 }}>{t("nomUtilisateur")}</label>
         <input
           type="text"
           value={identifiant}
@@ -158,7 +178,7 @@ export default function LoginPage() {
           style={inputStyle}
         />
 
-        <label style={{ fontSize: 13, display: "block", margin: "12px 0 4px" }}>Mot de passe</label>
+        <label style={{ fontSize: 13, display: "block", margin: "12px 0 4px" }}>{t("motDePasse")}</label>
         <div style={{ position: "relative" }}>
           <input
             type={voirMotDePasse ? "text" : "password"}
@@ -171,8 +191,8 @@ export default function LoginPage() {
             type="button"
             onClick={() => setVoirMotDePasse((v) => !v)}
             style={oeilBtn}
-            aria-label={voirMotDePasse ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-            title={voirMotDePasse ? "Masquer" : "Afficher"}
+            aria-label={voirMotDePasse ? t("masquer") : t("afficher")}
+            title={voirMotDePasse ? t("masquer") : t("afficher")}
           >
             {voirMotDePasse ? <IconEyeOff /> : <IconEye />}
           </button>
@@ -181,7 +201,7 @@ export default function LoginPage() {
         {error && <p style={{ color: "#B3261E", fontSize: 13, marginTop: 12 }}>{error}</p>}
 
         <button type="submit" disabled={loading || bloque} style={{ ...buttonStyle, opacity: bloque ? 0.5 : 1, cursor: bloque ? "not-allowed" : "pointer" }}>
-          {loading ? "Connexion..." : "Se connecter"}
+          {loading ? t("connexionEnCours") : t("seConnecter")}
         </button>
 
         <p style={{ fontSize: 11, color: "#bbb", marginTop: 24, textAlign: "center" }}>
