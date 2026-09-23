@@ -49,6 +49,7 @@ export default function DashboardPage() {
   const [alertesEstimation, setAlertesEstimation] = useState([]);
   const [alertesImport, setAlertesImport] = useState([]);
   const [alertesReappro, setAlertesReappro] = useState([]);
+  const [alertesStandByReappro, setAlertesStandByReappro] = useState([]);
   const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0, bcEnAttenteSignature: 0 });
   const [tendance, setTendance] = useState([]);
   const [agenda, setAgenda] = useState([]);
@@ -173,7 +174,26 @@ export default function DashboardPage() {
       const signalements = {};
       (signalementsData || []).forEach((s) => { signalements[s.designation] = s.jours_avant_prochaine; });
       const frequences = calculerFrequenceAchats(lignesBc || [], commandesParId, chaineParDesignation);
-      setAlertesReappro(articlesAReapprovisionner(frequences, 3, categorieParDesignation, signalements, endormiParDesignation));
+      const alertesReapproCalculees = articlesAReapprovisionner(frequences, 3, categorieParDesignation, signalements, endormiParDesignation);
+      setAlertesReappro(alertesReapproCalculees);
+
+      // ---- Demandes en stand-by dont le cycle de réapprovisionnement habituel revient ----
+      // (la décision de relancer ou non t'appartient — on ne fait que signaler)
+      const { data: demandesStandBy } = await supabase.from("demandes").select("id, numero, demandeur, motif_projet, historique_stand_by").eq("statut", "En stand-by").limit(10000);
+      let alertesStandByReappro = [];
+      if (demandesStandBy && demandesStandBy.length) {
+        const { data: lignesStandBy } = await supabase.from("lignes_demande").select("demande_id, designation").in("demande_id", demandesStandBy.map((d) => d.id));
+        const designationsDues = new Set(alertesReapproCalculees.map((a) => a.designation.toLowerCase()));
+        alertesStandByReappro = demandesStandBy
+          .map((d) => {
+            const articlesConcernes = (lignesStandBy || [])
+              .filter((l) => l.demande_id === d.id && designationsDues.has(l.designation.toLowerCase()))
+              .map((l) => l.designation);
+            return { ...d, articlesConcernes };
+          })
+          .filter((d) => d.articlesConcernes.length > 0);
+      }
+      setAlertesStandByReappro(alertesStandByReappro);
 
       // ---- Résumé "à faire" en un coup d'œil ----
       const bcEnAttenteSignature = (commandes || []).filter((c) => c.date_envoi_signature && !c.date_signature && c.statut !== "Annulée").length;
@@ -343,6 +363,16 @@ export default function DashboardPage() {
                     </button>
                   )}
                 </div>
+              ))}
+            </Section>
+          )}
+
+          {alertesStandByReappro.length > 0 && (
+            <Section titre="Demandes en stand-by dont le cycle habituel revient — décision à prendre" couleur="#C85A2A" fond="#FFEEE6">
+              {alertesStandByReappro.map((d) => (
+                <Link key={d.id} href={`/demandes/${d.id}`} style={{ display: "block", fontSize: 13, padding: "9px 12px", borderRadius: 10, background: "#F7F6F2", marginBottom: 6, color: "#1B2430", textDecoration: "none" }}>
+                  <strong>{d.numero}</strong> ({d.demandeur || "-"}) — {d.motif_projet} — en stand-by, mais {d.articlesConcernes.join(", ")} {d.articlesConcernes.length > 1 ? "arrivent" : "arrive"} à échéance de réapprovisionnement habituelle : à toi de décider si tu relances ou pas
+                </Link>
               ))}
             </Section>
           )}
