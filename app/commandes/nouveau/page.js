@@ -269,6 +269,11 @@ function NouveauBCDirectInner() {
             <input id={`quantite-${l.key}`} type="number" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
             <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 80 }} />
             <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => updateLigne(l.key, "prix_unitaire_ht", v)} tvaPct={assujettiTva ? 20 : 0} style={{ ...inputStyle, width: 110 }} />
+            {l.prix_unitaire_ht !== "" && (
+              <span style={{ fontSize: 11, color: "#888", alignSelf: "center", whiteSpace: "nowrap" }}>
+                {Number(l.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar
+              </span>
+            )}
             <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => updateLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
             <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
           </div>
