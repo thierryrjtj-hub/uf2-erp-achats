@@ -34,14 +34,13 @@ export default function ArticlesListePage() {
   const suiviEditForm = useDirty(editForm);
 
   const charger = async () => {
-    const { data } = await supabase.from("articles").select("*, categorie:categories(id, nom)").order("designation").limit(10000);
+    const [{ data }, { data: cats }, { data: lignes }] = await Promise.all([
+      supabase.from("articles").select("*, categorie:categories(id, nom)").order("designation").limit(10000),
+      supabase.from("categories").select("id, nom").order("nom"),
+      supabase.from("lignes_bc").select("*, commandes:bc_id(numero, date, fournisseur_nom, assujetti_tva)").limit(10000),
+    ]);
     setListe((data || []).map((a) => ({ ...a, categorieNom: a.categorie?.nom || "" })));
-    const { data: cats } = await supabase.from("categories").select("id, nom").order("nom");
     setCategories(cats || []);
-    const { data: lignes } = await supabase
-      .from("lignes_bc")
-      .select("*, commandes:bc_id(numero, date, fournisseur_nom, assujetti_tva)")
-      .limit(10000);
     setLignesBc((lignes || []).filter((l) => l.commandes));
     setLoading(false);
   };
