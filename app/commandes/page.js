@@ -1,4 +1,7 @@
-```js
+"use client";
+import { useEffect, useState, useMemo, Suspense } from "react";
+import Link from "next/link";
+
 function CommandesInner() {
 console.log("🚨 TEST VERSION COMMANDES 10:XX");
   // 🟠 TEST DIAGNOSTIC : mesure les rendus du composant
