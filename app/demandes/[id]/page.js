@@ -541,7 +541,7 @@ export default function TCODetailPage() {
       `}</style>
 
       <div className="no-print">
-      <button onClick={() => router.push("/demandes")} style={{ ...linkBtn, marginBottom: 16 }}>&larr; Retour aux demandes</button>
+      <button onClick={() => router.back()} style={{ ...linkBtn, marginBottom: 16 }}>&larr; Retour</button>
 
       {role && role !== "acheteur" && demande?.created_by && demande.created_by !== userId && (
         <BandeauLectureSeule nomCreateur={nomCreateurDemande} />
