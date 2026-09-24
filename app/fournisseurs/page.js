@@ -1,185 +1,176 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
-import Link from "next/link";
-import { supabase } from "../../lib/supabaseClient";
-import AuthGuard from "../components/AuthGuard";
-import { exportExcel } from "../../lib/exportExcel";
-import { useRole } from "../../lib/useRole";
-import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
-import { inputStyle, buttonStyle } from "../components/ui";
-import TriMenu, { appliquerTri } from "../components/TriMenu";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { supabase } from "../../../lib/supabaseClient";
+import AuthGuard from "../../components/AuthGuard";
+import { inputStyle, buttonStyle, boutonSelonModif } from "../../components/ui";
+import { useDirty } from "../../../lib/useDirty";
 
-function matchRecherche(f, q) {
-  if (!q.trim()) return true;
-  const s = q.toLowerCase();
-  return [f.nom, f.contact, f.activite, f.telephone, f.email, f.adresse, f.nif].some((v) => (v || "").toLowerCase().includes(s));
+const empty = {
+  nom: "", contact: "", telephone: "", email: "", adresse: "", code_postal: "",
+  nif: "", stat: "", rcs: "", cin: "", type_reglement: "Chèque",
+  tva_defaut_pct: 20, activite: "", conditions_paiement_jours: 30, remise_par_defaut_pct: 0,
+  moment_paiement: "À réception facture", acompte_pct: 0, solde_a: "À la livraison",
+};
+
+export default function NouveauFournisseurPage() {
+  return (
+    <Suspense fallback={<AuthGuard><p>Chargement...</p></AuthGuard>}>
+      <NouveauFournisseurInner />
+    </Suspense>
+  );
 }
 
-export default function FournisseursListePage() {
-  const role = useRole();
-  const [liste, setListe] = useState([]);
-  const [exporting, setExporting] = useState(false);
-  const [recherche, setRecherche] = useState("");
-  const [tri, setTri] = useState({ colonne: "nom", sens: "asc" });
+function NouveauFournisseurInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("id");
+  const [form, setForm] = useState(empty);
+  const suiviForm = useDirty(form);
+  const [envoi, setEnvoi] = useState(false);
+  const [charge, setCharge] = useState(!editId);
+  const [tvaOrigine, setTvaOrigine] = useState(null);
 
-  const charger = async () => {
-    const { data } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
-    setListe(data || []);
+  useState(() => {
+    if (editId) {
+      (async () => {
+        const { data: f } = await supabase.from("fournisseurs").select("*").eq("id", editId).maybeSingle();
+        if (f) {
+          const formCharge = {
+            nom: f.nom, contact: f.contact || "", telephone: f.telephone || "", email: f.email || "",
+            adresse: f.adresse || "", code_postal: f.code_postal || "", nif: f.nif || "", stat: f.stat || "",
+            rcs: f.rcs || "", cin: f.cin || "", type_reglement: f.type_reglement || "Chèque",
+            tva_defaut_pct: f.tva_defaut_pct ?? 20, activite: f.activite || "",
+            conditions_paiement_jours: f.conditions_paiement_jours || 30, remise_par_defaut_pct: f.remise_par_defaut_pct || 0,
+            moment_paiement: f.moment_paiement || "À réception facture", acompte_pct: f.acompte_pct || 0, solde_a: f.solde_a || "À la livraison",
+          };
+          setForm(formCharge);
+          suiviForm.reinitialiser(formCharge);
+          setTvaOrigine(f.tva_defaut_pct ?? 20);
+        }
+        setCharge(true);
+      })();
+    }
+  });
+
+  // Si le statut taxable/non-taxable du fournisseur change, tous ses BC déjà
+  // créés (hors "Annulée") sont resynchronisés automatiquement — toujours à
+  // partir de la somme de leurs lignes, jamais d'un montant global du BC qui
+  // pourrait déjà être faux (même principe que le Contrôle qualité).
+  const resynchroniserBcExistants = async () => {
+    const assujetti = Number(form.tva_defaut_pct) !== 0;
+    const { data: commandes } = await supabase.from("commandes").select("id").eq("fournisseur_id", editId).neq("statut", "Annulée");
+    for (const c of commandes || []) {
+      const { data: lignes } = await supabase.from("lignes_bc").select("montant_ht").eq("bc_id", c.id);
+      const sommeLignes = (lignes || []).reduce((s, l) => s + (Number(l.montant_ht) || 0), 0);
+      const montantHt = Math.round(sommeLignes * 100) / 100;
+      const montantTva = assujetti ? Math.round(montantHt * 0.2 * 100) / 100 : 0;
+      const montantTtc = Math.round((montantHt + montantTva) * 100) / 100;
+      await supabase.from("commandes").update({
+        assujetti_tva: assujetti, montant_ht: montantHt, montant_tva: montantTva, montant_ttc: montantTtc,
+      }).eq("id", c.id);
+    }
   };
 
-  useEffect(() => { charger(); }, []);
-
-  const filtrees = useMemo(() => appliquerTri(liste.filter((f) => matchRecherche(f, recherche)), tri), [liste, recherche, tri]);
-
-  const supprimer = async (id) => {
-    await supabase.from("fournisseurs").delete().eq("id", id);
-    charger();
+  const enregistrer = async () => {
+    if (!form.nom.trim()) return;
+    setEnvoi(true);
+    if (editId) {
+      await supabase.from("fournisseurs").update(form).eq("id", editId);
+      const etaitAssujetti = tvaOrigine !== null && tvaOrigine !== 0;
+      const estAssujetti = Number(form.tva_defaut_pct) !== 0;
+      if (tvaOrigine !== null && etaitAssujetti !== estAssujetti) {
+        await resynchroniserBcExistants();
+      }
+    } else {
+      await supabase.from("fournisseurs").insert(form);
+    }
+    setEnvoi(false);
+    router.back();
   };
 
-  const copierFiche = async (f) => {
-    const texte = [
-      f.nom, f.contact && `Contact : ${f.contact}`, f.telephone && `Tél : ${f.telephone}`, f.email && `E-mail : ${f.email}`,
-      f.adresse && `Adresse : ${f.adresse}${f.code_postal ? " " + f.code_postal : ""}`,
-      f.nif && `NIF : ${f.nif}`, f.stat && `STAT : ${f.stat}`, f.rcs && `RCS : ${f.rcs}`, f.cin && `CIN : ${f.cin}`,
-      f.type_reglement && `Règlement : ${f.type_reglement}`, `TVA : ${f.tva_defaut_pct === 0 ? "Non assujetti" : (f.tva_defaut_pct ?? 20) + "%"}`,
-      f.activite && `Activité : ${f.activite}`,
-      f.moment_paiement && `Moment du paiement : ${f.moment_paiement}`,
-      f.acompte_pct ? `Acompte à la commande : ${f.acompte_pct}% (solde ${f.solde_a || "à la livraison"})` : null,
-    ].filter(Boolean).join("\n");
-    try { await navigator.clipboard.writeText(texte); } catch (e) {}
-  };
-
-  const exporter = async () => {
-    setExporting(true);
-    const rows = liste.map((f) => ({
-      nom: f.nom, contact: f.contact || "", tel: f.telephone || "", email: f.email || "",
-      adresse: f.adresse || "", cp: f.code_postal || "", nif: f.nif || "", stat: f.stat || "",
-      rcs: f.rcs || "", cin: f.cin || "", reglement: f.type_reglement || "", tva: f.tva_defaut_pct ?? 20,
-      activite: f.activite || "", echeance: f.conditions_paiement_jours || 30, remise: f.remise_par_defaut_pct || 0,
-      moment: f.moment_paiement || "", acompte: f.acompte_pct || 0, solde: f.acompte_pct ? (f.solde_a || "À la livraison") : "",
-    }));
-    await exportExcel({
-      filename: `fournisseurs_${new Date().toISOString().slice(0, 10)}.xlsx`,
-      sheets: [{
-        name: "Fournisseurs",
-        columns: [
-          { header: "Nom", key: "nom", width: 28 }, { header: "Nom du contact", key: "contact", width: 20 },
-          { header: "Tél", key: "tel", width: 15 }, { header: "E-mail", key: "email", width: 22 },
-          { header: "Adresse", key: "adresse", width: 26 }, { header: "Code postal", key: "cp", width: 12 },
-          { header: "NIF", key: "nif", width: 16 }, { header: "STAT", key: "stat", width: 16 },
-          { header: "RCS", key: "rcs", width: 16 }, { header: "CIN", key: "cin", width: 16 },
-          { header: "Règlement", key: "reglement", width: 14 }, { header: "TVA %", key: "tva", width: 8 },
-          { header: "Activité", key: "activite", width: 20 }, { header: "Échéance (j)", key: "echeance", width: 12 },
-          { header: "Remise %", key: "remise", width: 10 }, { header: "Moment paiement", key: "moment", width: 18 },
-          { header: "Acompte %", key: "acompte", width: 10 }, { header: "Solde payé à", key: "solde", width: 16 },
-        ],
-        rows, percentKeys: ["tva", "remise", "acompte"],
-      }],
-    });
-    setExporting(false);
-  };
+  if (!charge) return <AuthGuard><p>Chargement...</p></AuthGuard>;
 
   return (
     <AuthGuard>
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 18 }}>Liste des fournisseurs ({filtrees.length} / {liste.length})</h1>
-          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
+      <h1 style={{ fontSize: 18, marginBottom: 14 }}>{editId ? "Modifier le fournisseur" : "Ajouter un fournisseur"}</h1>
+
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
+        <div style={rowStyle}>
+          <input placeholder="Nom ou raison sociale" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+          <input placeholder="Nom du contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder="Téléphone" value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexShrink: 0 }}>
-            <div style={{ position: "relative", width: 300 }}>
-              <input data-search-field placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
-              {recherche && (
-                <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
-              )}
-            </div>
-            <TriMenu
-              colonnes={[
-                { key: "nom", label: "Nom" },
-                { key: "activite", label: "Activité" },
-                { key: "created_at", label: "Date de création" },
-              ]}
-              tri={tri}
-              onChange={setTri}
-            />
+        <div style={rowStyle}>
+          <input placeholder="Adresse" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+          <input placeholder="Code postal" value={form.code_postal} onChange={(e) => setForm({ ...form, code_postal: e.target.value })} style={{ ...inputStyle, width: 120 }} />
+        </div>
+
+        <div style={rowStyle}>
+          <input placeholder="NIF" value={form.nif} onChange={(e) => setForm({ ...form, nif: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder="STAT" value={form.stat} onChange={(e) => setForm({ ...form, stat: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder="RCS" value={form.rcs} onChange={(e) => setForm({ ...form, rcs: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder="CIN" value={form.cin} onChange={(e) => setForm({ ...form, cin: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+        </div>
+
+        <div style={rowStyle}>
+          <select value={form.type_reglement} onChange={(e) => setForm({ ...form, type_reglement: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
+            <option>Chèque</option><option>Espèces</option><option>Chèque/Espèces</option><option>Virement</option>
+          </select>
+          <select value={form.tva_defaut_pct} onChange={(e) => setForm({ ...form, tva_defaut_pct: Number(e.target.value) })} style={{ ...inputStyle, flex: 1 }}>
+            <option value={20}>TVA 20% (taxable)</option>
+            <option value={0}>Non assujetti (0%)</option>
+          </select>
+          <input placeholder="Activité / secteur" value={form.activite} onChange={(e) => setForm({ ...form, activite: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+        </div>
+
+        <div style={rowStyle}>
+          <div>
+            <label style={miniLabel}>Délai paiement (jours)</label>
+            <input type="number" placeholder="Délai paiement (jours)" value={form.conditions_paiement_jours} onChange={(e) => setForm({ ...form, conditions_paiement_jours: e.target.value })} style={{ ...inputStyle, width: 180 }} />
           </div>
-          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-          {filtrees.map((f) => (
-            <div key={f.id} style={cardStyle}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{f.nom}</div>
-              <div>
-                <button onClick={() => copierFiche(f)} style={iconBtn} title="Copier toutes les infos">
-                  <IconCopy />
-                </button>
-                <Link href={`/fournisseurs/nouveau?id=${f.id}`} style={{ ...iconBtn, textDecoration: "none" }} title="Modifier">
-                  <IconEdit />
-                </Link>
-                {role === "acheteur" && (
-                  <button onClick={() => supprimer(f.id)} style={{ ...iconBtn, color: "#B3261E" }} title="Supprimer">
-                    <IconTrash />
-                  </button>
-                )}
-              </div>
-            </div>
-            <div style={grid}>
-              <Champ label="Nom du contact" value={f.contact} />
-              <ChampCopiable label="Téléphone" value={f.telephone} />
-              <ChampCopiable label="E-mail" value={f.email} />
-              <Champ label="Adresse" value={f.adresse} />
-              <Champ label="Code postal" value={f.code_postal} />
-              <Champ label="NIF" value={f.nif} />
-              <Champ label="STAT" value={f.stat} />
-              <Champ label="RCS" value={f.rcs} />
-              <Champ label="CIN" value={f.cin} />
-              <Champ label="Type de règlement" value={f.type_reglement} />
-              <Champ label="TVA" value={f.tva_defaut_pct === 0 ? "Non assujetti" : `${f.tva_defaut_pct ?? 20}%`} />
-              <Champ label="Activité" value={f.activite} />
-              <Champ label="Délai paiement" value={f.conditions_paiement_jours ? `${f.conditions_paiement_jours} jours` : ""} />
-              <Champ label="Remise par défaut" value={f.remise_par_defaut_pct ? `${f.remise_par_defaut_pct}%` : ""} />
-              <Champ label="Moment du paiement" value={f.moment_paiement} />
-              <Champ label="Acompte à la commande" value={f.acompte_pct ? `${f.acompte_pct}% (solde ${f.solde_a || "à la livraison"})` : ""} />
-            </div>
+          <div>
+            <label style={miniLabel}>Remise par défaut (%)</label>
+            <input type="number" placeholder="Remise par défaut (%)" value={form.remise_par_defaut_pct} onChange={(e) => setForm({ ...form, remise_par_defaut_pct: e.target.value })} style={{ ...inputStyle, width: 180 }} />
           </div>
-          ))}
+        </div>
+
+        <div style={rowStyle}>
+          <div style={{ flex: 1 }}>
+            <div style={champLabel}>Moment du paiement</div>
+            <select value={form.moment_paiement} onChange={(e) => setForm({ ...form, moment_paiement: e.target.value })} style={{ ...inputStyle, width: "100%" }}>
+              <option>À réception facture</option>
+              <option>À la commande</option>
+              <option>À la livraison</option>
+            </select>
           </div>
+          <div style={{ width: 180 }}>
+            <div style={champLabel}>Acompte à la commande (%)</div>
+            <input type="number" min="0" max="100" placeholder="0 = pas d'acompte" value={form.acompte_pct} onChange={(e) => setForm({ ...form, acompte_pct: e.target.value })} style={{ ...inputStyle, width: "100%" }} />
+          </div>
+          {Number(form.acompte_pct) > 0 && (
+            <div style={{ flex: 1 }}>
+              <div style={champLabel}>Solde payé à</div>
+              <select value={form.solde_a} onChange={(e) => setForm({ ...form, solde_a: e.target.value })} style={{ ...inputStyle, width: "100%" }}>
+                <option>À la livraison</option>
+                <option>À la fin des travaux</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={enregistrer} disabled={envoi} style={boutonSelonModif(suiviForm.modifie)}>{envoi ? "Enregistrement..." : (editId ? "Enregistrer" : "Ajouter")}</button>
+          <button onClick={() => router.back()} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
         </div>
       </div>
     </AuthGuard>
   );
 }
 
-function Champ({ label, value }) {
-  if (!value) return null;
-  return (
-    <div>
-      <div style={champLabel}>{label}</div>
-      <div style={champValue}>{value}</div>
-    </div>
-  );
-}
-
-function ChampCopiable({ label, value }) {
-  const [copie, setCopie] = useState(false);
-  if (!value) return null;
-  const copier = async () => {
-    try { await navigator.clipboard.writeText(value); setCopie(true); setTimeout(() => setCopie(false), 1500); } catch (e) {}
-  };
-  return (
-    <div>
-      <div style={champLabel}>{label}</div>
-      <div style={{ fontSize: 13, marginTop: 2, wordBreak: "break-word" }}>{value}</div>
-      <button onClick={copier} style={{ ...copyBtn, marginTop: 4 }}>{copie ? "Copié !" : "Copier"}</button>
-    </div>
-  );
-}
-
-const cardStyle = { border: "1px solid #eee", borderRadius: 10, padding: 16, marginBottom: 12 };
-const grid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 14, marginTop: 10 };
-const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3 };
-const champValue = { fontSize: 13, marginTop: 2, display: "flex", alignItems: "center", gap: 6 };
-const copyBtn = { fontSize: 11, border: "1px solid #ddd", background: "#fff", borderRadius: 4, padding: "1px 6px", cursor: "pointer", color: "#1B2430" };
-const clearBtn = { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, lineHeight: 1, color: "#999", cursor: "pointer", padding: "2px 6px" };
-const iconBtn = { border: "none", background: "none", color: "#1B2430", cursor: "pointer", padding: 4, marginLeft: 4, display: "inline-flex", alignItems: "center", borderRadius: 6 };
+const rowStyle = { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 };
+const miniLabel = { display: "block", fontSize: 11, color: "#888", marginBottom: 3 };
+const champLabel = { fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 3 };
