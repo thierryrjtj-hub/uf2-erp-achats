@@ -46,6 +46,13 @@ function CommandesInner() {
   const [recherche, setRecherche] = useState("");
   const [rechercheEffective, setRechercheEffective] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
+  const anneeActuelle = new Date().getFullYear();
+  const [filtreAnnee, setFiltreAnnee] = useState(String(anneeActuelle));
+  const anneesDisponibles = useMemo(() => {
+    const annees = [];
+    for (let a = anneeActuelle; a >= anneeActuelle - 4; a--) annees.push(String(a));
+    return annees;
+  }, [anneeActuelle]);
   const [tri, setTri] = useState({ colonne: "defaut", sens: "desc" });
 
   // Debounce de la recherche : on attend une petite pause dans la saisie
@@ -112,6 +119,7 @@ function CommandesInner() {
       if (qSafe) requete = requete.or(`numero.ilike.%${qSafe}%,fournisseur_nom.ilike.%${qSafe}%`);
     }
     if (filtreStatut) requete = requete.eq("statut", filtreStatut);
+    if (filtreAnnee !== "toutes") requete = requete.like("numero", `${filtreAnnee}%`);
     if (tri.colonne === "defaut") {
       requete = requete.order("numero", { ascending: false });
     } else {
@@ -145,9 +153,9 @@ function CommandesInner() {
   const charger = () => (modeSpecial ? chargerModeSpecial() : chargerPage());
 
   useEffect(() => { if (modeSpecial) chargerModeSpecial(); }, [modeSpecial]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!modeSpecial) chargerPage(); }, [modeSpecial, page, rechercheEffective, filtreStatut, tri]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!modeSpecial) chargerPage(); }, [modeSpecial, page, rechercheEffective, filtreStatut, filtreAnnee, tri]); // eslint-disable-line react-hooks/exhaustive-deps
   // Toute recherche/tri/filtre repart de la page 1
-  useEffect(() => { if (!modeSpecial) setPage(0); }, [rechercheEffective, filtreStatut, tri, modeSpecial]);
+  useEffect(() => { if (!modeSpecial) setPage(0); }, [rechercheEffective, filtreStatut, filtreAnnee, tri, modeSpecial]);
 
   const demandeParId = useMemo(() => {
     const m = {};
@@ -390,7 +398,7 @@ function CommandesInner() {
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
             <h2 style={{ fontSize: 15 }}>
-              {modeSpecial ? `Liste (${filtrees.length} / ${liste.length})` : `Liste (${totalCount} au total)`}
+              {modeSpecial ? `Liste (${filtrees.length} / ${liste.length})` : `Liste (${totalCount} au total${filtreAnnee !== "toutes" ? `, année ${filtreAnnee}` : ""})`}
             </h2>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ position: "relative", width: 260 }}>
@@ -401,6 +409,12 @@ function CommandesInner() {
                 <option value="">Tous les statuts</option>
                 {STATUTS_CONNUS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
+              {!modeSpecial && (
+                <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title="Par défaut, seule l'année en cours est affichée">
+                  {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
+                  <option value="toutes">Toutes les années</option>
+                </select>
+              )}
               <TriMenu
                 colonnes={[
                   { key: "created_at", label: "Date" },
