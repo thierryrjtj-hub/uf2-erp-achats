@@ -205,7 +205,7 @@ export default function LoginPage() {
         </button>
 
         <p style={{ fontSize: 11, color: "#bbb", marginTop: 24, textAlign: "center" }}>
-          Créé par Judicaël Randrianaivo — UNIFOODS — © 2026
+          Créé par Judicaël Randrianaivo — UNIFOODS — © Sept 2026
         </p>
       </form>
     </div>
