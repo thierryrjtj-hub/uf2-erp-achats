@@ -1,5 +1,6 @@
 ```js
 function CommandesInner() {
+console.log("🚨 TEST VERSION COMMANDES 10:XX");
   // 🟠 TEST DIAGNOSTIC : mesure les rendus du composant
   console.log(
     "🟠 COMMANDES : rendu du composant",
