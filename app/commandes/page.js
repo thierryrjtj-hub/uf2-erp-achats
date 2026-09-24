@@ -1,10 +1,27 @@
 "use client";
+
 import { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { supabase } from "../../lib/supabaseClient";
+import AuthGuard from "../components/AuthGuard";
+import { exportExcel } from "../../lib/exportExcel";
+import { useRole } from "../../lib/useRole";
+import { inputStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
+import { IconTrash, IconBan } from "../components/Icons";
+import { formatDate } from "../../lib/format";
+import TriMenu, { appliquerTri } from "../components/TriMenu";
+
+export default function CommandesPage() {
+  return (
+    <Suspense fallback={<AuthGuard><p>Chargement...</p></AuthGuard>}>
+      <CommandesInner />
+    </Suspense>
+  );
+}
 
 function CommandesInner() {
-console.log("🚨 TEST VERSION COMMANDES 10:XX");
-  // 🟠 TEST DIAGNOSTIC : mesure les rendus du composant
+  console.log("🚨 TEST VERSION COMMANDES 10:XX");
   console.log(
     "🟠 COMMANDES : rendu du composant",
     new Date().toLocaleTimeString()
@@ -12,6 +29,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
 
   const role = useRole();
   const searchParams = useSearchParams();
+
   const filtreDepuisTableauDeBord =
     searchParams.get("filtre") === "en_attente_livraison";
   const filtreSignature =
@@ -41,8 +59,6 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
 
     const debutChargement = performance.now();
 
-    // Requêtes indépendantes : toutes en parallèle plutôt qu'à la suite,
-    // pour ne pas additionner les temps d'attente réseau un par un.
     const [
       { data: c },
       { data: r },
@@ -91,18 +107,22 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
     const catParDesignation = {};
 
     (art || []).forEach((a) => {
-      catParDesignation[a.designation.toLowerCase()] =
-        a.categorie?.nom;
+      if (a.designation) {
+        catParDesignation[a.designation.toLowerCase()] =
+          a.categorie?.nom;
+      }
     });
 
     const map = {};
     const articlesMap = {};
 
     (lb || []).forEach((l) => {
-      if (!map[l.bc_id]) map[l.bc_id] = [];
+      if (!map[l.bc_id]) {
+        map[l.bc_id] = [];
+      }
 
       map[l.bc_id].push(
-        catParDesignation[l.designation.toLowerCase()] ===
+        catParDesignation[l.designation?.toLowerCase()] ===
           "Services & Prestations"
       );
 
@@ -125,7 +145,6 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
     setPrestationParBc(prestation);
     setArticlesParBc(articlesMap);
 
-    // 🟢 TEST DIAGNOSTIC : fin du chargement des données
     console.log(
       "🟢 COMMANDES : fin chargement",
       new Date().toLocaleTimeString(),
@@ -136,9 +155,6 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
 
     setLoading(false);
 
-    // 🟣 TEST DIAGNOSTIC :
-    // mesure le moment où le navigateur a eu le temps
-    // de traiter le rendu après setLoading(false)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         console.log(
@@ -169,8 +185,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
     const m = {};
 
     fournisseurs.forEach((f) => {
-      m[f.id] =
-        f.conditions_paiement_jours || 30;
+      m[f.id] = f.conditions_paiement_jours || 30;
     });
 
     return m;
@@ -249,7 +264,9 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
           c.statut !== "Annulée" &&
           !c.statut?.startsWith("Clôturée");
 
-        if (!enAttente) return false;
+        if (!enAttente) {
+          return false;
+        }
       }
 
       if (
@@ -285,19 +302,12 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
     if (tri.colonne === "defaut") {
       return preTrie.sort(
         (a, b) =>
-          (GROUPE_TERMINAL.has(a.statut)
-            ? 1
-            : 0) -
-          (GROUPE_TERMINAL.has(b.statut)
-            ? 1
-            : 0)
+          (GROUPE_TERMINAL.has(a.statut) ? 1 : 0) -
+          (GROUPE_TERMINAL.has(b.statut) ? 1 : 0)
       );
     }
 
-    return appliquerTri(
-      preTrie,
-      tri
-    );
+    return appliquerTri(preTrie, tri);
   }, [
     liste,
     recherche,
@@ -312,10 +322,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
     bcRecuId,
   ]);
 
-  const changerStatut = async (
-    id,
-    statut
-  ) => {
+  const changerStatut = async (id, statut) => {
     setListe((prev) =>
       prev.map((c) =>
         c.id === id
@@ -349,22 +356,13 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
         await supabase
           .from("commandes")
           .select("id")
-          .eq(
-            "demande_id",
-            c.demande_id
-          );
+          .eq("demande_id", c.demande_id);
 
-      if (
-        !autresBc ||
-        autresBc.length === 0
-      ) {
+      if (!autresBc || autresBc.length === 0) {
         await supabase
           .from("demandes")
           .delete()
-          .eq(
-            "id",
-            c.demande_id
-          );
+          .eq("id", c.demande_id);
       }
     }
 
@@ -416,24 +414,17 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
       return null;
     }
 
-    const d = new Date(
-      c.date_facture
-    );
+    const d = new Date(c.date_facture);
 
     d.setDate(
       d.getDate() +
-        (
-          delaiParFournisseur[
-            c.fournisseur_id
-          ] || 30
-        )
+        (delaiParFournisseur[c.fournisseur_id] || 30)
     );
 
     return d;
   };
 
-  const [exporting, setExporting] =
-    useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const exporter = async () => {
     setExporting(true);
@@ -451,37 +442,27 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
       return {
         numero: c.numero,
         date: c.date,
-        fournisseur:
-          c.fournisseur_nom,
+        fournisseur: c.fournisseur_nom,
         statut: c.statut,
-        montantHt:
-          Number(c.montant_ht) || 0,
-        montantTva:
-          Number(c.montant_tva) || 0,
-        montantTtc:
-          Number(c.montant_ttc) || 0,
-        numeroFacture:
-          c.numero_facture || "",
-        dateFacture:
-          c.date_facture || "",
+        montantHt: Number(c.montant_ht) || 0,
+        montantTva: Number(c.montant_tva) || 0,
+        montantTtc: Number(c.montant_ttc) || 0,
+        numeroFacture: c.numero_facture || "",
+        dateFacture: c.date_facture || "",
         statutPaiement:
-          c.statut_paiement ||
-          "Impayé",
+          c.statut_paiement || "Impayé",
         recu: reception
           ? new Date(
               reception.date_reception_reelle
             ).toLocaleString("fr-FR")
           : "",
-        confirmePar:
-          reception
-            ? reception.confirme_par
-            : "",
-        importeHistorique:
-          importe
-            ? "Oui (date de réception = date d'import, pas la date réelle)"
-            : "",
-        observation:
-          c.observation || "",
+        confirmePar: reception
+          ? reception.confirme_par
+          : "",
+        importeHistorique: importe
+          ? "Oui (date de réception = date d'import, pas la date réelle)"
+          : "",
+        observation: c.observation || "",
       };
     });
 
@@ -489,85 +470,27 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
       filename: `bons-de-commande_${new Date()
         .toISOString()
         .slice(0, 10)}.xlsx`,
-      titre:
-        "UNIFOODS — Bons de commande",
+      titre: "UNIFOODS — Bons de commande",
       sheets: [
         {
           name: "Bons de commande",
           sousTitre:
             "Liste complète des bons de commande",
           columns: [
-            {
-              header: "N° BC",
-              key: "numero",
-              width: 18,
-            },
-            {
-              header: "Date",
-              key: "date",
-              width: 13,
-            },
-            {
-              header: "Fournisseur",
-              key: "fournisseur",
-              width: 22,
-            },
-            {
-              header: "Statut",
-              key: "statut",
-              width: 16,
-            },
-            {
-              header: "Montant HT",
-              key: "montantHt",
-              width: 15,
-            },
-            {
-              header: "TVA",
-              key: "montantTva",
-              width: 13,
-            },
-            {
-              header: "Montant TTC",
-              key: "montantTtc",
-              width: 15,
-            },
-            {
-              header: "N° facture",
-              key: "numeroFacture",
-              width: 16,
-            },
-            {
-              header: "Date facture",
-              key: "dateFacture",
-              width: 13,
-            },
-            {
-              header: "Statut paiement",
-              key: "statutPaiement",
-              width: 15,
-            },
-            {
-              header: "Reçu le",
-              key: "recu",
-              width: 20,
-            },
-            {
-              header: "Confirmé par",
-              key: "confirmePar",
-              width: 24,
-            },
-            {
-              header:
-                "Importé de l'historique",
-              key: "importeHistorique",
-              width: 30,
-            },
-            {
-              header: "Observation",
-              key: "observation",
-              width: 28,
-            },
+            { header: "N° BC", key: "numero", width: 18 },
+            { header: "Date", key: "date", width: 13 },
+            { header: "Fournisseur", key: "fournisseur", width: 22 },
+            { header: "Statut", key: "statut", width: 16 },
+            { header: "Montant HT", key: "montantHt", width: 15 },
+            { header: "TVA", key: "montantTva", width: 13 },
+            { header: "Montant TTC", key: "montantTtc", width: 15 },
+            { header: "N° facture", key: "numeroFacture", width: 16 },
+            { header: "Date facture", key: "dateFacture", width: 13 },
+            { header: "Statut paiement", key: "statutPaiement", width: 15 },
+            { header: "Reçu le", key: "recu", width: 20 },
+            { header: "Confirmé par", key: "confirmePar", width: 24 },
+            { header: "Importé de l'historique", key: "importeHistorique", width: 30 },
+            { header: "Observation", key: "observation", width: 28 },
           ],
           rows,
           currencyKeys: [
@@ -596,153 +519,90 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
     setExportingImpayees,
   ] = useState(false);
 
-  const exporterFacturesImpayees =
-    async () => {
-      setExportingImpayees(true);
+  const exporterFacturesImpayees = async () => {
+    setExportingImpayees(true);
 
-      const impayees = liste
-        .filter(
-          (c) =>
-            bcRecuId[c.id] &&
-            c.statut_paiement !==
-              "Payé" &&
-            c.statut !==
-              "Annulée" &&
-            c.numero_facture
-        )
-        .map((c) => {
-          const echeance =
-            echeanceInfo(c);
+    const impayees = liste
+      .filter(
+        (c) =>
+          bcRecuId[c.id] &&
+          c.statut_paiement !== "Payé" &&
+          c.statut !== "Annulée" &&
+          c.numero_facture
+      )
+      .map((c) => {
+        const echeance = echeanceInfo(c);
 
-          const joursRetard =
-            echeance
-              ? Math.max(
-                  0,
-                  Math.floor(
-                    (new Date() -
-                      echeance) /
-                      (1000 *
-                        60 *
-                        60 *
-                        24)
-                  )
-                )
-              : 0;
+        const joursRetard = echeance
+          ? Math.max(
+              0,
+              Math.floor(
+                (new Date() - echeance) /
+                  (1000 * 60 * 60 * 24)
+              )
+            )
+          : 0;
 
-          const dmd =
-            demandeParId[
-              c.demande_id
-            ];
+        const dmd =
+          demandeParId[c.demande_id];
 
-          return {
-            numero: c.numero,
-            fournisseur:
-              c.fournisseur_nom,
-            numeroFacture:
-              c.numero_facture ||
-              "",
-            dateFacture:
-              c.date_facture ||
-              "",
-            echeance: echeance
-              ? echeance.toLocaleDateString(
-                  "fr-FR"
-                )
-              : "",
-            joursRetard,
-            montantTtc:
-              Number(
-                c.montant_ttc
-              ) || 0,
-            service:
-              dmd?.service || "",
-            observation:
-              c.observation_facture ||
-              c.observation ||
-              "",
-          };
-        })
-        .sort(
-          (a, b) =>
-            b.joursRetard -
-            a.joursRetard
-        );
+        return {
+          numero: c.numero,
+          fournisseur: c.fournisseur_nom,
+          numeroFacture:
+            c.numero_facture || "",
+          dateFacture:
+            c.date_facture || "",
+          echeance: echeance
+            ? echeance.toLocaleDateString("fr-FR")
+            : "",
+          joursRetard,
+          montantTtc:
+            Number(c.montant_ttc) || 0,
+          service: dmd?.service || "",
+          observation:
+            c.observation_facture ||
+            c.observation ||
+            "",
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.joursRetard - a.joursRetard
+      );
 
-      await exportExcel({
-        filename: `factures-impayees_${new Date()
-          .toISOString()
-          .slice(0, 10)}.xlsx`,
-        titre:
-          "UNIFOODS — Factures fournisseurs impayées",
-        sheets: [
-          {
-            name: "Factures impayées",
-            sousTitre:
-              "À l'attention du service Finance",
-            columns: [
-              {
-                header: "N° BC",
-                key: "numero",
-                width: 18,
-              },
-              {
-                header: "Fournisseur",
-                key: "fournisseur",
-                width: 24,
-              },
-              {
-                header: "N° facture",
-                key: "numeroFacture",
-                width: 18,
-              },
-              {
-                header: "Date facture",
-                key: "dateFacture",
-                width: 14,
-              },
-              {
-                header: "Échéance",
-                key: "echeance",
-                width: 14,
-              },
-              {
-                header: "Jours de retard",
-                key: "joursRetard",
-                width: 15,
-              },
-              {
-                header: "Montant TTC",
-                key: "montantTtc",
-                width: 16,
-              },
-              {
-                header:
-                  "Service demandeur",
-                key: "service",
-                width: 20,
-              },
-              {
-                header: "Observation",
-                key: "observation",
-                width: 28,
-              },
-            ],
-            rows: impayees,
-            currencyKeys: [
-              "montantTtc",
-            ],
-            dateKeys: [
-              "dateFacture",
-            ],
-            totalsKeys: [
-              "montantTtc",
-            ],
-          },
-        ],
-      });
+    await exportExcel({
+      filename: `factures-impayees_${new Date()
+        .toISOString()
+        .slice(0, 10)}.xlsx`,
+      titre:
+        "UNIFOODS — Factures fournisseurs impayées",
+      sheets: [
+        {
+          name: "Factures impayées",
+          sousTitre:
+            "À l'attention du service Finance",
+          columns: [
+            { header: "N° BC", key: "numero", width: 18 },
+            { header: "Fournisseur", key: "fournisseur", width: 24 },
+            { header: "N° facture", key: "numeroFacture", width: 18 },
+            { header: "Date facture", key: "dateFacture", width: 14 },
+            { header: "Échéance", key: "echeance", width: 14 },
+            { header: "Jours de retard", key: "joursRetard", width: 15 },
+            { header: "Montant TTC", key: "montantTtc", width: 16 },
+            { header: "Service demandeur", key: "service", width: 20 },
+            { header: "Observation", key: "observation", width: 28 },
+          ],
+          rows: impayees,
+          currencyKeys: ["montantTtc"],
+          dateKeys: ["dateFacture"],
+          totalsKeys: ["montantTtc"],
+        },
+      ],
+    });
 
-      setExportingImpayees(false);
-    };
+    setExportingImpayees(false);
+  };
 
   return (
     <AuthGuard>
@@ -757,18 +617,13 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
         <div
           style={{
             display: "flex",
-            justifyContent:
-              "space-between",
+            justifyContent: "space-between",
             alignItems: "center",
             marginBottom: 14,
             flexShrink: 0,
           }}
         >
-          <h1
-            style={{
-              fontSize: 18,
-            }}
-          >
+          <h1 style={{ fontSize: 18 }}>
             Bons de commande
           </h1>
 
@@ -783,14 +638,12 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border:
-                  "1px solid #1B2430",
+                border: "1px solid #1B2430",
                 background: "#fff",
                 color: "#1B2430",
                 fontSize: 13,
                 cursor: "pointer",
-                textDecoration:
-                  "none",
+                textDecoration: "none",
               }}
             >
               + Créer un BC directement
@@ -801,14 +654,12 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border:
-                  "1px solid #1B2430",
+                border: "1px solid #1B2430",
                 background: "#fff",
                 color: "#1B2430",
                 fontSize: 13,
                 cursor: "pointer",
-                textDecoration:
-                  "none",
+                textDecoration: "none",
               }}
             >
               PV vierge
@@ -833,17 +684,12 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
             </button>
 
             <button
-              onClick={
-                exporterFacturesImpayees
-              }
-              disabled={
-                exportingImpayees
-              }
+              onClick={exporterFacturesImpayees}
+              disabled={exportingImpayees}
               style={{
                 padding: "8px 16px",
                 borderRadius: 6,
-                border:
-                  "1px solid #B3261E",
+                border: "1px solid #B3261E",
                 background: "#fff",
                 color: "#B3261E",
                 fontSize: 13,
@@ -864,8 +710,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
           <div
             style={{
               display: "flex",
-              justifyContent:
-                "space-between",
+              justifyContent: "space-between",
               alignItems: "center",
               background: "#E8F0FA",
               color: "#1B4C7A",
@@ -892,8 +737,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
               href="/commandes"
               style={{
                 color: "#1B4C7A",
-                textDecoration:
-                  "underline",
+                textDecoration: "underline",
               }}
             >
               Voir tous les BC
@@ -907,21 +751,18 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
             borderRadius: 12,
             boxShadow:
               "0 1px 3px rgba(16,24,40,0.05)",
-            border:
-              "1px solid #ECEBE6",
+            border: "1px solid #ECEBE6",
             padding: 20,
             flex: 1,
             minHeight: 0,
             display: "flex",
-            flexDirection:
-              "column",
+            flexDirection: "column",
           }}
         >
           <div
             style={{
               display: "flex",
-              justifyContent:
-                "space-between",
+              justifyContent: "space-between",
               alignItems: "center",
               marginBottom: 12,
               flexWrap: "wrap",
@@ -929,13 +770,8 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
               flexShrink: 0,
             }}
           >
-            <h2
-              style={{
-                fontSize: 15,
-              }}
-            >
-              Liste ({filtrees.length} /{" "}
-              {liste.length})
+            <h2 style={{ fontSize: 15 }}>
+              Liste ({filtrees.length} / {liste.length})
             </h2>
 
             <div
@@ -946,8 +782,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
             >
               <div
                 style={{
-                  position:
-                    "relative",
+                  position: "relative",
                   width: 260,
                 }}
               >
@@ -956,9 +791,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                   placeholder="Rechercher (N° BC, fournisseur...)"
                   value={recherche}
                   onChange={(e) =>
-                    setRecherche(
-                      e.target.value
-                    )
+                    setRecherche(e.target.value)
                   }
                   style={{
                     ...inputStyle,
@@ -983,9 +816,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
               <select
                 value={filtreStatut}
                 onChange={(e) =>
-                  setFiltreStatut(
-                    e.target.value
-                  )
+                  setFiltreStatut(e.target.value)
                 }
                 style={inputStyle}
               >
@@ -993,28 +824,17 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                   Tous les statuts
                 </option>
 
-                {statutsDistincts.map(
-                  (s) => (
-                    <option
-                      key={s}
-                      value={s}
-                    >
-                      {s}
-                    </option>
-                  )
-                )}
+                {statutsDistincts.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
               </select>
 
               <TriMenu
                 colonnes={[
-                  {
-                    key: "created_at",
-                    label: "Date",
-                  },
-                  {
-                    key: "numero",
-                    label: "N° BC",
-                  },
+                  { key: "created_at", label: "Date" },
+                  { key: "numero", label: "N° BC" },
                   {
                     key: "fournisseur_nom",
                     label: "Fournisseur",
@@ -1053,8 +873,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                   fontSize: 13,
                 }}
               >
-                Aucun bon de commande pour
-                ces filtres.
+                Aucun bon de commande pour ces filtres.
               </p>
             )}
 
@@ -1068,16 +887,13 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
             <table
               style={{
                 width: "100%",
-                borderCollapse:
-                  "collapse",
+                borderCollapse: "collapse",
                 fontSize: 13,
               }}
             >
               <thead>
                 <tr>
-                  <th style={thStyle}>
-                    Date BC
-                  </th>
+                  <th style={thStyle}>Date BC</th>
                   <th
                     style={{
                       ...thStyle,
@@ -1086,27 +902,15 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                   >
                     N° BC
                   </th>
-                  <th style={thStyle}>
-                    Fournisseur
-                  </th>
-                  <th style={thStyle}>
-                    Total TTC
-                  </th>
+                  <th style={thStyle}>Fournisseur</th>
+                  <th style={thStyle}>Total TTC</th>
                   <th style={thStyle}>
                     Service / Demandeur
                   </th>
-                  <th style={thStyle}>
-                    Statut
-                  </th>
-                  <th style={thStyle}>
-                    Réception
-                  </th>
-                  <th style={thStyle}>
-                    Paiement
-                  </th>
-                  <th style={thStyle}>
-                    Observation
-                  </th>
+                  <th style={thStyle}>Statut</th>
+                  <th style={thStyle}>Réception</th>
+                  <th style={thStyle}>Paiement</th>
+                  <th style={thStyle}>Observation</th>
                   <th style={thStyle}></th>
                 </tr>
               </thead>
@@ -1115,8 +919,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                 {filtrees.map((c) => {
                   const reception =
                     receptions.find(
-                      (r) =>
-                        r.bc_id === c.id
+                      (r) => r.bc_id === c.id
                     );
 
                   const echeance =
@@ -1125,28 +928,21 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                   const enRetard =
                     bcRecuId[c.id] &&
                     echeance &&
-                    c.statut_paiement !==
-                      "Payé" &&
-                    new Date() >
-                      echeance;
+                    c.statut_paiement !== "Payé" &&
+                    new Date() > echeance;
 
                   const dmd =
-                    demandeParId[
-                      c.demande_id
-                    ];
+                    demandeParId[c.demande_id];
 
                   const estPrestation =
-                    !!prestationParBc[
-                      c.id
-                    ];
+                    !!prestationParBc[c.id];
 
                   const couleurLigne =
                     c.statut?.startsWith(
                       "Clôturée (rupture)"
                     )
                       ? "#B3261E"
-                      : reception?.statut ===
-                        "Totale"
+                      : reception?.statut === "Totale"
                       ? "#1B7A4C"
                       : enRetard
                       ? "#B3261E"
@@ -1158,39 +954,29 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                       style={{
                         borderBottom:
                           "1px solid #f0f0f0",
-                        color:
-                          couleurLigne,
+                        color: couleurLigne,
                       }}
                     >
                       <td style={tdStyle}>
-                        {formatDate(
-                          c.date
-                        )}
+                        {formatDate(c.date)}
                       </td>
 
                       <td
                         style={{
                           ...tdStyle,
                           fontWeight: 600,
-                          whiteSpace:
-                            "nowrap",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         <Link
                           href={`/commandes/${c.id}`}
                           style={{
-                            color:
-                              "#1E3A34",
-                            textDecoration:
-                              "underline",
+                            color: "#1E3A34",
+                            textDecoration: "underline",
                           }}
                           title={
-                            articlesParBc[
-                              c.id
-                            ]?.length
-                              ? articlesParBc[
-                                  c.id
-                                ].join("\n")
+                            articlesParBc[c.id]?.length
+                              ? articlesParBc[c.id].join("\n")
                               : "Aucun article"
                           }
                         >
@@ -1201,57 +987,42 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                           <div
                             style={{
                               fontSize: 12,
-                              color:
-                                "#888",
-                              fontWeight:
-                                400,
-                              whiteSpace:
-                                "normal",
+                              color: "#888",
+                              fontWeight: 400,
+                              whiteSpace: "normal",
                             }}
                           >
-                            {
-                              dmd.motif_projet
-                            }
+                            {dmd.motif_projet}
                           </div>
                         )}
                       </td>
 
                       <td style={tdStyle}>
-                        {
-                          c.fournisseur_nom
-                        }
+                        {c.fournisseur_nom}
                       </td>
 
                       <td style={tdStyle}>
                         {Number(
                           c.montant_ttc
-                        ).toLocaleString(
-                          "fr-FR",
-                          {
-                            minimumFractionDigits:
-                              2,
-                            maximumFractionDigits:
-                              2,
-                          }
-                        )}{" "}
+                        ).toLocaleString("fr-FR", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
                         Ar
                       </td>
 
                       <td style={tdStyle}>
                         {dmd ? (
                           <>
-                            {dmd.service ||
-                              "-"}
+                            {dmd.service || "-"}
 
                             <div
                               style={{
                                 fontSize: 12,
-                                color:
-                                  "#888",
+                                color: "#888",
                               }}
                             >
-                              {dmd.demandeur ||
-                                ""}
+                              {dmd.demandeur || ""}
                             </div>
                           </>
                         ) : (
@@ -1261,9 +1032,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
 
                       <td style={tdStyle}>
                         <select
-                          value={
-                            c.statut
-                          }
+                          value={c.statut}
                           onChange={(e) =>
                             changerStatut(
                               c.id,
@@ -1272,27 +1041,17 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                           }
                           style={inputStyle}
                         >
-                          <option>
-                            A faire
-                          </option>
-                          <option>
-                            En cours
-                          </option>
-                          <option>
-                            Envoyée
-                          </option>
+                          <option>A faire</option>
+                          <option>En cours</option>
+                          <option>Envoyée</option>
                           <option>
                             Livraison en cours
                           </option>
-                          <option>
-                            Clôturée
-                          </option>
+                          <option>Clôturée</option>
                           <option>
                             Clôturée (rupture)
                           </option>
-                          <option>
-                            Annulée
-                          </option>
+                          <option>Annulée</option>
                         </select>
                       </td>
 
@@ -1325,16 +1084,13 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                               : "Livré partiellement"}
 
                             {reception.receptionnaire !==
-                              "Magasin" && (
-                              <br />
-                            )}
+                              "Magasin" && <br />}
 
                             {reception.receptionnaire ===
                             "Import historique" ? (
                               <span
                                 style={{
-                                  color:
-                                    "#1B4C7A",
+                                  color: "#1B4C7A",
                                 }}
                                 title="Date d'import de l'historique, pas la date réelle de réception"
                               >
@@ -1344,8 +1100,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                               "Magasin" ? (
                               <span
                                 style={{
-                                  color:
-                                    "#999",
+                                  color: "#999",
                                 }}
                               >
                                 par{" "}
@@ -1358,8 +1113,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                           <span
                             style={{
                               fontSize: 12,
-                              color:
-                                "#999",
+                              color: "#999",
                             }}
                           >
                             {estPrestation
@@ -1373,8 +1127,7 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                         <span
                           style={{
                             fontSize: 12,
-                            padding:
-                              "3px 8px",
+                            padding: "3px 8px",
                             borderRadius: 6,
                             background:
                               c.statut_paiement ===
@@ -1404,12 +1157,10 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                       <td
                         style={{
                           ...tdStyle,
-                          color:
-                            "#666",
+                          color: "#666",
                         }}
                       >
-                        {c.observation ||
-                          "-"}
+                        {c.observation || "-"}
                       </td>
 
                       <td style={tdStyle}>
@@ -1419,27 +1170,20 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                           }
                           style={{
                             ...linkBtn,
-                            background:
-                              "none",
-                            border:
-                              "none",
+                            background: "none",
+                            border: "none",
                             color:
-                              c.statut ===
-                              "Annulée"
+                              c.statut === "Annulée"
                                 ? "#1B7A4C"
                                 : "#8A6100",
-                            cursor:
-                              "pointer",
-                            display:
-                              "inline-flex",
-                            alignItems:
-                              "center",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
                             gap: 5,
                             marginRight: 8,
                           }}
                           title={
-                            c.statut ===
-                            "Annulée"
+                            c.statut === "Annulée"
                               ? "Réactiver"
                               : "Annuler"
                           }
@@ -1453,21 +1197,15 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
                           }
                           style={{
                             ...linkBtn,
-                            background:
-                              "none",
-                            border:
-                              "none",
-                            color:
-                              "#B3261E",
-                            cursor:
-                              "pointer",
+                            background: "none",
+                            border: "none",
+                            color: "#B3261E",
+                            cursor: "pointer",
                             display:
-                              role ===
-                              "acheteur"
+                              role === "acheteur"
                                 ? "inline-flex"
                                 : "none",
-                            alignItems:
-                              "center",
+                            alignItems: "center",
                             gap: 5,
                           }}
                           title="Supprimer"
@@ -1486,4 +1224,17 @@ console.log("🚨 TEST VERSION COMMANDES 10:XX");
     </AuthGuard>
   );
 }
-```
+
+const clearBtn = {
+  position: "absolute",
+  right: 6,
+  top: "50%",
+  transform: "translateY(-50%)",
+  border: "none",
+  background: "none",
+  fontSize: 18,
+  lineHeight: 1,
+  color: "#999",
+  cursor: "pointer",
+  padding: "2px 6px",
+};
