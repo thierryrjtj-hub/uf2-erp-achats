@@ -548,7 +548,7 @@ export default function CommandeDetailPage() {
         @media print { .bc-template.print-area { display: flex !important; } }
       `}</style>
 
-      <button onClick={() => router.push("/commandes")} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour aux commandes</button>
+      <button onClick={() => router.back()} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour</button>
 
       <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {[
