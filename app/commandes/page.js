@@ -371,6 +371,7 @@ function CommandesInner() {
                   <td style={tdStyle}>
                     <select value={c.statut} onChange={(e) => changerStatut(c.id, e.target.value)} style={inputStyle}>
                       <option>A faire</option>
+                      <option>En cours</option>
                       <option>Envoyée</option>
                       <option>Livraison en cours</option>
                       <option>Clôturée</option>
