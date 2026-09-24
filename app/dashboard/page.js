@@ -50,6 +50,7 @@ export default function DashboardPage() {
   const [alertesImport, setAlertesImport] = useState([]);
   const [alertesReappro, setAlertesReappro] = useState([]);
   const [alertesStandByReappro, setAlertesStandByReappro] = useState([]);
+  const [articlesParBc, setArticlesParBc] = useState({});
   const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0, bcEnAttenteSignature: 0 });
   const [tendance, setTendance] = useState([]);
   const [agenda, setAgenda] = useState([]);
@@ -82,7 +83,7 @@ export default function DashboardPage() {
         supabase.from("lignes_offre").select("offre_id, prix_unitaire_ht").limit(10000),
         supabase.from("commandes").select("id, numero, fournisseur_nom, fournisseur_id, date, date_signature, date_envoi_signature, date_envoi_fournisseur, statut, statut_paiement, date_facture, date_estimee_reste, mode_envoi_fournisseur").limit(10000),
         supabase.from("fournisseurs").select("id, conditions_paiement_jours").limit(10000),
-        supabase.from("lignes_bc").select("id, bc_id, designation, quantite").limit(10000),
+        supabase.from("lignes_bc").select("id, bc_id, designation, quantite, unite").limit(10000),
         supabase.from("receptions").select("id, bc_id").limit(10000),
         supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000),
         supabase.from("relance_livraison").select("bc_id, etape, jours_au_signalement").limit(10000),
@@ -115,6 +116,13 @@ export default function DashboardPage() {
           .reduce((s, lr) => s + (Number(lr.quantite_livree) || 0), 0);
         if (Number(l.quantite) - cumul > 0) resteABcId[l.bc_id] = true;
       });
+
+      const articlesParBc = {};
+      (lignesBc || []).forEach((l) => {
+        if (!articlesParBc[l.bc_id]) articlesParBc[l.bc_id] = [];
+        articlesParBc[l.bc_id].push(`${l.designation} (${l.quantite} ${l.unite || ""})`);
+      });
+      setArticlesParBc(articlesParBc);
 
       // Un BC n'est "en attente de livraison" qu'une fois réellement envoyé au
       // fournisseur (date_envoi_fournisseur renseignée) — pas avant, même s'il
@@ -313,7 +321,11 @@ export default function DashboardPage() {
                 const estEnlevement = c.mode_envoi_fournisseur === "Enlèvement par nos soins" || c.mode_envoi_fournisseur === "Prestation / Travaux";
                 return (
                   <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", borderRadius: 6, background: "#FAFAF8", marginBottom: 6 }}>
-                    <Link href={`/commandes/${c.id}`} style={{ flex: 1, color: "#1B2430", textDecoration: "none" }}>
+                    <Link
+                      href={`/commandes/${c.id}`}
+                      style={{ flex: 1, color: "#1B2430", textDecoration: "none" }}
+                      title={articlesParBc[c.id]?.length ? articlesParBc[c.id].join("\n") : "Aucun article"}
+                    >
                       <strong>{c.numero}</strong> — {c.fournisseur_nom} — {estEnlevement
                         ? `enlèvement par nos soins prévu — avez-vous déjà planifié la récupération avec le coursier ? (envoyé il y a ${joursDepuis(c.date_envoi_fournisseur)} jour(s))`
                         : `envoyé au fournisseur il y a ${joursDepuis(c.date_envoi_fournisseur)} jour(s), toujours pas reçu`}
