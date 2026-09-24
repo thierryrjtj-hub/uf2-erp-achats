@@ -294,13 +294,20 @@ export default function CommandeDetailPage() {
   };
 
   const enregistrerTransmission = async () => {
-    // Dès qu'une date d'envoi au fournisseur est renseignée, le BC passe
-    // automatiquement en "Livraison en cours" — sauf s'il est déjà à un stade
-    // plus avancé (Clôturée, Annulée), qu'on ne fait jamais régresser.
-    const statutsAvances = ["Clôturée", "Annulée"];
-    const nouveauStatut = (transmission.dateEnvoiFournisseur && !statutsAvances.includes(bc.statut))
-      ? "Livraison en cours"
-      : bc.statut;
+    // Mise à jour automatique du statut selon l'avancement du suivi/
+    // transmission, sans jamais faire régresser un statut déjà avancé
+    // (Livraison en cours, Clôturée, Annulée) :
+    // - date d'envoi au fournisseur renseignée -> "Livraison en cours"
+    // - sinon, date d'envoi pour signature renseignée -> "En cours"
+    //   (le document est déjà en mouvement, pas juste "à faire")
+    const statutsAvances = ["Livraison en cours", "Clôturée", "Annulée"];
+    let nouveauStatut = bc.statut;
+    if (!statutsAvances.includes(bc.statut)) {
+      if (transmission.dateEnvoiFournisseur) nouveauStatut = "Livraison en cours";
+      else if (transmission.dateEnvoiSignature) nouveauStatut = "En cours";
+    } else if (transmission.dateEnvoiFournisseur && bc.statut !== "Clôturée" && bc.statut !== "Annulée") {
+      nouveauStatut = "Livraison en cours";
+    }
     await supabase.from("commandes").update({
       date_envoi_signature: transmission.dateEnvoiSignature || null,
       date_retour_signature: transmission.dateRetourSignature || null,
