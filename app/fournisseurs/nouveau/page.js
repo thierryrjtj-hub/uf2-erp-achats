@@ -87,7 +87,7 @@ function NouveauFournisseurInner() {
       await supabase.from("fournisseurs").insert(form);
     }
     setEnvoi(false);
-    router.push("/fournisseurs");
+    router.back();
   };
 
   if (!charge) return <AuthGuard><p>Chargement...</p></AuthGuard>;
@@ -164,7 +164,7 @@ function NouveauFournisseurInner() {
 
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={enregistrer} disabled={envoi} style={boutonSelonModif(suiviForm.modifie)}>{envoi ? "Enregistrement..." : (editId ? "Enregistrer" : "Ajouter")}</button>
-          <button onClick={() => router.push("/fournisseurs")} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
+          <button onClick={() => router.back()} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
         </div>
       </div>
     </AuthGuard>
