@@ -162,7 +162,7 @@ export default function Nav() {
           </div>
         )}
         <p className="nav-footer" style={{ fontSize: 10.5, color: "#7A9C93", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
-          Créé par Judicaël Randrianaivo
+          Créé par Judicaël Randrianaivo — © 2026
         </p>
       </div>
     </div>
