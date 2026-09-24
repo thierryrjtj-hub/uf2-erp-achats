@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
@@ -36,13 +36,13 @@ function CommandesInner() {
 
   const [liste, setListe] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(0);
   const [receptions, setReceptions] = useState([]);
   const [demandes, setDemandes] = useState([]);
   const [fournisseurs, setFournisseurs] = useState([]);
   const [prestationParBc, setPrestationParBc] = useState({});
   const [articlesParBc, setArticlesParBc] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadingPlus, setLoadingPlus] = useState(false);
   const [recherche, setRecherche] = useState("");
   const [rechercheEffective, setRechercheEffective] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
@@ -105,11 +105,14 @@ function CommandesInner() {
     setLoading(false);
   };
 
-  // ---- Mode normal : pagination réelle côté serveur. Seule la page
-  // affichée (100 lignes) est chargée, avec ses seules données liées
-  // (réceptions/lignes/demandes scopées aux BC de cette page). ----
-  const chargerPage = async () => {
-    setLoading(true);
+  // ---- Mode normal : chargement réel par lots côté serveur (100 à la
+  // fois), mais affiché comme une liste continue qu'on fait défiler — un
+  // clic sur "Charger plus" ajoute les 100 suivants à la suite, sans jamais
+  // tout charger d'un coup. remplacer=true recommence de zéro (nouveau
+  // filtre/tri/recherche) ; remplacer=false ajoute à ce qui est déjà affiché.
+  const chargerPage = async (remplacer) => {
+    if (remplacer) setLoading(true); else setLoadingPlus(true);
+    const decalage = remplacer ? 0 : liste.length;
     let requete = supabase.from("commandes").select("*", { count: "exact" });
     if (rechercheEffective) {
       // Nettoie le texte de recherche : virgule/parenthèses ont un sens
@@ -125,10 +128,11 @@ function CommandesInner() {
     } else {
       requete = requete.order(tri.colonne, { ascending: tri.sens === "asc" });
     }
-    requete = requete.range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+    requete = requete.range(decalage, decalage + PAGE_SIZE - 1);
 
     const { data: c, count } = await requete;
-    setListe(c || []);
+    const nouvelleListe = remplacer ? (c || []) : [...liste, ...(c || [])];
+    setListe(nouvelleListe);
     setTotalCount(count || 0);
 
     const bcIds = (c || []).map((x) => x.id);
@@ -141,21 +145,21 @@ function CommandesInner() {
       bcIds.length ? supabase.from("lignes_bc").select("bc_id, designation, quantite, unite").in("bc_id", bcIds) : Promise.resolve({ data: [] }),
       chargerAvecCache("articles-categorie", () => supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000).then((r) => r.data)),
     ]);
-    setReceptions(r || []);
-    setDemandes(d || []);
+    setReceptions((prev) => (remplacer ? (r || []) : [...prev, ...(r || [])]));
+    setDemandes((prev) => (remplacer ? (d || []) : [...prev, ...(d || [])]));
     setFournisseurs(f || []);
     const { prestation, articlesMap } = construireMaps(lb, art);
-    setPrestationParBc(prestation);
-    setArticlesParBc(articlesMap);
+    setPrestationParBc((prev) => (remplacer ? prestation : { ...prev, ...prestation }));
+    setArticlesParBc((prev) => (remplacer ? articlesMap : { ...prev, ...articlesMap }));
     setLoading(false);
+    setLoadingPlus(false);
   };
 
-  const charger = () => (modeSpecial ? chargerModeSpecial() : chargerPage());
+  const charger = () => (modeSpecial ? chargerModeSpecial() : chargerPage(true));
 
   useEffect(() => { if (modeSpecial) chargerModeSpecial(); }, [modeSpecial]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (!modeSpecial) chargerPage(); }, [modeSpecial, page, rechercheEffective, filtreStatut, filtreAnnee, tri]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Toute recherche/tri/filtre repart de la page 1
-  useEffect(() => { if (!modeSpecial) setPage(0); }, [rechercheEffective, filtreStatut, filtreAnnee, tri, modeSpecial]);
+  // Toute recherche/tri/filtre repart de zéro (remplace la liste)
+  useEffect(() => { if (!modeSpecial) chargerPage(true); }, [modeSpecial, rechercheEffective, filtreStatut, filtreAnnee, tri]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const demandeParId = useMemo(() => {
     const m = {};
@@ -359,7 +363,25 @@ function CommandesInner() {
     setExportingImpayees(false);
   };
 
-  const nbPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const resteAcharger = Math.max(0, totalCount - liste.length);
+  const sentinelleRef = useRef(null);
+  const conteneurScrollRef = useRef(null);
+
+  // Charge automatiquement les 100 suivants dès que le repère en bas de
+  // liste devient visible (défilement normal, sans clic).
+  useEffect(() => {
+    if (modeSpecial || resteAcharger <= 0) return;
+    const cible = sentinelleRef.current;
+    if (!cible) return;
+    const observateur = new IntersectionObserver(
+      (entrees) => {
+        if (entrees[0].isIntersecting && !loadingPlus && !loading) chargerPage(false);
+      },
+      { root: conteneurScrollRef.current, rootMargin: "200px" }
+    );
+    observateur.observe(cible);
+    return () => observateur.disconnect();
+  }, [modeSpecial, resteAcharger, loadingPlus, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AuthGuard>
@@ -398,7 +420,9 @@ function CommandesInner() {
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
             <h2 style={{ fontSize: 15 }}>
-              {modeSpecial ? `Liste (${filtrees.length} / ${liste.length})` : `Liste (${totalCount} au total${filtreAnnee !== "toutes" ? `, année ${filtreAnnee}` : ""})`}
+              {modeSpecial
+                ? `Liste (${filtrees.length} / ${liste.length})`
+                : `Liste (${liste.length} chargés / ${totalCount} au total${filtreAnnee !== "toutes" ? `, année ${filtreAnnee}` : ""})`}
             </h2>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ position: "relative", width: 260 }}>
@@ -426,20 +450,13 @@ function CommandesInner() {
                 tri={tri}
                 onChange={setTri}
               />
-              {!modeSpecial && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#666" }}>
-                  <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} style={pageBtn}>&larr;</button>
-                  Page {page + 1} / {nbPages}
-                  <button onClick={() => setPage((p) => Math.min(nbPages - 1, p + 1))} disabled={page >= nbPages - 1} style={pageBtn}>&rarr;</button>
-                </div>
-              )}
             </div>
           </div>
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
           {!loading && filtrees.length === 0 && (
             <p style={{ color: "#888", fontSize: 13 }}>Aucun bon de commande pour ces filtres.</p>
           )}
-          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          <div ref={conteneurScrollRef} style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
@@ -533,14 +550,12 @@ function CommandesInner() {
             })}
           </tbody>
         </table>
-        </div>
-        {!modeSpecial && (
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, marginTop: 12, fontSize: 13, flexShrink: 0 }}>
-            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} style={pageBtn}>&larr; Précédent</button>
-            Page {page + 1} / {nbPages} ({totalCount} BC au total)
-            <button onClick={() => setPage((p) => Math.min(nbPages - 1, p + 1))} disabled={page >= nbPages - 1} style={pageBtn}>Suivant &rarr;</button>
+        {!modeSpecial && resteAcharger > 0 && (
+          <div ref={sentinelleRef} style={{ display: "flex", justifyContent: "center", padding: 12, flexShrink: 0, fontSize: 12, color: "#999" }}>
+            {loadingPlus ? "Chargement de la suite..." : `${resteAcharger} de plus en bas...`}
           </div>
         )}
+        </div>
         </div>
       </div>
     </AuthGuard>
@@ -548,4 +563,3 @@ function CommandesInner() {
 }
 
 const clearBtn = { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, lineHeight: 1, color: "#999", cursor: "pointer", padding: "2px 6px" };
-const pageBtn = { padding: "5px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer" };
