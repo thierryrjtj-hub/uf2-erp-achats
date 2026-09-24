@@ -67,50 +67,46 @@ export default function CommandeDetailPage() {
   const [onglet, setOnglet] = useState("bc");
 
   const charger = async () => {
-    const { data: c } = await supabase.from("commandes").select("*").eq("id", id).single();
-    const { data: pc } = await supabase.from("petite_caisse").select("id").eq("commande_id", id).maybeSingle();
+    // Étape 1 : tout ce qui ne dépend que de l'id du BC, en parallèle.
+    const [
+      { data: c }, { data: pc }, { data: l }, { data: r }, { data: acc },
+    ] = await Promise.all([
+      supabase.from("commandes").select("*").eq("id", id).single(),
+      supabase.from("petite_caisse").select("id").eq("commande_id", id).maybeSingle(),
+      supabase.from("lignes_bc").select("*").eq("bc_id", id),
+      supabase.from("receptions").select("*").eq("bc_id", id).order("date_reception_reelle"),
+      supabase.from("accuses_reception_facture").select("*").eq("bc_id", id).order("date_accuse", { ascending: false }),
+    ]);
     setEstPetiteCaisse(!!pc);
-    const { data: l } = await supabase.from("lignes_bc").select("*").eq("bc_id", id);
-    const { data: r } = await supabase.from("receptions").select("*").eq("bc_id", id).order("date_reception_reelle");
-    let receptionsAvecLignes = [];
-    if (r && r.length) {
-      const { data: lr } = await supabase.from("lignes_reception").select("*").in("reception_id", r.map((x) => x.id));
-      receptionsAvecLignes = r.map((rec) => ({ ...rec, lignes: (lr || []).filter((x) => x.reception_id === rec.id) }));
-    }
     setBc(c);
     setLignes(l || []);
-    setReceptions(receptionsAvecLignes);
     setDateEstimeeReste(c?.date_estimee_reste || "");
+    setAccuses(acc || []);
 
-    if (c?.created_by) {
-      const { data: profilCreateur } = await supabase.from("profiles").select("nom").eq("id", c.created_by).maybeSingle();
-      setNomCreateurBc(profilCreateur?.nom || "");
-    } else {
-      setNomCreateurBc("");
-    }
+    // Étape 2 : tout ce qui dépend du BC (ou des réceptions) qu'on vient de
+    // charger, à nouveau en parallèle plutôt qu'à la suite.
+    const [
+      { data: lr }, { data: profilCreateur }, { data: d }, { data: f }, { data: off },
+    ] = await Promise.all([
+      (r && r.length) ? supabase.from("lignes_reception").select("*").in("reception_id", r.map((x) => x.id)) : Promise.resolve({ data: [] }),
+      c?.created_by ? supabase.from("profiles").select("nom").eq("id", c.created_by).maybeSingle() : Promise.resolve({ data: null }),
+      c?.demande_id ? supabase.from("demandes").select("*").eq("id", c.demande_id).maybeSingle() : Promise.resolve({ data: null }),
+      c?.fournisseur_id ? supabase.from("fournisseurs").select("*").eq("id", c.fournisseur_id).maybeSingle() : Promise.resolve({ data: null }),
+      (c?.demande_id && c?.fournisseur_id) ? supabase.from("offres").select("numero_devis, date_devis").eq("demande_id", c.demande_id).eq("fournisseur_id", c.fournisseur_id).maybeSingle() : Promise.resolve({ data: null }),
+    ]);
+    const receptionsAvecLignes = (r || []).map((rec) => ({ ...rec, lignes: (lr || []).filter((x) => x.reception_id === rec.id) }));
+    setReceptions(receptionsAvecLignes);
+    setNomCreateurBc(profilCreateur?.nom || "");
+    setDemande(d || null);
+    setFournisseurDetail(c?.fournisseur_id ? (f || null) : null);
+    setOffreLiee(off || null);
 
+    // Réservation du numéro PVR si besoin : indépendant du reste, ne bloque
+    // pas l'affichage.
     if (c && !c.numero_pvr) {
-      const { data: numeroReserve } = await supabase.rpc("get_or_creer_numero_pvr", { p_bc_id: c.id });
-      if (numeroReserve) setBc((prev) => (prev ? { ...prev, numero_pvr: numeroReserve } : prev));
-    }
-
-    if (c?.demande_id) {
-      const { data: d } = await supabase.from("demandes").select("*").eq("id", c.demande_id).maybeSingle();
-      setDemande(d || null);
-    } else {
-      setDemande(null);
-    }
-    let fournisseurCharge = null;
-    if (c?.fournisseur_id) {
-      const { data: f } = await supabase.from("fournisseurs").select("*").eq("id", c.fournisseur_id).maybeSingle();
-      fournisseurCharge = f || null;
-      setFournisseurDetail(fournisseurCharge);
-    }
-    if (c?.demande_id && c?.fournisseur_id) {
-      const { data: off } = await supabase.from("offres").select("numero_devis, date_devis").eq("demande_id", c.demande_id).eq("fournisseur_id", c.fournisseur_id).maybeSingle();
-      setOffreLiee(off || null);
-    } else {
-      setOffreLiee(null);
+      supabase.rpc("get_or_creer_numero_pvr", { p_bc_id: c.id }).then(({ data: numeroReserve }) => {
+        if (numeroReserve) setBc((prev) => (prev ? { ...prev, numero_pvr: numeroReserve } : prev));
+      });
     }
 
     if (c) {
@@ -140,8 +136,6 @@ export default function CommandeDetailPage() {
       setTransmission(transmissionChargee);
       setSnapshotTransmission(JSON.stringify(transmissionChargee));
     }
-    const { data: acc } = await supabase.from("accuses_reception_facture").select("*").eq("bc_id", id).order("date_accuse", { ascending: false });
-    setAccuses(acc || []);
     setLoading(false);
   };
 
