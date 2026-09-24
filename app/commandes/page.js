@@ -224,6 +224,15 @@ function CommandesInner() {
   );
 
   const filtrees = useMemo(() => {
+    console.log(
+      "🟡 AVANT CALCUL FILTREES",
+      new Date().toLocaleTimeString(),
+      "commandes =",
+      liste.length
+    );
+
+    const debutFiltre = performance.now();
+
     const q = recherche.trim().toLowerCase();
 
     const base = liste.filter((c) => {
@@ -299,15 +308,29 @@ function CommandesInner() {
       )
     );
 
+    let resultat;
+
     if (tri.colonne === "defaut") {
-      return preTrie.sort(
+      resultat = preTrie.sort(
         (a, b) =>
           (GROUPE_TERMINAL.has(a.statut) ? 1 : 0) -
           (GROUPE_TERMINAL.has(b.statut) ? 1 : 0)
       );
+    } else {
+      resultat = appliquerTri(preTrie, tri);
     }
 
-    return appliquerTri(preTrie, tri);
+    console.log(
+      "🟡 FIN CALCUL FILTREES",
+      new Date().toLocaleTimeString(),
+      "durée :",
+      ((performance.now() - debutFiltre) / 1000).toFixed(3),
+      "secondes",
+      "résultat =",
+      resultat.length
+    );
+
+    return resultat;
   }, [
     liste,
     recherche,
