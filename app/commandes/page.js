@@ -1,3 +1,4 @@
+```js
 "use client";
 import { useEffect, useState, useMemo, Suspense } from "react";
 import Link from "next/link";
@@ -20,6 +21,9 @@ export default function CommandesPage() {
 }
 
 function CommandesInner() {
+  // 🟠 TEST DIAGNOSTIC : mesure les rendus du composant
+  console.log("🟠 COMMANDES : rendu du composant", new Date().toLocaleTimeString());
+
   const role = useRole();
   const searchParams = useSearchParams();
   const filtreDepuisTableauDeBord = searchParams.get("filtre") === "en_attente_livraison";
@@ -38,7 +42,6 @@ function CommandesInner() {
 
   const charger = async () => {
     console.log("🔵 COMMANDES : début chargement", new Date().toLocaleTimeString());
-
     const debutChargement = performance.now();
 
     // Requêtes indépendantes : toutes en parallèle plutôt qu'à la suite,
@@ -59,7 +62,6 @@ function CommandesInner() {
     setDemandes(d || []);
     setFournisseurs(f || []);
 
-    // Un BC est considéré "prestation" si toutes ses lignes correspondent à des articles catégorie "Services & Prestations"
     const catParDesignation = {};
     (art || []).forEach((a) => {
       catParDesignation[a.designation.toLowerCase()] = a.categorie?.nom;
@@ -70,14 +72,10 @@ function CommandesInner() {
 
     (lb || []).forEach((l) => {
       if (!map[l.bc_id]) map[l.bc_id] = [];
-      map[l.bc_id].push(
-        catParDesignation[l.designation.toLowerCase()] === "Services & Prestations"
-      );
+      map[l.bc_id].push(catParDesignation[l.designation.toLowerCase()] === "Services & Prestations");
 
       if (!articlesMap[l.bc_id]) articlesMap[l.bc_id] = [];
-      articlesMap[l.bc_id].push(
-        `${l.designation} (${l.quantite} ${l.unite})`
-      );
+      articlesMap[l.bc_id].push(`${l.designation} (${l.quantite} ${l.unite})`);
     });
 
     const prestation = {};
@@ -88,6 +86,7 @@ function CommandesInner() {
     setPrestationParBc(prestation);
     setArticlesParBc(articlesMap);
 
+    // 🟣 TEST DIAGNOSTIC : fin du chargement des données
     console.log(
       "🟢 COMMANDES : fin chargement",
       new Date().toLocaleTimeString(),
@@ -97,6 +96,9 @@ function CommandesInner() {
     );
 
     setLoading(false);
+
+    // 🟣 TEST DIAGNOSTIC : après passage de loading à false
+    console.log("🟣 COMMANDES : setLoading(false)", new Date().toLocaleTimeString());
   };
 
   useEffect(() => {
@@ -153,10 +155,9 @@ function CommandesInner() {
 
       if (filtreDepuisTableauDeBord) {
         const receptionsOfC = receptions.filter((r) => r.bc_id === c.id);
-        const dejaComplet = receptionsOfC.some(
-          (r) => r.statut === "Totale"
-        );
+        const dejaComplet = receptionsOfC.some((r) => r.statut === "Totale");
         const pasEncoreEnvoye = !c.date_envoi_fournisseur;
+
         const enAttente =
           !dejaComplet &&
           !pasEncoreEnvoye &&
@@ -183,11 +184,6 @@ function CommandesInner() {
       return okRecherche && okStatut;
     });
 
-    // Ordre par défaut : dernier N° BC en haut (les BC importés depuis l'historique
-    // s'alignent ainsi naturellement derrière les BC créés dans l'appli selon leur
-    // vrai numéro, pas selon la date d'import), en regroupant d'abord les BC actifs
-    // puis les clôturés/annulés à la fin (tri stable : l'ordre par numéro est
-    // conservé à l'intérieur de chaque groupe).
     const preTrie = [...base].sort((a, b) =>
       (b.numero || "").localeCompare(a.numero || "")
     );
@@ -212,6 +208,7 @@ function CommandesInner() {
     filtreImpayees,
     receptions,
     GROUPE_TERMINAL,
+    bcRecuId,
   ]);
 
   const changerStatut = async (id, statut) => {
@@ -230,11 +227,13 @@ function CommandesInner() {
       !confirm(
         `Supprimer définitivement le bon de commande ${c.numero} ? Sa réception et son historique seront aussi supprimés.`
       )
-    ) {
+    )
       return;
-    }
 
-    await supabase.from("commandes").delete().eq("id", c.id);
+    await supabase
+      .from("commandes")
+      .delete()
+      .eq("id", c.id);
 
     if (c.demande_id) {
       const { data: autresBc } = await supabase
@@ -243,7 +242,10 @@ function CommandesInner() {
         .eq("demande_id", c.demande_id);
 
       if (!autresBc || autresBc.length === 0) {
-        await supabase.from("demandes").delete().eq("id", c.demande_id);
+        await supabase
+          .from("demandes")
+          .delete()
+          .eq("id", c.demande_id);
       }
     }
 
@@ -256,9 +258,8 @@ function CommandesInner() {
         !confirm(
           `Réactiver le BC ${c.numero} (retirer le statut Annulée) ?`
         )
-      ) {
+      )
         return;
-      }
 
       await supabase
         .from("commandes")
@@ -373,15 +374,14 @@ function CommandesInner() {
   const exporterFacturesImpayees = async () => {
     setExportingImpayees(true);
 
-    const impayees = liste.filter(
-      (c) =>
-        bcRecuId[c.id] &&
-        c.statut_paiement !== "Payé" &&
-        c.statut !== "Annulée" &&
-        c.numero_facture
-    );
-
-    const rows = impayees
+    const impayees = liste
+      .filter(
+        (c) =>
+          bcRecuId[c.id] &&
+          c.statut_paiement !== "Payé" &&
+          c.statut !== "Annulée" &&
+          c.numero_facture
+      )
       .map((c) => {
         const echeance = echeanceInfo(c);
 
@@ -389,7 +389,8 @@ function CommandesInner() {
           ? Math.max(
               0,
               Math.floor(
-                (new Date() - echeance) / (1000 * 60 * 60 * 24)
+                (new Date() - echeance) /
+                  (1000 * 60 * 60 * 24)
               )
             )
           : 0;
@@ -408,7 +409,9 @@ function CommandesInner() {
           montantTtc: Number(c.montant_ttc) || 0,
           service: dmd?.service || "",
           observation:
-            c.observation_facture || c.observation || "",
+            c.observation_facture ||
+            c.observation ||
+            "",
         };
       })
       .sort((a, b) => b.joursRetard - a.joursRetard);
@@ -433,7 +436,7 @@ function CommandesInner() {
             { header: "Service demandeur", key: "service", width: 20 },
             { header: "Observation", key: "observation", width: 28 },
           ],
-          rows,
+          rows: impayees,
           currencyKeys: ["montantTtc"],
           dateKeys: ["dateFacture"],
           totalsKeys: ["montantTtc"],
@@ -605,12 +608,19 @@ function CommandesInner() {
             </h2>
 
             <div style={{ display: "flex", gap: 8 }}>
-              <div style={{ position: "relative", width: 260 }}>
+              <div
+                style={{
+                  position: "relative",
+                  width: 260,
+                }}
+              >
                 <input
                   data-search-field
                   placeholder="Rechercher (N° BC, fournisseur...)"
                   value={recherche}
-                  onChange={(e) => setRecherche(e.target.value)}
+                  onChange={(e) =>
+                    setRecherche(e.target.value)
+                  }
                   style={{
                     ...inputStyle,
                     width: "100%",
@@ -631,10 +641,15 @@ function CommandesInner() {
 
               <select
                 value={filtreStatut}
-                onChange={(e) => setFiltreStatut(e.target.value)}
+                onChange={(e) =>
+                  setFiltreStatut(e.target.value)
+                }
                 style={inputStyle}
               >
-                <option value="">Tous les statuts</option>
+                <option value="">
+                  Tous les statuts
+                </option>
+
                 {statutsDistincts.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -646,8 +661,14 @@ function CommandesInner() {
                 colonnes={[
                   { key: "created_at", label: "Date" },
                   { key: "numero", label: "N° BC" },
-                  { key: "fournisseur_nom", label: "Fournisseur" },
-                  { key: "montant_ttc", label: "Montant TTC" },
+                  {
+                    key: "fournisseur_nom",
+                    label: "Fournisseur",
+                  },
+                  {
+                    key: "montant_ttc",
+                    label: "Montant TTC",
+                  },
                   { key: "statut", label: "Statut" },
                 ]}
                 tri={tri}
@@ -716,22 +737,26 @@ function CommandesInner() {
                     new Date() > echeance;
 
                   const dmd = demandeParId[c.demande_id];
-                  const estPrestation = !!prestationParBc[c.id];
+                  const estPrestation =
+                    !!prestationParBc[c.id];
 
                   const couleurLigne =
-                    c.statut?.startsWith("Clôturée (rupture)")
+                    c.statut?.startsWith(
+                      "Clôturée (rupture)"
+                    )
                       ? "#B3261E"
                       : reception?.statut === "Totale"
-                        ? "#1B7A4C"
-                        : enRetard
-                          ? "#B3261E"
-                          : "#242322";
+                      ? "#1B7A4C"
+                      : enRetard
+                      ? "#B3261E"
+                      : "#242322";
 
                   return (
                     <tr
                       key={c.id}
                       style={{
-                        borderBottom: "1px solid #f0f0f0",
+                        borderBottom:
+                          "1px solid #f0f0f0",
                         color: couleurLigne,
                       }}
                     >
@@ -754,7 +779,9 @@ function CommandesInner() {
                           }}
                           title={
                             articlesParBc[c.id]?.length
-                              ? articlesParBc[c.id].join("\n")
+                              ? articlesParBc[c.id].join(
+                                  "\n"
+                                )
                               : "Aucun article"
                           }
                         >
@@ -780,13 +807,12 @@ function CommandesInner() {
                       </td>
 
                       <td style={tdStyle}>
-                        {Number(c.montant_ttc).toLocaleString(
-                          "fr-FR",
-                          {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          }
-                        )}{" "}
+                        {Number(
+                          c.montant_ttc
+                        ).toLocaleString("fr-FR", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
                         Ar
                       </td>
 
@@ -839,7 +865,8 @@ function CommandesInner() {
                             style={{
                               fontSize: 12,
                               color:
-                                reception.statut === "Totale"
+                                reception.statut ===
+                                "Totale"
                                   ? "#1B7A4C"
                                   : "#8A6100",
                             }}
@@ -850,15 +877,15 @@ function CommandesInner() {
                                 ? "Prestation effectuée"
                                 : "Prestation partielle"
                               : reception.receptionnaire ===
-                                  "Magasin"
-                                ? reception.statut ===
-                                  "Totale"
-                                  ? "Livré au Magasin"
-                                  : "Livré partiellement au Magasin"
-                                : reception.statut ===
-                                    "Totale"
-                                  ? "Livré"
-                                  : "Livré partiellement"}
+                                "Magasin"
+                              ? reception.statut ===
+                                "Totale"
+                                ? "Livré au Magasin"
+                                : "Livré partiellement au Magasin"
+                              : reception.statut ===
+                                "Totale"
+                              ? "Livré"
+                              : "Livré partiellement"}
 
                             {reception.receptionnaire !==
                               "Magasin" && <br />}
@@ -866,7 +893,9 @@ function CommandesInner() {
                             {reception.receptionnaire ===
                             "Import historique" ? (
                               <span
-                                style={{ color: "#1B4C7A" }}
+                                style={{
+                                  color: "#1B4C7A",
+                                }}
                                 title="Date d'import de l'historique, pas la date réelle de réception"
                               >
                                 📥 import historique
@@ -874,7 +903,9 @@ function CommandesInner() {
                             ) : reception.receptionnaire !==
                               "Magasin" ? (
                               <span
-                                style={{ color: "#999" }}
+                                style={{
+                                  color: "#999",
+                                }}
                               >
                                 par{" "}
                                 {reception.receptionnaire ||
@@ -903,24 +934,26 @@ function CommandesInner() {
                             padding: "3px 8px",
                             borderRadius: 6,
                             background:
-                              c.statut_paiement === "Payé"
+                              c.statut_paiement ===
+                              "Payé"
                                 ? "#EAF7EE"
                                 : enRetard
-                                  ? "#FDECEA"
-                                  : "#FFF3D6",
+                                ? "#FDECEA"
+                                : "#FFF3D6",
                             color:
-                              c.statut_paiement === "Payé"
+                              c.statut_paiement ===
+                              "Payé"
                                 ? "#1B7A4C"
                                 : enRetard
-                                  ? "#B3261E"
-                                  : "#8A6100",
+                                ? "#B3261E"
+                                : "#8A6100",
                           }}
                         >
                           {c.statut_paiement === "Payé"
                             ? "Payé"
                             : enRetard
-                              ? "Échéance dépassée"
-                              : "Impayé"}
+                            ? "Échéance dépassée"
+                            : "Impayé"}
                         </span>
                       </td>
 
@@ -945,7 +978,8 @@ function CommandesInner() {
                                 ? "#1B7A4C"
                                 : "#8A6100",
                             cursor: "pointer",
-                            display: "inline-flex",
+                            display:
+                              "inline-flex",
                             alignItems: "center",
                             gap: 5,
                             marginRight: 8,
@@ -960,7 +994,9 @@ function CommandesInner() {
                         </button>
 
                         <button
-                          onClick={() => supprimerBc(c)}
+                          onClick={() =>
+                            supprimerBc(c)
+                          }
                           style={{
                             ...linkBtn,
                             background: "none",
@@ -1014,3 +1050,4 @@ const clearBtn = {
   cursor: "pointer",
   padding: "2px 6px",
 };
+```
