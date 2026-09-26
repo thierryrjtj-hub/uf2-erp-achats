@@ -35,6 +35,8 @@ function CommandesInner() {
   const modeSpecial = filtreDepuisTableauDeBord || filtreSignature || filtreImpayees;
 
   const [liste, setListe] = useState([]);
+  const [selectionnes, setSelectionnes] = useState(new Set());
+  const [exportingSelection, setExportingSelection] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [receptions, setReceptions] = useState([]);
   const [demandes, setDemandes] = useState([]);
@@ -249,8 +251,17 @@ function CommandesInner() {
   const [exporting, setExporting] = useState(false);
   const exporter = async () => {
     setExporting(true);
+    // Respecte toujours le filtre affiché à l'écran (année, statut,
+    // recherche) — jamais un export complet en douce derrière le filtre.
+    let requeteExport = supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000);
+    if (rechercheEffective) {
+      const qSafe = rechercheEffective.replace(/[,()]/g, " ").trim();
+      if (qSafe) requeteExport = requeteExport.or(`numero.ilike.%${qSafe}%,fournisseur_nom.ilike.%${qSafe}%`);
+    }
+    if (filtreStatut) requeteExport = requeteExport.eq("statut", filtreStatut);
+    if (filtreAnnee !== "toutes") requeteExport = requeteExport.like("numero", `${filtreAnnee}%`);
     const [{ data: c }, { data: r }] = await Promise.all([
-      supabase.from("commandes").select("*").order("created_at", { ascending: false }).limit(10000),
+      requeteExport,
       supabase.from("receptions").select("*").limit(10000),
     ]);
     const rows = (c || []).map((cmd) => {
@@ -364,6 +375,57 @@ function CommandesInner() {
   };
 
   const resteAcharger = Math.max(0, totalCount - liste.length);
+
+  // Exporte le contenu détaillé (lignes, prix, quantités) des BC cochés dans
+  // la liste — un onglet Excel par BC, comme "Imprimer le BC" mais pour
+  // plusieurs à la fois.
+  const exporterSelectionExcel = async () => {
+    if (selectionnes.size === 0) return;
+    setExportingSelection(true);
+    const idsChoisis = [...selectionnes];
+    const [{ data: bcs }, { data: lb }] = await Promise.all([
+      supabase.from("commandes").select("id, numero, date, fournisseur_nom, statut, demande_id").in("id", idsChoisis),
+      supabase.from("lignes_bc").select("*").in("bc_id", idsChoisis),
+    ]);
+    const demandeIds = [...new Set((bcs || []).map((b) => b.demande_id).filter(Boolean))];
+    const { data: demandesLiees } = demandeIds.length
+      ? await supabase.from("demandes").select("id, numero").in("id", demandeIds)
+      : { data: [] };
+    const demandeParId = {};
+    (demandesLiees || []).forEach((d) => { demandeParId[d.id] = d; });
+
+    const sheets = (bcs || []).map((bc) => {
+      const lignesDeCeBc = (lb || []).filter((l) => l.bc_id === bc.id);
+      const dmd = bc.demande_id ? demandeParId[bc.demande_id] : null;
+      return {
+        name: bc.numero.slice(0, 31), // limite Excel : 31 caractères par nom d'onglet
+        sousTitre: `Fournisseur : ${bc.fournisseur_nom} — Date : ${formatDate(bc.date)} — Statut : ${bc.statut}${dmd?.numero ? ` — Demande : ${dmd.numero}` : ""}`,
+        columns: [
+          { header: "Désignation", key: "designation", width: 32 },
+          { header: "Qté", key: "quantite", width: 10 },
+          { header: "Unité", key: "unite", width: 10 },
+          { header: "PU HT", key: "prixUnitaireHt", width: 14 },
+          { header: "Remise %", key: "remise", width: 10 },
+          { header: "Montant HT", key: "montantHt", width: 15 },
+        ],
+        rows: lignesDeCeBc.map((l) => ({
+          designation: l.designation, quantite: Number(l.quantite) || 0, unite: l.unite,
+          prixUnitaireHt: Number(l.prix_unitaire_ht) || 0, remise: Number(l.remise_pct) || 0,
+          montantHt: Number(l.montant_ht) || 0,
+        })),
+        currencyKeys: ["prixUnitaireHt", "montantHt"],
+        percentKeys: ["remise"],
+        totalsKeys: ["montantHt"],
+      };
+    });
+
+    await exportExcel({
+      filename: `bc-selection_${new Date().toISOString().slice(0, 10)}.xlsx`,
+      titre: `UNIFOODS — Contenu de ${sheets.length} bon(s) de commande`,
+      sheets,
+    });
+    setExportingSelection(false);
+  };
   const sentinelleRef = useRef(null);
   const conteneurScrollRef = useRef(null);
 
@@ -398,6 +460,11 @@ function CommandesInner() {
             <button onClick={exporter} disabled={exporting} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" }}>
               {exporting ? "Génération..." : "Exporter en Excel"}
             </button>
+            {selectionnes.size > 0 && (
+              <button onClick={exporterSelectionExcel} disabled={exportingSelection} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B7A4C", color: "#fff", fontSize: 13, cursor: "pointer" }}>
+                {exportingSelection ? "Génération..." : `Exporter le contenu de ${selectionnes.size} BC sélectionné(s)`}
+              </button>
+            )}
             <button onClick={exporterFacturesImpayees} disabled={exportingImpayees} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #B3261E", background: "#fff", color: "#B3261E", fontSize: 13, cursor: "pointer" }} title="Rapport à envoyer au service Finance">
               {exportingImpayees ? "Génération..." : "Rapport factures impayées"}
             </button>
@@ -460,6 +527,20 @@ function CommandesInner() {
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
+              <th style={thStyle}>
+                <input
+                  type="checkbox"
+                  checked={filtrees.length > 0 && filtrees.every((c) => selectionnes.has(c.id))}
+                  onChange={(e) => {
+                    setSelectionnes((prev) => {
+                      const next = new Set(prev);
+                      filtrees.forEach((c) => (e.target.checked ? next.add(c.id) : next.delete(c.id)));
+                      return next;
+                    });
+                  }}
+                  title="Tout sélectionner"
+                />
+              </th>
               <th style={thStyle}>Date BC</th>
               <th style={{ ...thStyle, minWidth: 190 }}>N° BC</th>
               <th style={thStyle}>Fournisseur</th>
@@ -485,6 +566,19 @@ function CommandesInner() {
                 : "#242322";
               return (
                 <tr key={c.id} style={{ borderBottom: "1px solid #f0f0f0", color: couleurLigne }}>
+                  <td style={tdStyle}>
+                    <input
+                      type="checkbox"
+                      checked={selectionnes.has(c.id)}
+                      onChange={(e) => {
+                        setSelectionnes((prev) => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(c.id); else next.delete(c.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  </td>
                   <td style={tdStyle}>{formatDate(c.date)}</td>
                   <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: "nowrap" }}>
                     <Link
