@@ -950,9 +950,9 @@ export default function CommandeDetailPage() {
             <tbody>
               {accuses.map((a) => (
                 <tr key={a.id}>
-                  <td style={tdStyle}>{a.date_accuse || "-"}</td>
-                  <td style={tdStyle}>{a.date_facture || "-"}</td>
-                  <td style={tdStyle}>{a.numero_facture}</td>
+                  <td style={tdStyle}>{a.date_accuse ? formatDate(a.date_accuse) : "-"}</td>
+                  <td style={tdStyle}>{a.date_facture ? formatDate(a.date_facture) : "-"}</td>
+                  <td style={{ ...tdStyle, textTransform: "uppercase" }}>{a.numero_facture}</td>
                   <td style={tdStyle}>{a.montant ? `${Number(a.montant).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "-"}</td>
                   <td style={tdStyle}>{a.observation || "-"}</td>
                   <td style={tdStyle}><button onClick={() => supprimerAccuse(a.id)} style={{ ...linkBtn, display: "inline-flex", alignItems: "center" }} title="Supprimer"><IconTrash /></button></td>
