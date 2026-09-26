@@ -2,9 +2,10 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import Link from "next/link";
 import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
-import { inputStyle, buttonStyle, boutonSelonModif } from "../../components/ui";
+import { inputStyle, buttonStyle, boutonSelonModif, linkBtn } from "../../components/ui";
 import { useDirty } from "../../../lib/useDirty";
 
 const empty = {
@@ -94,6 +95,10 @@ function NouveauFournisseurInner() {
 
   return (
     <AuthGuard>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <button onClick={() => router.back()} style={linkBtn}>&larr; Retour</button>
+        <Link href="/fournisseurs" style={{ fontSize: 13, color: "#888" }}>Voir tous les fournisseurs</Link>
+      </div>
       <h1 style={{ fontSize: 18, marginBottom: 14 }}>{editId ? "Modifier le fournisseur" : "Ajouter un fournisseur"}</h1>
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
