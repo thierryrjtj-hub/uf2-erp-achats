@@ -23,9 +23,11 @@ export default function ControleQualitePage() {
 
   const verifier = async () => {
     setLoading(true);
-    const { data: commandes } = await supabase.from("commandes").select("id, numero, fournisseur_id, fournisseur_nom, assujetti_tva, montant_ht, montant_tva, montant_ttc, statut").limit(10000);
-    const { data: fournisseurs } = await supabase.from("fournisseurs").select("id, nom, tva_defaut_pct").limit(10000);
-    const { data: lignes } = await supabase.from("lignes_bc").select("bc_id, montant_ht").limit(20000);
+    const [{ data: commandes }, { data: fournisseurs }, { data: lignes }] = await Promise.all([
+      supabase.from("commandes").select("id, numero, fournisseur_id, fournisseur_nom, assujetti_tva, montant_ht, montant_tva, montant_ttc, statut").limit(10000),
+      supabase.from("fournisseurs").select("id, nom, tva_defaut_pct").limit(10000),
+      supabase.from("lignes_bc").select("bc_id, montant_ht").limit(20000),
+    ]);
 
     const fournisseurParId = {};
     (fournisseurs || []).forEach((f) => { fournisseurParId[f.id] = f; });
