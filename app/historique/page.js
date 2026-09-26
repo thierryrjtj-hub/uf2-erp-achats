@@ -226,7 +226,7 @@ export default function HistoriquePage() {
             { header: "Usage / Projet", key: "usage", width: 22 }, { header: "PU HT", key: "pu", width: 12 },
             { header: "Remise %", key: "remise", width: 9 }, { header: "Montant HT", key: "montantHt", width: 14 },
             { header: "Montant TTC", key: "montantTtc", width: 14 }, { header: "Total BC (TTC)", key: "totalBc", width: 14 },
-            { header: "Montant facturé (BC)", key: "montantFacture", width: 16 },
+            { header: "Montant facture fournisseur", key: "montantFacture", width: 16 },
             { header: "N° facture", key: "numeroFacture", width: 16 },
             { header: "Date facture", key: "dateFacture", width: 13 },
             { header: "Statut", key: "statut", width: 16 }, { header: "Observation", key: "observation", width: 26 },
@@ -347,7 +347,7 @@ export default function HistoriquePage() {
                     <th style={thStyle}>Montant HT</th>
                     <th style={thStyle}>Montant TTC</th>
                     <th style={thStyle}>Total BC (TTC)</th>
-                    <th style={thStyle}>Montant facturé (BC)</th>
+                    <th style={thStyle}>Montant facture fournisseur</th>
                     <th style={thStyle}>N° facture</th>
                     <th style={thStyle}>Date facture</th>
                     <th style={thStyle}>Statut</th>
