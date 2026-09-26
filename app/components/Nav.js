@@ -153,6 +153,7 @@ export default function Nav() {
             <div><strong>Entrée</strong> (comparatif, colonne PU HT) — passe à la ligne suivante, puis au fournisseur suivant</div>
             <div><strong>Échap</strong> — fermer une liste de suggestions</div>
             <div><strong>R</strong> (hors saisie) — actualiser la page</div>
+            <div><strong>B</strong> (hors saisie) — retour à la page précédente</div>
             <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.15)" }}>
               <strong>Ouvrir un onglet</strong> (hors saisie) :<br />
               T tableau de bord · D demandes (DN nouvelle, DP petite caisse, DC carburant/gaz) · C commandes ·
