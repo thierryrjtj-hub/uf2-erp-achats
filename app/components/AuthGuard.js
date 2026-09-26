@@ -9,12 +9,7 @@ export default function AuthGuard({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    console.log("🔵 AUTH : début getSession", new Date().toLocaleTimeString());
-
     supabase.auth.getSession().then(({ data }) => {
-
-      console.log("🟢 AUTH : getSession terminé", new Date().toLocaleTimeString());
-
       if (!data.session) {
         router.replace("/login");
       } else {
@@ -37,7 +32,7 @@ export default function AuthGuard({ children }) {
       const el = document.activeElement;
       if (!el) return;
       const estZoneTexte = el.tagName === "TEXTAREA";
-      if (estZoneTexte && !e.ctrlKey && !e.metaKey) return;
+      if (estZoneTexte && !e.ctrlKey && !e.metaKey) return; // Entrée = retour à la ligne dans un textarea, sauf Ctrl/Cmd+Entrée
       if (el.tagName === "INPUT" || estZoneTexte) {
         e.preventDefault();
         el.blur();
@@ -53,9 +48,12 @@ export default function AuthGuard({ children }) {
   useEffect(() => {
     const surCtrlF = (e) => {
       if (!(e.key === "f" && (e.ctrlKey || e.metaKey))) return;
+      // Toujours bloquer la recherche native du navigateur (barre flottante
+      // qui ne fait que surligner du texte) — même si la page n'a pas encore
+      // de champ de recherche à elle, sinon le navigateur reprend la main.
+      e.preventDefault();
       const champ = document.querySelector("[data-search-field]");
       if (champ) {
-        e.preventDefault();
         champ.focus();
         champ.select?.();
       }
@@ -76,25 +74,14 @@ export default function AuthGuard({ children }) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         await supabase.from("erreurs_techniques").insert({
-          message: String(message).slice(0, 2000),
-          contexte,
-          url: window.location.pathname,
-          utilisateur_id: user?.id || null,
+          message: String(message).slice(0, 2000), contexte, url: window.location.pathname, utilisateur_id: user?.id || null,
         });
       } catch {
         // si l'enregistrement de l'erreur échoue lui-même, on n'insiste pas
       }
     };
-    const surErreur = (e) =>
-      enregistrerErreur(
-        e.message || String(e.error || e),
-        "Erreur JavaScript non gérée"
-      );
-    const surRejetNonGere = (e) =>
-      enregistrerErreur(
-        e.reason?.message || String(e.reason),
-        "Promesse rejetée non interceptée"
-      );
+    const surErreur = (e) => enregistrerErreur(e.message || String(e.error || e), "Erreur JavaScript non gérée");
+    const surRejetNonGere = (e) => enregistrerErreur(e.reason?.message || String(e.reason), "Promesse rejetée non interceptée");
     window.addEventListener("error", surErreur);
     window.addEventListener("unhandledrejection", surRejetNonGere);
     return () => {
@@ -111,49 +98,28 @@ export default function AuthGuard({ children }) {
   useEffect(() => {
     const raccourcis = {
       T: "/dashboard",
-      D: "/demandes",
-      DL: "/demandes",
-      DN: "/demandes/nouvelle",
-      DP: "/petite-caisse",
-      DC: "/carburant-gaz",
+      D: "/demandes", DL: "/demandes", DN: "/demandes/nouvelle", DP: "/petite-caisse", DC: "/carburant-gaz",
       C: "/commandes",
-      H: "/historique",
-      HV: "/historique",
-      HB: "/historique/bois-chauffage",
+      H: "/historique", HV: "/historique", HB: "/historique/bois-chauffage",
       K: "/kpi",
-      F: "/fournisseurs",
-      FL: "/fournisseurs",
-      FA: "/fournisseurs/nouveau",
-      AR: "/articles",
-      ARL: "/articles",
-      ARN: "/articles/nouveau",
-      ARG: "/articles/categories",
-      AD: "/journal",
-      ADJ: "/journal",
-      ADQ: "/controle-qualite",
-      ADE: "/erreurs",
+      F: "/fournisseurs", FL: "/fournisseurs", FA: "/fournisseurs/nouveau",
+      AR: "/articles", ARL: "/articles", ARN: "/articles/nouveau", ARG: "/articles/categories",
+      AD: "/journal", ADJ: "/journal", ADQ: "/controle-qualite", ADE: "/erreurs",
       S: "/sauvegarde",
     };
-
     const raccourciActualiser = "R";
+    const raccourciRetour = "B";
     let tampon = "";
     let minuteur = null;
 
-    const aUnePossibiliteDePlus = (buf) =>
-      buf !== raccourciActualiser &&
-      (
-        raccourciActualiser.startsWith(buf) ||
-        Object.keys(raccourcis).some(
-          (k) => k !== buf && k.startsWith(buf)
-        )
-      );
-
-    const estValide = (buf) =>
-      buf === raccourciActualiser || !!raccourcis[buf];
+    const aUnePossibiliteDePlus = (buf) => buf !== raccourciActualiser && buf !== raccourciRetour && ((raccourciActualiser.startsWith(buf) || raccourciRetour.startsWith(buf)) || Object.keys(raccourcis).some((k) => k !== buf && k.startsWith(buf)));
+    const estValide = (buf) => buf === raccourciActualiser || buf === raccourciRetour || !!raccourcis[buf];
 
     const naviguer = () => {
       if (tampon === raccourciActualiser) {
         window.location.reload();
+      } else if (tampon === raccourciRetour) {
+        router.back();
       } else if (raccourcis[tampon]) {
         router.push(raccourcis[tampon]);
       }
@@ -162,21 +128,12 @@ export default function AuthGuard({ children }) {
 
     const surAppuiTouche = (e) => {
       const el = document.activeElement;
-      const dansUnChamp =
-        el &&
-        (
-          el.tagName === "INPUT" ||
-          el.tagName === "TEXTAREA" ||
-          el.tagName === "SELECT" ||
-          el.isContentEditable
-        );
-
+      const dansUnChamp = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
       if (dansUnChamp || e.ctrlKey || e.metaKey || e.altKey) return;
       if (!/^[a-zA-Z]$/.test(e.key)) return;
 
       const lettre = e.key.toUpperCase();
       const essai = tampon + lettre;
-
       if (estValide(essai) || aUnePossibiliteDePlus(essai)) {
         tampon = essai;
       } else if (estValide(lettre) || aUnePossibiliteDePlus(lettre)) {
@@ -202,58 +159,21 @@ export default function AuthGuard({ children }) {
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <Nav />
-
-      <div
-        style={{
-          flex: 1,
-          height: "100vh",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-        }}
-      >
+      <div style={{ flex: 1, height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", minWidth: 0 }}>
         <button
           onClick={() => window.location.reload()}
           className="no-print"
           title="Actualiser la page (raccourci : R)"
           style={{
-            position: "fixed",
-            top: 12,
-            right: 16,
-            zIndex: 50,
-            width: 34,
-            height: 34,
-            borderRadius: "50%",
-            border: "1px solid #DDDBD3",
-            background: "#fff",
-            color: "#1E3A34",
-            fontSize: 16,
-            cursor: "pointer",
-            boxShadow: "0 1px 3px rgba(16,24,40,0.12)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            position: "fixed", top: 12, right: 16, zIndex: 50,
+            width: 34, height: 34, borderRadius: "50%", border: "1px solid #DDDBD3",
+            background: "#fff", color: "#1E3A34", fontSize: 16, cursor: "pointer",
+            boxShadow: "0 1px 3px rgba(16,24,40,0.12)", display: "flex", alignItems: "center", justifyContent: "center",
           }}
         >
           ↻
         </button>
-
-        <div
-          className="content-pane"
-          style={{
-            flex: 1,
-            minHeight: 0,
-            minWidth: 0,
-            padding: "20px 32px 24px",
-            maxWidth: 1400,
-            margin: "0 auto",
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "auto",
-          }}
-        >
+        <div className="content-pane" style={{ flex: 1, minHeight: 0, minWidth: 0, padding: "20px 32px 24px", maxWidth: 1400, margin: "0 auto", width: "100%", display: "flex", flexDirection: "column", overflow: "auto" }}>
           {children}
         </div>
       </div>
