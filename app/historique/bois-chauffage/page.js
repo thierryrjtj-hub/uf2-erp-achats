@@ -30,8 +30,10 @@ export default function BoisChauffagePage() {
       if (boisLignes.length === 0) { setEvenements([]); setLoading(false); return; }
 
       const bcIds = [...new Set(boisLignes.map((l) => l.bc_id))];
-      const { data: commandesList } = await supabase.from("commandes").select("id, fournisseur_nom").in("id", bcIds);
-      const { data: receptionsList } = await supabase.from("receptions").select("id, bc_id, date_reception_reelle").in("bc_id", bcIds);
+      const [{ data: commandesList }, { data: receptionsList }] = await Promise.all([
+        supabase.from("commandes").select("id, fournisseur_nom").in("id", bcIds),
+        supabase.from("receptions").select("id, bc_id, date_reception_reelle").in("bc_id", bcIds),
+      ]);
       const receptionIds = (receptionsList || []).map((r) => r.id);
       let lignesReceptionList = [];
       if (receptionIds.length) {
