@@ -7,6 +7,7 @@ import { formatDate } from "../../lib/format";
 import Autocomplete from "../components/Autocomplete";
 import { inputStyle, buttonStyle } from "../components/ui";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
+import { chargerAvecCache } from "../../lib/cache";
 
 export default function HistoriquePage() {
   const [lignes, setLignes] = useState([]);
@@ -17,22 +18,45 @@ export default function HistoriquePage() {
   const [ligneSelectionnee, setLigneSelectionnee] = useState(null);
   const [tri, setTri] = useState({ colonne: "date_tri", sens: "desc" });
   const [exporting, setExporting] = useState(false);
+  const anneeActuelle = new Date().getFullYear();
+  const [filtreAnnee, setFiltreAnnee] = useState(String(anneeActuelle));
+  const anneesDisponibles = useMemo(() => {
+    const annees = [];
+    for (let a = anneeActuelle; a >= anneeActuelle - 4; a--) annees.push(String(a));
+    return annees;
+  }, [anneeActuelle]);
 
   useEffect(() => {
     (async () => {
-      // Requêtes indépendantes : toutes en parallèle plutôt qu'à la suite.
+      setLoading(true);
+      // Étape 1 : les BC et demandes de l'année choisie (réduit fortement le
+      // volume avant même de charger le détail — comme sur Commandes/Demandes).
+      let requeteCommandes = supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, montant_facture, numero_facture, date_facture, statut, date_signature, observation, mode_envoi_fournisseur, nom_coursier").limit(10000);
+      let requeteDemandes = supabase.from("demandes").select("id, numero, service, demandeur, motif_projet, statut, created_at").limit(10000);
+      if (filtreAnnee !== "toutes") {
+        requeteCommandes = requeteCommandes.like("numero", `${filtreAnnee}%`);
+        requeteDemandes = requeteDemandes.like("numero", `${filtreAnnee}%`);
+      }
+      const [{ data: bcList }, { data: demandesList }] = await Promise.all([requeteCommandes, requeteDemandes]);
+
+      const bcIds = (bcList || []).map((b) => b.id);
+      const demandeIds = (demandesList || []).map((d) => d.id);
+
+      // Étape 2 : tout ce qui dépend de ces BC/demandes, scopé à eux plutôt
+      // que de tout l'historique complet.
       const [
-        { data: bcList }, { data: lignesBc }, { data: receptionsList }, { data: lignesReceptionList },
-        { data: demandesList }, { data: lignesDemandeList }, { data: articlesList },
+        { data: lignesBc }, { data: receptionsList }, { data: lignesDemandeList }, art,
       ] = await Promise.all([
-        supabase.from("commandes").select("id, numero, date, fournisseur_nom, demande_id, assujetti_tva, montant_ttc, montant_facture, numero_facture, date_facture, statut, date_signature, observation, mode_envoi_fournisseur, nom_coursier").limit(10000),
-        supabase.from("lignes_bc").select("*").limit(10000),
-        supabase.from("receptions").select("id, bc_id, date_reception_reelle, receptionnaire, observation").limit(10000),
-        supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").limit(10000),
-        supabase.from("demandes").select("id, service, demandeur, motif_projet, statut, created_at").limit(10000),
-        supabase.from("lignes_demande").select("id, demande_id, designation, quantite, unite").limit(10000),
-        supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000),
+        bcIds.length ? supabase.from("lignes_bc").select("*").in("bc_id", bcIds).limit(10000) : Promise.resolve({ data: [] }),
+        bcIds.length ? supabase.from("receptions").select("id, bc_id, date_reception_reelle, receptionnaire, observation").in("bc_id", bcIds).limit(10000) : Promise.resolve({ data: [] }),
+        demandeIds.length ? supabase.from("lignes_demande").select("id, demande_id, designation, quantite, unite").in("demande_id", demandeIds).limit(10000) : Promise.resolve({ data: [] }),
+        chargerAvecCache("articles-categorie-historique", () => supabase.from("articles").select("designation, categorie:categories(nom)").limit(10000).then((r) => r.data)),
       ]);
+      const receptionIds = (receptionsList || []).map((r) => r.id);
+      const { data: lignesReceptionList } = receptionIds.length
+        ? await supabase.from("lignes_reception").select("reception_id, ligne_bc_id, quantite_livree").in("reception_id", receptionIds).limit(10000)
+        : { data: [] };
+      const articlesList = art;
 
       // ---- Lignes déjà passées en BC ----
       const rowsBc = (lignesBc || []).map((l) => {
@@ -108,7 +132,7 @@ export default function HistoriquePage() {
       setLignes(toutes);
       setLoading(false);
     })();
-  }, []);
+  }, [filtreAnnee]);
 
   // Suggestions combinées de toutes les colonnes textuelles, pour la barre de recherche unique
   const suggestionsRecherche = useMemo(() => {
@@ -258,6 +282,10 @@ export default function HistoriquePage() {
             <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
             <label style={{ fontSize: 12, color: "#666" }}>au</label>
             <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
+            <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title="Par défaut, seule l'année en cours est chargée">
+              {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
+              <option value="toutes">Toutes les années</option>
+            </select>
             <TriMenu
               colonnes={[
                 { key: "date_tri", label: "Date" },
