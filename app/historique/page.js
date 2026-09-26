@@ -367,7 +367,7 @@ export default function HistoriquePage() {
                       <td style={{ ...tdStyle, fontWeight: 600, ...(Math.abs((l.bc_montant_facture || 0) - (l.bc_total_ttc || 0)) > 1 ? { color: "#C85A2A" } : {}) }}>
                         {l.bc_montant_facture ? `${Number(l.bc_montant_facture).toLocaleString("fr-FR")} Ar` : "-"}
                       </td>
-                      <td style={tdStyle}>{l.bc_numero_facture}</td>
+                      <td style={{ ...tdStyle, textTransform: "uppercase" }}>{l.bc_numero_facture}</td>
                       <td style={tdStyle}>{l.bc_date_facture ? formatDate(l.bc_date_facture) : "-"}</td>
                       <td style={tdStyle}>{l.statut}</td>
                       <td style={tdStyle}>{l.observation}</td>
