@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { chargerAvecCache } from "../../../lib/cache";
+import { exportExcel } from "../../../lib/exportExcel";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import ChampPrixHT from "../../components/ChampPrixHT";
@@ -537,6 +538,39 @@ export default function CommandeDetailPage() {
   const transmissionModifiee = snapshotTransmission && JSON.stringify(transmission) !== snapshotTransmission;
   const factureModifiee = snapshotFacture && JSON.stringify(facture) !== snapshotFacture;
 
+  const [exportingBc, setExportingBc] = useState(false);
+  const exporterBcExcel = async () => {
+    setExportingBc(true);
+    const rows = lignes.map((l) => ({
+      designation: l.designation, quantite: Number(l.quantite) || 0, unite: l.unite,
+      prixUnitaireHt: Number(l.prix_unitaire_ht) || 0, remise: Number(l.remise_pct) || 0,
+      montantHt: Number(l.montant_ht) || 0,
+      livre: cumulLivre(l.id),
+    }));
+    await exportExcel({
+      filename: `${bc.numero}.xlsx`,
+      titre: `UNIFOODS — Bon de commande ${bc.numero}`,
+      sheets: [{
+        name: "Bon de commande",
+        sousTitre: `Fournisseur : ${bc.fournisseur_nom} — Date : ${formatDate(bc.date)} — Statut : ${bc.statut}${demande?.numero ? ` — Demande : ${demande.numero}` : ""}`,
+        columns: [
+          { header: "Désignation", key: "designation", width: 32 },
+          { header: "Qté", key: "quantite", width: 10 },
+          { header: "Unité", key: "unite", width: 10 },
+          { header: "PU HT", key: "prixUnitaireHt", width: 14 },
+          { header: "Remise %", key: "remise", width: 10 },
+          { header: "Montant HT", key: "montantHt", width: 15 },
+          { header: "Qté livrée", key: "livre", width: 12 },
+        ],
+        rows,
+        currencyKeys: ["prixUnitaireHt", "montantHt"],
+        percentKeys: ["remise"],
+        totalsKeys: ["montantHt"],
+      }],
+    });
+    setExportingBc(false);
+  };
+
   return (
     <AuthGuard>
       <style>{`
@@ -600,6 +634,7 @@ export default function CommandeDetailPage() {
               <button onClick={commencerEdition} style={{ ...buttonStyle, background: "#888" }}>Modifier le BC</button>
             )}
             <button onClick={() => { setModeImpression("bc"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888", display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> Imprimer le BC</button>
+            <button onClick={exporterBcExcel} disabled={exportingBc} style={{ ...buttonStyle, background: "#1B7A4C", display: "inline-flex", alignItems: "center", gap: 6 }}>{exportingBc ? "Génération..." : "Exporter en Excel"}</button>
           </div>
         </div>
 
