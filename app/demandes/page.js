@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useMemo, Suspense } from "react";
+import { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
@@ -11,6 +11,8 @@ import { useRole } from "../../lib/useRole";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 const GROUPE_TERMINAL = new Set(["Basculée en commande", "Clôturée", "Annulée", "En stand-by"]);
+const PAGE_SIZE = 100;
+const STATUTS_CONNUS = ["A faire", "Partiellement traitée", "Basculée en commande", "En stand-by", "Clôturée", "Annulée"];
 
 export default function DemandesListePage() {
   return (
@@ -25,20 +27,38 @@ function DemandesInner() {
   const searchParams = useSearchParams();
   const filtreATraiter = searchParams.get("filtre") === "a_traiter";
   const [liste, setListe] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [demandesAvecNonDispo, setDemandesAvecNonDispo] = useState(new Set());
   const [articlesParDemande, setArticlesParDemande] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadingPlus, setLoadingPlus] = useState(false);
   const [recherche, setRecherche] = useState("");
+  const [rechercheEffective, setRechercheEffective] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
   const [tri, setTri] = useState({ colonne: "defaut", sens: "desc" });
+  const anneeActuelle = new Date().getFullYear();
+  const [filtreAnnee, setFiltreAnnee] = useState(String(anneeActuelle));
+  const anneesDisponibles = useMemo(() => {
+    const annees = [];
+    for (let a = anneeActuelle; a >= anneeActuelle - 4; a--) annees.push(String(a));
+    return annees;
+  }, [anneeActuelle]);
 
-  const charger = async () => {
+  useEffect(() => {
+    const t = setTimeout(() => setRechercheEffective(recherche.trim()), 350);
+    return () => clearTimeout(t);
+  }, [recherche]);
+
+  // ---- Mode spécial (venu du Tableau de bord) : comportement inchangé,
+  // tout chargé et filtré côté client — sous-ensemble déjà restreint. ----
+  const chargerModeSpecial = async () => {
     const [{ data }, { data: nonDispo }, { data: toutesLignes }] = await Promise.all([
       supabase.from("demandes").select("*").order("created_at", { ascending: false }).limit(10000),
       supabase.from("lignes_demande").select("demande_id").eq("non_disponible_localement", true).limit(10000),
       supabase.from("lignes_demande").select("demande_id, designation, quantite, unite").limit(10000),
     ]);
     setListe(data || []);
+    setTotalCount((data || []).length);
     setDemandesAvecNonDispo(new Set((nonDispo || []).map((x) => x.demande_id)));
     const articlesMap = {};
     (toutesLignes || []).forEach((l) => {
@@ -49,11 +69,73 @@ function DemandesInner() {
     setLoading(false);
   };
 
-  useEffect(() => { charger(); }, []);
+  // ---- Mode normal : chargement par lots de 100 côté serveur, avec
+  // chargement automatique de la suite au défilement. ----
+  const chargerPage = async (remplacer) => {
+    if (remplacer) setLoading(true); else setLoadingPlus(true);
+    const decalage = remplacer ? 0 : liste.length;
+    let requete = supabase.from("demandes").select("*", { count: "exact" });
+    if (rechercheEffective) {
+      const qSafe = rechercheEffective.replace(/[,()]/g, " ").trim();
+      if (qSafe) requete = requete.or(`numero.ilike.%${qSafe}%,service.ilike.%${qSafe}%,demandeur.ilike.%${qSafe}%,motif_projet.ilike.%${qSafe}%`);
+    }
+    if (filtreStatut) requete = requete.eq("statut", filtreStatut);
+    if (filtreAnnee !== "toutes") requete = requete.like("numero", `${filtreAnnee}%`);
+    if (tri.colonne === "defaut") {
+      requete = requete.order("numero", { ascending: false });
+    } else {
+      requete = requete.order(tri.colonne, { ascending: tri.sens === "asc" });
+    }
+    requete = requete.range(decalage, decalage + PAGE_SIZE - 1);
 
-  const statutsDistincts = useMemo(() => [...new Set(liste.map((d) => d.statut).filter(Boolean))].sort(), [liste]);
+    const { data, count } = await requete;
+    setListe(remplacer ? (data || []) : [...liste, ...(data || [])]);
+    setTotalCount(count || 0);
+
+    const demandeIds = (data || []).map((d) => d.id);
+    if (demandeIds.length) {
+      const { data: lignes } = await supabase.from("lignes_demande").select("demande_id, designation, quantite, unite, non_disponible_localement").in("demande_id", demandeIds);
+      const nonDispoSet = new Set((lignes || []).filter((l) => l.non_disponible_localement).map((l) => l.demande_id));
+      const articlesMap = {};
+      (lignes || []).forEach((l) => {
+        if (!articlesMap[l.demande_id]) articlesMap[l.demande_id] = [];
+        articlesMap[l.demande_id].push(`${l.designation} (${l.quantite} ${l.unite})`);
+      });
+      setDemandesAvecNonDispo((prev) => (remplacer ? nonDispoSet : new Set([...prev, ...nonDispoSet])));
+      setArticlesParDemande((prev) => (remplacer ? articlesMap : { ...prev, ...articlesMap }));
+    } else if (remplacer) {
+      setDemandesAvecNonDispo(new Set());
+      setArticlesParDemande({});
+    }
+    setLoading(false);
+    setLoadingPlus(false);
+  };
+
+  const charger = () => (filtreATraiter ? chargerModeSpecial() : chargerPage(true));
+
+  useEffect(() => { if (filtreATraiter) chargerModeSpecial(); }, [filtreATraiter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!filtreATraiter) chargerPage(true); }, [filtreATraiter, rechercheEffective, filtreStatut, filtreAnnee, tri]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const resteAcharger = Math.max(0, totalCount - liste.length);
+  const sentinelleRef = useRef(null);
+  const conteneurScrollRef = useRef(null);
+
+  useEffect(() => {
+    if (filtreATraiter || resteAcharger <= 0) return;
+    const cible = sentinelleRef.current;
+    if (!cible) return;
+    const observateur = new IntersectionObserver(
+      (entrees) => {
+        if (entrees[0].isIntersecting && !loadingPlus && !loading) chargerPage(false);
+      },
+      { root: conteneurScrollRef.current, rootMargin: "200px" }
+    );
+    observateur.observe(cible);
+    return () => observateur.disconnect();
+  }, [filtreATraiter, resteAcharger, loadingPlus, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtrees = useMemo(() => {
+    if (!filtreATraiter) return liste;
     const q = recherche.trim().toLowerCase();
     const base = liste.filter((d) => {
       const okRecherche = !q || [d.numero, d.service, d.demandeur, d.motif_projet].some((v) => (v || "").toLowerCase().includes(q));
@@ -61,17 +143,12 @@ function DemandesInner() {
       if (filtreATraiter && GROUPE_TERMINAL.has(d.statut)) return false;
       return okRecherche && okStatut;
     });
-    // Ordre par défaut : dernier N° en haut (les demandes importées depuis
-    // l'historique s'alignent ainsi derrière celles créées dans l'appli selon
-    // leur vrai numéro, pas selon la date d'import), en regroupant d'abord les
-    // demandes actives puis les basculées/clôturées/annulées à la fin (tri
-    // stable : l'ordre par numéro est conservé à l'intérieur de chaque groupe).
     const preTrie = [...base].sort((a, b) => (b.numero || "").localeCompare(a.numero || ""));
     if (tri.colonne === "defaut") {
       return preTrie.sort((a, b) => (GROUPE_TERMINAL.has(a.statut) ? 1 : 0) - (GROUPE_TERMINAL.has(b.statut) ? 1 : 0));
     }
     return appliquerTri(preTrie, tri);
-  }, [liste, recherche, filtreStatut, tri, filtreATraiter]);
+  }, [filtreATraiter, liste, recherche, filtreStatut, tri]);
 
   const copierPourDevis = async (d) => {
     const { data: lignesDeLaDemande } = await supabase.from("lignes_demande").select("*").eq("demande_id", d.id).order("created_at");
@@ -154,11 +231,6 @@ function DemandesInner() {
     charger();
   };
 
-  // Met une demande de côté (ex: risque de surstock, doublon temporaire à
-  // vérifier...) sans l'annuler — elle sort de "à traiter" mais reste
-  // visible et réactivable à tout moment. Chaque bascule (mise en stand-by
-  // et reprise) laisse une trace horodatée, permanente et jamais effacée,
-  // dans historique_stand_by — distincte de l'observation libre, éditable.
   const standByDemande = async (d) => {
     const dateDuJour = new Date().toLocaleDateString("fr-FR");
     if (d.statut === "En stand-by") {
@@ -191,7 +263,9 @@ function DemandesInner() {
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <h1 style={{ fontSize: 18, marginBottom: 14, flexShrink: 0 }}>Liste des demandes ({filtrees.length} / {liste.length})</h1>
+        <h1 style={{ fontSize: 18, marginBottom: 14, flexShrink: 0 }}>
+          {filtreATraiter ? `Liste des demandes (${filtrees.length} / ${liste.length})` : `Liste des demandes (${liste.length} chargées / ${totalCount} au total${filtreAnnee !== "toutes" ? `, année ${filtreAnnee}` : ""})`}
+        </h1>
 
         {filtreATraiter && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#E8F0FA", color: "#1B4C7A", borderRadius: 8, padding: "8px 14px", marginBottom: 12, fontSize: 13, flexShrink: 0 }}>
@@ -208,8 +282,14 @@ function DemandesInner() {
             </div>
             <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)} style={inputStyle}>
               <option value="">Tous les statuts</option>
-              {statutsDistincts.map((s) => <option key={s} value={s}>{s}</option>)}
+              {STATUTS_CONNUS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+            {!filtreATraiter && (
+              <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title="Par défaut, seule l'année en cours est affichée">
+                {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
+                <option value="toutes">Toutes les années</option>
+              </select>
+            )}
             <TriMenu
               colonnes={[
                 { key: "created_at", label: "Date" },
@@ -224,7 +304,7 @@ function DemandesInner() {
 
           {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
           {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour ces filtres.</p>}
-          <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          <div ref={conteneurScrollRef} style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
@@ -303,6 +383,11 @@ function DemandesInner() {
                 ))}
               </tbody>
             </table>
+            {!filtreATraiter && resteAcharger > 0 && (
+              <div ref={sentinelleRef} style={{ display: "flex", justifyContent: "center", padding: 12, fontSize: 12, color: "#999" }}>
+                {loadingPlus ? "Chargement de la suite..." : `${resteAcharger} de plus en bas...`}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -317,5 +402,4 @@ function prioriteCouleur(p) {
 }
 
 const linkBtnBleu = { border: "1px solid #ddd", background: "#fff", color: "#1B2430", fontSize: 12, cursor: "pointer", padding: "6px 10px", borderRadius: 6, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 };
-const rowStyle = { display: "flex", alignItems: "center", gap: 12, padding: "10px 4px", borderBottom: "1px solid #f0f0f0" };
 const clearBtn = { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, lineHeight: 1, color: "#999", cursor: "pointer", padding: "2px 6px" };
