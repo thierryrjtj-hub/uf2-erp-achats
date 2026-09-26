@@ -86,6 +86,7 @@ export default function TCODetailPage() {
   const [orientationManuelle, setOrientationManuelle] = useState("");
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState({});
+  const [selectionManuelle, setSelectionManuelle] = useState(new Set());
   const [generating, setGenerating] = useState(false);
   const [modeImpression, setModeImpression] = useState("comparatif");
   const [sauvegardesPrixEnCours, setSauvegardesPrixEnCours] = useState(0);
@@ -203,25 +204,37 @@ export default function TCODetailPage() {
     return { ht, tva, ttc: ht + tva };
   }, [selection, offresAvecTotaux, lignesDemande]);
 
+  // Le fournisseur retenu par défaut pour chaque ligne suit TOUJOURS le moins
+  // cher actuel, même après le premier choix — sauf si l'acheteur a lui-même
+  // choisi un autre fournisseur via le bouton radio (selectionManuelle), ce
+  // choix-là n'est jamais écrasé automatiquement. Sans ce principe, une fois
+  // qu'un premier fournisseur "moins cher" est retenu, il restait figé même
+  // si un fournisseur ajouté plus tard s'avérait moins cher — un vrai risque
+  // à la génération du BC.
   useEffect(() => {
     setSelection((prev) => {
       const next = { ...prev };
       let changed = false;
       for (const ld of lignesDemande) {
-        const valide = next[ld.id] && offresAvecTotaux.some((o) => o.id === next[ld.id] && montantLigne(o, ld) != null);
-        if (!valide) {
-          if (moinsCherParLigne[ld.id]) {
-            next[ld.id] = moinsCherParLigne[ld.id];
-            changed = true;
-          } else if (next[ld.id]) {
-            delete next[ld.id];
-            changed = true;
+        if (selectionManuelle.has(ld.id)) {
+          // Choix manuel : ne le remplace que s'il devient réellement invalide.
+          const valide = next[ld.id] && offresAvecTotaux.some((o) => o.id === next[ld.id] && montantLigne(o, ld) != null);
+          if (!valide) {
+            if (moinsCherParLigne[ld.id]) { next[ld.id] = moinsCherParLigne[ld.id]; changed = true; }
+            else if (next[ld.id]) { delete next[ld.id]; changed = true; }
           }
+          continue;
+        }
+        // Pas de choix manuel : toujours aligné sur le moins cher actuel.
+        const cible = moinsCherParLigne[ld.id] || undefined;
+        if (next[ld.id] !== cible) {
+          if (cible) next[ld.id] = cible; else delete next[ld.id];
+          changed = true;
         }
       }
       return changed ? next : prev;
     });
-  }, [offresAvecTotaux, lignesDemande, moinsCherParLigne]);
+  }, [offresAvecTotaux, lignesDemande, moinsCherParLigne, selectionManuelle]);
 
   const ajouterFournisseur = async (fournisseurId) => {
     const f = fournisseurs.find((x) => x.id === fournisseurId);
@@ -374,6 +387,14 @@ export default function TCODetailPage() {
   };
 
   const genererBC = async () => {
+    // Sécurité : si le focus est encore sur un champ de saisie (prix, remise...)
+    // au moment du clic, force sa validation immédiate et laisse le temps à
+    // React de recalculer le moins cher avant de générer quoi que ce soit —
+    // pour ne jamais générer les BC sur un choix pas encore à jour.
+    if (document.activeElement && document.activeElement !== document.body) {
+      document.activeElement.blur();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    }
     const groupes = {};
     for (const ld of lignesDemande) {
       if (dejaCouvertes.has(ld.id)) continue;
@@ -861,7 +882,10 @@ export default function TCODetailPage() {
                                 name={`ligne-${ld.id}`}
                                 checked={retenu}
                                 disabled={!disponible || couverte}
-                                onChange={() => setSelection((prev) => ({ ...prev, [ld.id]: o.id }))}
+                                onChange={() => {
+                                  setSelection((prev) => ({ ...prev, [ld.id]: o.id }));
+                                  setSelectionManuelle((prev) => new Set(prev).add(ld.id));
+                                }}
                                 title="Retenir ce fournisseur pour cet article"
                               />
                               <ChampPrixHT
