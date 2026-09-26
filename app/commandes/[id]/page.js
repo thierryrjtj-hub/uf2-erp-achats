@@ -196,6 +196,19 @@ export default function CommandeDetailPage() {
 
   // Corrige une réception déjà enregistrée : la date réelle (heure d'origine
   // conservée) et/ou les quantités livrées ligne par ligne.
+  // Bloque l'enregistrement en expliquant pourquoi, ET amène directement au
+  // champ Observation du BC (en haut de la fiche) pour le remplir — plutôt
+  // que de laisser l'utilisateur chercher ce champ tout seul depuis un
+  // endroit de la page où il n'est pas visible (ex. la section réception).
+  const bloquerEtFocaliserObservation = (message) => {
+    alert(message);
+    const champ = document.getElementById("observation-bc");
+    if (champ) {
+      champ.scrollIntoView({ behavior: "smooth", block: "center" });
+      champ.focus();
+    }
+  };
+
   const enregistrerEditionReception = async (r) => {
     // Même règle que pour une nouvelle réception : si la quantité livrée
     // (après modification) laisse un écart avec la quantité commandée
@@ -208,7 +221,7 @@ export default function CommandeDetailPage() {
       return (cumulAutresReceptions + nouvelleQte) !== Number(ligneBc.quantite);
     });
     if (ecartSansExplication && !observation.trim()) {
-      alert("La quantité livrée modifiée laisse un écart avec la quantité commandée — merci de préciser pourquoi dans l'observation du BC avant d'enregistrer.");
+      bloquerEtFocaliserObservation("La quantité livrée modifiée laisse un écart avec la quantité commandée — merci de préciser pourquoi dans l'observation du BC avant d'enregistrer.");
       return;
     }
     if (receptionEditee.date) {
@@ -924,7 +937,7 @@ export default function CommandeDetailPage() {
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
           <h2 style={{ fontSize: 15, marginBottom: 8 }}>Observation (visible dans l'Historique)</h2>
-          <input data-casse-normale placeholder="Observation" value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+          <input id="observation-bc" data-casse-normale placeholder="Observation" value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
           <p style={{ fontSize: 11, color: "#999", marginTop: 6 }}>Se remplit automatiquement à chaque étape (si vide), mais reste modifiable — plus jamais écrasée une fois que tu l'as personnalisée.</p>
         </div>
 
