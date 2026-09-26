@@ -228,7 +228,7 @@ export default function TCODetailPage() {
     if (!f) return;
     const { data: offre } = await supabase
       .from("offres")
-      .insert({ demande_id: id, fournisseur_id: f.id, fournisseur_nom: f.nom, assujetti_tva: f.tva_defaut_pct !== 0 })
+      .insert({ demande_id: id, fournisseur_id: f.id, fournisseur_nom: f.nom, assujetti_tva: f.tva_defaut_pct !== 0, date_devis: new Date().toISOString().slice(0, 10) })
       .select()
       .single();
     if (offre) {
