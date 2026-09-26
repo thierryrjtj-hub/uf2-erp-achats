@@ -94,36 +94,30 @@ export default function TCODetailPage() {
   const [emetteur, setEmetteur] = useState({ nom: "Judicaël RANDRIANAIVO", fonction: "Buyer" });
 
   const charger = async () => {
-    const { data: d } = await supabase.from("demandes").select("*").eq("id", id).single();
-    const { data: ld } = await supabase.from("lignes_demande").select("*").eq("demande_id", id).order("created_at");
-    const { data: f } = await supabase.from("fournisseurs").select("*").order("nom").limit(10000);
-    const { data: o } = await supabase.from("offres").select("*").eq("demande_id", id);
-    const { data: art } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
-    let lo = [];
-    if (o && o.length) {
-      const { data } = await supabase.from("lignes_offre").select("*").in("offre_id", o.map((x) => x.id));
-      lo = data || [];
-    }
+    // Étape 1 : tout ce qui ne dépend que de l'id de la demande, en parallèle.
+    const [{ data: d }, { data: ld }, { data: f }, { data: o }, { data: art }, { data: bcs }] = await Promise.all([
+      supabase.from("demandes").select("*").eq("id", id).single(),
+      supabase.from("lignes_demande").select("*").eq("demande_id", id).order("created_at"),
+      supabase.from("fournisseurs").select("*").order("nom").limit(10000),
+      supabase.from("offres").select("*").eq("demande_id", id),
+      supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000),
+      supabase.from("commandes").select("id, numero, fournisseur_nom, statut").eq("demande_id", id),
+    ]);
+    // Étape 2 : tout ce qui dépend des résultats ci-dessus, à nouveau en parallèle.
+    const [{ data: lo }, { data: profilCreateur }, { data: dejaBc }] = await Promise.all([
+      (o && o.length) ? supabase.from("lignes_offre").select("*").in("offre_id", o.map((x) => x.id)) : Promise.resolve({ data: [] }),
+      d?.created_by ? supabase.from("profiles").select("nom").eq("id", d.created_by).maybeSingle() : Promise.resolve({ data: null }),
+      (ld && ld.length) ? supabase.from("lignes_bc").select("ligne_demande_id").in("ligne_demande_id", ld.map((x) => x.id)) : Promise.resolve({ data: [] }),
+    ]);
     setDemande(d);
-    if (d?.created_by) {
-      const { data: profilCreateur } = await supabase.from("profiles").select("nom").eq("id", d.created_by).maybeSingle();
-      setNomCreateurDemande(profilCreateur?.nom || "");
-    } else {
-      setNomCreateurDemande("");
-    }
+    setNomCreateurDemande(profilCreateur?.nom || "");
     setNotesTco({ remarque: d?.tco_remarque || "" });
     setLignesDemande(ld || []);
     setArticlesBase(art || []);
     setFournisseurs(f || []);
     setOffres(o || []);
-    setLignesOffre(lo);
-    if (ld && ld.length) {
-      const { data: dejaBc } = await supabase.from("lignes_bc").select("ligne_demande_id").in("ligne_demande_id", ld.map((x) => x.id));
-      setDejaCouvertes(new Set((dejaBc || []).map((x) => x.ligne_demande_id)));
-    } else {
-      setDejaCouvertes(new Set());
-    }
-    const { data: bcs } = await supabase.from("commandes").select("id, numero, fournisseur_nom, statut").eq("demande_id", id);
+    setLignesOffre(lo || []);
+    setDejaCouvertes(new Set((dejaBc || []).map((x) => x.ligne_demande_id)));
     setBcGeneres(bcs || []);
     setLoading(false);
   };
