@@ -190,7 +190,7 @@ export default function HistoriquePage() {
       dateDa: l.date_da, article: l.designation, qte: Number(l.quantite), qteLivree: l.bc_numero !== "-" ? Number(l.quantite_livree) : "", unite: l.unite,
       fournisseur: l.fournisseur_nom, bc: l.bc_numero, dateBc: l.bc_date, dateSignature: l.date_signature, dateReception: l.date_reception,
       receptionnaire: l.receptionnaire, modeEnvoi: l.mode_envoi, etat: l.etat_livraison, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
-      pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: l.remise_pct != null ? Number(l.remise_pct) : "",
+      pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: Number(l.remise_pct) ? Number(l.remise_pct) : "",
       montantHt: Number(l.montant_ht) || 0, montantTtc: Number(l.montant_ttc) || 0, totalBc: Number(l.bc_total_ttc) || 0,
       montantFacture: Number(l.bc_montant_facture) || 0,
       numeroFacture: l.bc_numero_facture !== "-" ? l.bc_numero_facture : "",
@@ -388,7 +388,7 @@ export default function HistoriquePage() {
                       <td style={tdStyle}>{l.demandeur || "-"}</td>
                       <td style={tdStyle}>{l.usage_projet || "-"}</td>
                       <td style={tdStyle}>{l.prix_unitaire_ht != null ? `${Number(l.prix_unitaire_ht).toLocaleString("fr-FR")} Ar` : "-"}</td>
-                      <td style={tdStyle}>{l.remise_pct != null ? `${l.remise_pct}%` : "-"}</td>
+                      <td style={tdStyle}>{Number(l.remise_pct) ? `${l.remise_pct}%` : ""}</td>
                       <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR")} Ar</td>
                       <td style={tdStyle}>{Number(l.montant_ttc).toLocaleString("fr-FR")} Ar</td>
                       <td style={{ ...tdStyle, fontWeight: 600 }}>{l.bc_total_ttc ? `${Number(l.bc_total_ttc).toLocaleString("fr-FR")} Ar` : "-"}</td>
