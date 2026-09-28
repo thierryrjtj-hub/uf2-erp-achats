@@ -15,6 +15,7 @@ import { thStyle, tdStyle, linkBtn, buttonStyle, inputStyle, boutonSelonModif } 
 import { IconPrint, IconTrash } from "../../components/Icons";
 import { montantEnLettresAriary } from "../../../lib/nombreEnLettres";
 import { formatDate } from "../../../lib/format";
+import { useLangue, libelleStatut } from "../../../lib/i18n";
 
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
 const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins", "Prestation / Travaux"];
@@ -28,6 +29,7 @@ export default function CommandeDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const role = useRole();
+  const { t } = useLangue();
   const userId = useUserId();
   const [nomCreateurBc, setNomCreateurBc] = useState("");
   const [articlesBase, setArticlesBase] = useState([]);
@@ -66,6 +68,7 @@ export default function CommandeDetailPage() {
   const [enregistrement, setEnregistrement] = useState(false);
   const [modeImpression, setModeImpression] = useState("bc");
   const [onglet, setOnglet] = useState("bc");
+  const [exportingBc, setExportingBc] = useState(false);
 
   const charger = async () => {
     // Étape 1 : tout ce qui ne dépend que de l'id du BC, en parallèle.
@@ -193,6 +196,22 @@ export default function CommandeDetailPage() {
     return estPrestation ? "Prestation non effectuée" : "Non livré";
   };
 
+  // Affichage traduit des valeurs qui restent en français dans la base et dans la logique.
+  const libelleEtat = (etat) => ({
+    "Clôturé (rupture)": t("bc_etat_cloture_rupture"), "Prestation effectuée": t("cmd_prestation_effectuee"),
+    "Livré": t("cmd_livre"), "Prestation partielle": t("cmd_prestation_partielle"),
+    "Livré partiellement": t("cmd_livre_partiel"), "Prestation non effectuée": t("cmd_prestation_non"),
+    "Non livré": t("cmd_non_livre"),
+  }[etat] || etat);
+  const libelleReceptionnaire = (r) => ({
+    "Magasin": t("bc_recept_magasin"), "Direction": t("bc_recept_direction"), "Site travaux": t("bc_recept_site"),
+    "Prestataire": t("bc_recept_prestataire"), "Autre": t("bc_recept_autre"),
+  }[r] || r);
+  const libelleMode = (m) => ({
+    "Livraison fournisseur": t("bc_mode_livraison_fournisseur"), "Enlèvement par nos soins": t("bc_mode_enlevement"),
+    "Prestation / Travaux": t("bc_mode_prestation"),
+  }[m] || m);
+
   const majQuantiteSaisie = (ligneBcId, val) => setQuantitesSaisie((prev) => ({ ...prev, [ligneBcId]: val }));
 
   // Corrige une réception déjà enregistrée : la date réelle (heure d'origine
@@ -222,7 +241,7 @@ export default function CommandeDetailPage() {
       return (cumulAutresReceptions + nouvelleQte) !== Number(ligneBc.quantite);
     });
     if (ecartSansExplication && !observation.trim()) {
-      bloquerEtFocaliserObservation("La quantité livrée modifiée laisse un écart avec la quantité commandée — merci de préciser pourquoi dans l'observation du BC avant d'enregistrer.");
+      bloquerEtFocaliserObservation(t("bc_alert_ecart_modif"));
       return;
     }
     if (receptionEditee.date) {
@@ -257,8 +276,8 @@ export default function CommandeDetailPage() {
     const ecartSurplus = lignesAvecSaisie.some((l) => cumulLivre(l.id) + Number(quantitesSaisie[l.id] || 0) > Number(l.quantite));
     if ((!toutLivreApres || ecartSurplus) && !saisie.observation.trim()) {
       alert(ecartSurplus
-        ? "La quantité reçue dépasse la quantité commandée sur au moins un article — merci de préciser pourquoi dans l'observation avant d'enregistrer."
-        : "Livraison partielle — merci de préciser pourquoi (reste à livrer plus tard, fournisseur en rupture, commande arrêtée...) dans l'observation avant d'enregistrer.");
+        ? t("bc_alert_surplus")
+        : t("bc_alert_partielle"));
       setEnregistrement(false);
       return;
     }
@@ -411,7 +430,7 @@ export default function CommandeDetailPage() {
   const arreterCommandeSurReste = async () => {
     const restantes = lignes.filter((l) => cumulLivre(l.id) < Number(l.quantite));
     if (restantes.length === 0) return;
-    if (!confirm(`Arrêter cette commande sur le déjà-livré ? Une nouvelle demande d'achat sera créée avec les ${restantes.length} article(s) restant(s), à sourcer ailleurs.`)) return;
+    if (!confirm(t("bc_confirm_arreter", { n: restantes.length }))) return;
 
     const { data: nouvelleDemande } = await supabase.from("demandes").insert({
       service: demande?.service || "", demandeur: demande?.demandeur || "",
@@ -433,7 +452,7 @@ export default function CommandeDetailPage() {
   const enregistrerFacture = async () => {
     const ecart = Math.abs((Number(facture.montant_facture) || 0) - (Number(bc.montant_ttc) || 0)) > 1;
     if (ecart && !facture.observation_facture.trim()) {
-      alert("Le montant facturé diffère du montant du BC — merci de préciser la cause dans l'observation (ex. livraison partielle, commande arrêtée...) avant d'enregistrer.");
+      alert(t("bc_alert_montant_ecart"));
       return;
     }
     await supabase.from("commandes").update({
@@ -530,15 +549,14 @@ export default function CommandeDetailPage() {
     charger();
   };
 
-  if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
-  if (!bc) return <AuthGuard><p>Bon de commande introuvable.</p></AuthGuard>;
+  if (loading) return <AuthGuard><p>{t("chargement")}</p></AuthGuard>;
+  if (!bc) return <AuthGuard><p>{t("bc_introuvable")}</p></AuthGuard>;
 
   const resteGlobal = lignes.some((l) => cumulLivre(l.id) < Number(l.quantite));
   const derniere = receptions[receptions.length - 1];
   const transmissionModifiee = snapshotTransmission && JSON.stringify(transmission) !== snapshotTransmission;
   const factureModifiee = snapshotFacture && JSON.stringify(facture) !== snapshotFacture;
 
-  const [exportingBc, setExportingBc] = useState(false);
   const exporterBcExcel = async () => {
     setExportingBc(true);
     const rows = lignes.map((l) => ({
@@ -589,14 +607,14 @@ export default function CommandeDetailPage() {
         @media print { .bc-template.print-area { display: flex !important; } }
       `}</style>
 
-      <button onClick={() => router.back()} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; Retour</button>
+      <button onClick={() => router.back()} style={{ ...linkBtn, marginBottom: 16 }} className="no-print">&larr; {t("retour")}</button>
 
       <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {[
-          { id: "bc", label: "Bon de commande" },
-          { id: "reception", label: `Réception${resteGlobal ? "" : " ✓"}` },
-          { id: "suivi", label: "Suivi & Transmission" },
-          { id: "facture", label: "Facture & Paiement" },
+          { id: "bc", label: t("bc_tab_bc") },
+          { id: "reception", label: `${t("cmd_h_reception")}${resteGlobal ? "" : " ✓"}` },
+          { id: "suivi", label: t("bc_tab_suivi") },
+          { id: "facture", label: t("bc_tab_facture") },
         ].map((o) => (
           <button
             key={o.id}
@@ -625,35 +643,35 @@ export default function CommandeDetailPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
           <div>
             <h1 style={{ fontSize: 20, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
-              <img src="/logo.png" alt="UNIFOODS" style={{ height: 32 }} /> — Bon de commande
+              <img src="/logo.png" alt="UNIFOODS" style={{ height: 32 }} /> — {t("bc_tab_bc")}
             </h1>
             <p style={{ fontSize: 14, color: "#666" }}>{bc.numero} — {formatDate(bc.date)}</p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} className="no-print">
             {role === "acheteur" && !modeEdition && (
-              <button onClick={commencerEdition} style={{ ...buttonStyle, background: "#888" }}>Modifier le BC</button>
+              <button onClick={commencerEdition} style={{ ...buttonStyle, background: "#888" }}>{t("bc_btn_modifier")}</button>
             )}
-            <button onClick={() => { setModeImpression("bc"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888", display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> Imprimer le BC</button>
-            <button onClick={exporterBcExcel} disabled={exportingBc} style={{ ...buttonStyle, background: "#1B7A4C", display: "inline-flex", alignItems: "center", gap: 6 }}>{exportingBc ? "Génération..." : "Exporter en Excel"}</button>
+            <button onClick={() => { setModeImpression("bc"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888", display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> {t("bc_btn_imprimer")}</button>
+            <button onClick={exporterBcExcel} disabled={exportingBc} style={{ ...buttonStyle, background: "#1B7A4C", display: "inline-flex", alignItems: "center", gap: 6 }}>{exportingBc ? t("generation") : t("btn_exporter_excel")}</button>
           </div>
         </div>
 
-        <p style={{ fontSize: 14, marginBottom: 16 }}><strong>Fournisseur :</strong> {bc.fournisseur_id ? <Link href={`/fournisseurs/nouveau?id=${bc.fournisseur_id}`} style={{ color: "#1B4C7A" }}>{bc.fournisseur_nom}</Link> : bc.fournisseur_nom}</p>
+        <p style={{ fontSize: 14, marginBottom: 16 }}><strong>{t("col_fournisseur")} :</strong> {bc.fournisseur_id ? <Link href={`/fournisseurs/nouveau?id=${bc.fournisseur_id}`} style={{ color: "#1B4C7A" }}>{bc.fournisseur_nom}</Link> : bc.fournisseur_nom}</p>
 
         {demande && (
           <p className="no-print" style={{ fontSize: 13, marginBottom: 16 }}>
-            <strong>Demande d'origine :</strong>{" "}
+            <strong>{t("bc_demande_origine")}</strong>{" "}
             <Link href={`/demandes/${demande.id}`} style={{ color: "#1E3A34", textDecoration: "underline" }}>{demande.numero}</Link>
             {demande.numero_tco && <> — TCO {demande.numero_tco}</>}
           </p>
         )}
 
         <div className="no-print" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
-          <label style={{ fontSize: 12, color: "#666" }} title="Utilisé pour le BC imprimé. Pré-rempli depuis la demande liée si elle existe, sinon à saisir ici (BC direct).">Objet (pour le BC imprimé) :</label>
-          <input placeholder={demande?.motif_projet || "Objet"} value={objet} onChange={(e) => setObjet(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
-          <label style={{ fontSize: 12, color: "#666" }}>Utilisateur Final :</label>
-          <input placeholder={demande?.service || "Utilisateur final"} value={utilisateurFinal} onChange={(e) => setUtilisateurFinal(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
-          <button onClick={enregistrerSignatureObservation} style={{ ...buttonStyle, background: "#888" }}>Enregistrer</button>
+          <label style={{ fontSize: 12, color: "#666" }} title={t("bc_objet_info")}>{t("bc_objet_label")}</label>
+          <input placeholder={demande?.motif_projet || t("bc_ph_objet")} value={objet} onChange={(e) => setObjet(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+          <label style={{ fontSize: 12, color: "#666" }}>{t("bc_utilisateur_final_label")}</label>
+          <input placeholder={demande?.service || t("bc_ph_utilisateur_final")} value={utilisateurFinal} onChange={(e) => setUtilisateurFinal(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+          <button onClick={enregistrerSignatureObservation} style={{ ...buttonStyle, background: "#888" }}>{t("btn_enregistrer")}</button>
         </div>
 
         {modeEdition ? (
@@ -672,12 +690,12 @@ export default function CommandeDetailPage() {
                       document.getElementById(`quantite-edit-${l.key}`)?.focus();
                       document.getElementById(`quantite-edit-${l.key}`)?.select?.();
                     }}
-                    title="Date de livraison réelle (un voyage = une ligne)"
+                    title={t("ncmd_date_reelle_info")}
                     style={{ ...inputStyle, width: 150 }}
                   />
                 )}
                 <Autocomplete
-                  placeholder="Désignation"
+                  placeholder={t("ph_designation")}
                   value={l.designation}
                   onChange={(val) => onDesignationEditChange(l.key, val)}
                   onSelect={(val) => {
@@ -689,33 +707,33 @@ export default function CommandeDetailPage() {
                   suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
                   style={{ flex: 2, minWidth: 160 }}
                 />
-                <input id={`quantite-edit-${l.key}`} type="number" placeholder="Qté" value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
-                <input placeholder="unité" value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteEditBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 90 }} />
+                <input id={`quantite-edit-${l.key}`} type="number" placeholder={t("ph_qte")} value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
+                <input placeholder={t("ph_unite")} value={l.unite} onChange={(e) => majEditLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteEditBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 90 }} />
                 <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => majEditLigne(l.key, "prix_unitaire_ht", v)} onBlurSync={(v) => onPrixEditBlur(l.designation, v)} tvaPct={bc.assujetti_tva === false ? 0 : 20} style={{ ...inputStyle, width: 110 }} />
                 {l.prix_unitaire_ht !== "" && (
                   <span style={{ fontSize: 11, color: "#888", alignSelf: "center", whiteSpace: "nowrap" }}>
                     {Number(l.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar
                   </span>
                 )}
-                <input type="number" placeholder="remise %" value={l.remise_pct === 0 ? "" : l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
-                <button onClick={() => retirerEditLigne(l.key)} style={linkBtn}>Retirer</button>
+                <input type="number" placeholder={t("ph_remise")} value={l.remise_pct === 0 ? "" : l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
+                <button onClick={() => retirerEditLigne(l.key)} style={linkBtn}>{t("btn_retirer")}</button>
               </div>
             ))}
             <div style={{ display: "flex", gap: 8, marginTop: 8, marginBottom: 20, flexWrap: "wrap" }}>
-              <button onClick={ajouterEditLigne} style={{ ...buttonStyle, background: "#888" }}>+ Ajouter une ligne</button>
+              <button onClick={ajouterEditLigne} style={{ ...buttonStyle, background: "#888" }}>{t("btn_ajouter_ligne")}</button>
               <button onClick={enregistrerEdition} disabled={enregistrementEdition} style={boutonSelonModif(JSON.stringify(editLignes) !== snapshotEditLignes)}>
-                {enregistrementEdition ? "Enregistrement..." : "Enregistrer les modifications"}
+                {enregistrementEdition ? t("enregistrement") : t("bc_btn_enregistrer_modifs")}
               </button>
-              <button onClick={() => setModeEdition(false)} style={{ ...buttonStyle, background: "#fff", color: "#1B2430", border: "1px solid #ddd" }}>Annuler</button>
+              <button onClick={() => setModeEdition(false)} style={{ ...buttonStyle, background: "#fff", color: "#1B2430", border: "1px solid #ddd" }}>{t("btn_annuler")}</button>
             </div>
           </div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 20 }}>
             <thead>
               <tr>
-                <th style={thStyle}>Article</th><th style={thStyle}>Qté</th><th style={thStyle}>Unité</th>
-                <th style={thStyle}>PU HT</th><th style={thStyle}>Remise</th><th style={thStyle}>Montant HT</th>
-                {lignes.some((l) => l.date_livraison) && <th style={thStyle}>Livré le</th>}
+                <th style={thStyle}>{t("col_article")}</th><th style={thStyle}>{t("ph_qte")}</th><th style={thStyle}>{t("col_unite")}</th>
+                <th style={thStyle}>{t("col_pu_ht")}</th><th style={thStyle}>{t("col_remise")}</th><th style={thStyle}>{t("col_montant_ht")}</th>
+                {lignes.some((l) => l.date_livraison) && <th style={thStyle}>{t("bc_h_livre_le")}</th>}
               </tr>
             </thead>
             <tbody>
@@ -735,10 +753,10 @@ export default function CommandeDetailPage() {
         )}
 
         <div style={{ marginLeft: "auto", width: 260 }}>
-          <div style={rowTotal}><span>Total HT</span><span>{Number(bc.montant_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</span></div>
-          <div style={rowTotal}><span>TVA</span><span>{bc.assujetti_tva === false ? "Non taxable" : `${Number(bc.montant_tva).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`}</span></div>
+          <div style={rowTotal}><span>{t("lbl_total_ht")}</span><span>{Number(bc.montant_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</span></div>
+          <div style={rowTotal}><span>{t("lbl_tva")}</span><span>{bc.assujetti_tva === false ? t("lbl_non_taxable") : `${Number(bc.montant_tva).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`}</span></div>
           <div style={{ ...rowTotal, fontWeight: 700, borderTop: "1px solid #ddd", paddingTop: 6 }}>
-            <span>Total TTC</span><span>{Number(bc.montant_ttc).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</span>
+            <span>{t("lbl_total_ttc")}</span><span>{Number(bc.montant_ttc).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</span>
           </div>
         </div>
       </div>
@@ -748,20 +766,20 @@ export default function CommandeDetailPage() {
       {onglet === "reception" && (
       <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <h2 style={{ fontSize: 15 }}>Réception</h2>
+          <h2 style={{ fontSize: 15 }}>{t("cmd_h_reception")}</h2>
           <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#EAF7EE" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#FFF3D6" : etatLivraison().startsWith("Clôturé") ? "#F0EFEA" : "#F0EFEA", color: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#1B7A4C" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#8A6100" : "#888" }}>
-            {etatLivraison()}
+            {libelleEtat(etatLivraison())}
           </span>
         </div>
 
         {receptions.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Historique des réceptions</div>
+            <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>{t("bc_hist_receptions")}</div>
             {receptions.map((r) => {
               const enEdition = editionReceptionId === r.id;
               return (
                 <div key={r.id} style={{ fontSize: 12, padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
-                  Le{" "}
+                  {t("bc_le")}{" "}
                   {enEdition ? (
                     <input
                       type="date"
@@ -790,20 +808,20 @@ export default function CommandeDetailPage() {
                   ) : (
                     r.lignes.map((x) => `${lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}: ${x.quantite_livree}`).join(", ")
                   )}
-                  {" "}— saisi par {r.confirme_par}
+                  {" "}— {t("bc_saisi_par", { nom: r.confirme_par })}
                   {r.observation && <span style={{ color: "#C85A2A", marginLeft: 6 }}>— {r.observation}</span>}
                   {r.receptionnaire === "Import historique" && (
-                    <span style={{ color: "#1B4C7A", marginLeft: 6 }} title="Date d'import de l'historique — pas la date réelle de réception">📥 (date d'import, pas la date réelle)</span>
+                    <span style={{ color: "#1B4C7A", marginLeft: 6 }} title={t("cmd_import_info")}>{t("bc_import_note")}</span>
                   )}
                   {" "}
                   {role === "acheteur" && (
                     enEdition ? (
                       <>
-                        <button onClick={() => enregistrerEditionReception(r)} style={{ ...linkBtn, marginLeft: 8 }}>Enregistrer</button>
-                        <button onClick={() => setEditionReceptionId(null)} style={{ ...linkBtn, marginLeft: 8, color: "#888" }}>Annuler</button>
+                        <button onClick={() => enregistrerEditionReception(r)} style={{ ...linkBtn, marginLeft: 8 }}>{t("btn_enregistrer")}</button>
+                        <button onClick={() => setEditionReceptionId(null)} style={{ ...linkBtn, marginLeft: 8, color: "#888" }}>{t("btn_annuler")}</button>
                       </>
                     ) : (
-                      <button onClick={() => { setEditionReceptionId(r.id); setReceptionEditee({ date: "", quantites: {} }); }} style={{ ...linkBtn, marginLeft: 8 }}>Modifier</button>
+                      <button onClick={() => { setEditionReceptionId(r.id); setReceptionEditee({ date: "", quantites: {} }); }} style={{ ...linkBtn, marginLeft: 8 }}>{t("btn_modifier")}</button>
                     )
                   )}
                 </div>
@@ -815,25 +833,25 @@ export default function CommandeDetailPage() {
         {resteGlobal ? (
           <>
             <p style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
-              Imprime le PV à l'avance pour le donner au magasin, ou saisis directement une nouvelle réception (partielle ou totale sur le reste).
+              {t("bc_aide_pv")}
             </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
               <select value={saisie.receptionnaire} onChange={(e) => setSaisie({ ...saisie, receptionnaire: e.target.value })} style={inputStyle}>
                 {estPrestation && demande?.demandeur && !RECEPTIONNAIRES.includes(demande.demandeur) && (
-                  <option value={demande.demandeur}>{demande.demandeur} (demandeur)</option>
+                  <option value={demande.demandeur}>{t("bc_demandeur_paren", { nom: demande.demandeur })}</option>
                 )}
-                {RECEPTIONNAIRES.map((r) => <option key={r}>{r}</option>)}
+                {RECEPTIONNAIRES.map((r) => <option key={r} value={r}>{libelleReceptionnaire(r)}</option>)}
               </select>
               {saisie.receptionnaire === "Autre" && (
-                <input placeholder="Préciser le réceptionnaire" value={saisie.receptionnaireAutre} onChange={(e) => setSaisie({ ...saisie, receptionnaireAutre: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+                <input placeholder={t("bc_ph_preciser_recept")} value={saisie.receptionnaireAutre} onChange={(e) => setSaisie({ ...saisie, receptionnaireAutre: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
               )}
               <select value={saisie.typeLivraison} onChange={(e) => setSaisie({ ...saisie, typeLivraison: e.target.value })} style={inputStyle}>
-                {TYPES_LIVRAISON.map((t) => <option key={t}>{t}</option>)}
+                {TYPES_LIVRAISON.map((m) => <option key={m} value={m}>{libelleMode(m)}</option>)}
               </select>
-              <input placeholder="N° de Bon de Livraison (BL)" value={saisie.numeroBl} onChange={(e) => setSaisie({ ...saisie, numeroBl: e.target.value })} style={{ ...inputStyle, width: 180 }} />
+              <input placeholder={t("bc_ph_bl")} value={saisie.numeroBl} onChange={(e) => setSaisie({ ...saisie, numeroBl: e.target.value })} style={{ ...inputStyle, width: 180 }} />
               <input type="date" value={saisie.dateLivraisonTerrain} onChange={(e) => setSaisie({ ...saisie, dateLivraisonTerrain: e.target.value })} style={inputStyle} />
               <input
-                data-casse-normale placeholder="Observation (obligatoire si livraison partielle ou quantité en surplus)"
+                data-casse-normale placeholder={t("bc_ph_obs_reception")}
                 value={saisie.observation}
                 onChange={(e) => setSaisie({ ...saisie, observation: e.target.value })}
                 style={{ ...inputStyle, flex: 1, minWidth: 260 }}
@@ -843,8 +861,8 @@ export default function CommandeDetailPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 12 }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Article</th><th style={thStyle}>Qté commandée</th><th style={thStyle}>Déjà livré</th>
-                  <th style={thStyle}>Reste à livrer</th><th style={thStyle}>Qté livrée maintenant</th>
+                  <th style={thStyle}>{t("col_article")}</th><th style={thStyle}>{t("bc_h_qte_commandee")}</th><th style={thStyle}>{t("bc_h_deja_livre")}</th>
+                  <th style={thStyle}>{t("bc_h_reste")}</th><th style={thStyle}>{t("bc_h_qte_maintenant")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -868,25 +886,25 @@ export default function CommandeDetailPage() {
             </table>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-              <button onClick={() => { setModeImpression("pv"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888", display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> Imprimer le PV de réception</button>
+              <button onClick={() => { setModeImpression("pv"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888", display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> {t("bc_btn_imprimer_pv")}</button>
               <button onClick={enregistrerReception} disabled={enregistrement} style={buttonStyle}>
-                {enregistrement ? "Enregistrement..." : "Enregistrer cette réception"}
+                {enregistrement ? t("enregistrement") : t("bc_btn_enregistrer_reception")}
               </button>
             </div>
 
             <div style={{ borderTop: "1px solid #eee", paddingTop: 12 }}>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <label style={{ fontSize: 12, color: "#666" }}>Date estimée du reste à livrer :</label>
+                <label style={{ fontSize: 12, color: "#666" }}>{t("bc_date_estimee_reste")}</label>
                 <input type="date" value={dateEstimeeReste} onChange={(e) => setDateEstimeeReste(e.target.value)} style={inputStyle} />
-                <button onClick={enregistrerDateEstimee} style={{ ...buttonStyle, background: "#888" }}>Enregistrer</button>
+                <button onClick={enregistrerDateEstimee} style={{ ...buttonStyle, background: "#888" }}>{t("btn_enregistrer")}</button>
                 <button onClick={arreterCommandeSurReste} style={{ ...buttonStyle, background: "#B3261E", marginLeft: "auto" }}>
-                  Arrêter la commande sur le déjà-livré (rupture fournisseur)
+                  {t("bc_btn_arreter")}
                 </button>
               </div>
             </div>
           </>
         ) : (
-          <p style={{ fontSize: 13, color: "#1B7A4C" }}>✓ Commande entièrement livrée.</p>
+          <p style={{ fontSize: 13, color: "#1B7A4C" }}>{t("bc_tout_livre")}</p>
         )}
       </div>
       )}
@@ -896,71 +914,69 @@ export default function CommandeDetailPage() {
       <div className="no-print">
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-            <h2 style={{ fontSize: 15 }}>1. Signature du BC</h2>
-            <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{bc.statut}</span>
+            <h2 style={{ fontSize: 15 }}>{t("bc_s1_titre")}</h2>
+            <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100" }}>{libelleStatut(t, bc.statut)}</span>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <div>
-              <label style={miniLabel}>Date d'envoi pour signature</label>
+              <label style={miniLabel}>{t("bc_l_envoi_signature")}</label>
               <input type="date" value={transmission.dateEnvoiSignature} onChange={(e) => majDateEnvoiSignature(e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <label style={miniLabel}>Date de retour signé</label>
+              <label style={miniLabel}>{t("bc_l_retour_signe")}</label>
               <input type="date" value={transmission.dateRetourSignature} onChange={(e) => majDateRetourSignature(e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <label style={miniLabel}>Destinataire (direction)</label>
-              <input placeholder="ex: Mayuri" value={transmission.destinataireSignature} onChange={(e) => setTransmission({ ...transmission, destinataireSignature: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+              <label style={miniLabel}>{t("bc_l_dest_direction")}</label>
+              <input placeholder={t("bc_ph_ex_mayuri")} value={transmission.destinataireSignature} onChange={(e) => setTransmission({ ...transmission, destinataireSignature: e.target.value })} style={{ ...inputStyle, width: 130 }} />
             </div>
           </div>
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12 }}>2. Envoi au fournisseur</h2>
+          <h2 style={{ fontSize: 15, marginBottom: 12 }}>{t("bc_s2_titre")}</h2>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <div>
-              <label style={miniLabel}>Date d'envoi du BC signé</label>
+              <label style={miniLabel}>{t("bc_l_envoi_fournisseur")}</label>
               <input type="date" value={transmission.dateEnvoiFournisseur} onChange={(e) => setTransmission({ ...transmission, dateEnvoiFournisseur: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <label style={miniLabel}>Mode</label>
+              <label style={miniLabel}>{t("bc_l_mode")}</label>
               <select value={transmission.modeEnvoiFournisseur} onChange={(e) => majModeOuCoursier("modeEnvoiFournisseur", e.target.value)} style={inputStyle}>
-                <option>Livraison fournisseur</option>
-                <option>Enlèvement par nos soins</option>
-                <option>Prestation / Travaux</option>
+                {TYPES_LIVRAISON.map((m) => <option key={m} value={m}>{libelleMode(m)}</option>)}
               </select>
             </div>
             {transmission.modeEnvoiFournisseur === "Enlèvement par nos soins" && (
               <div>
-                <label style={miniLabel}>Nom du coursier</label>
-                <input placeholder="Nom" value={transmission.nomCoursier} onChange={(e) => majModeOuCoursier("nomCoursier", e.target.value)} style={{ ...inputStyle, width: 150 }} />
+                <label style={miniLabel}>{t("bc_l_coursier")}</label>
+                <input placeholder={t("bc_ph_nom")} value={transmission.nomCoursier} onChange={(e) => majModeOuCoursier("nomCoursier", e.target.value)} style={{ ...inputStyle, width: 150 }} />
               </div>
             )}
           </div>
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 12 }}>3. Transmission à la comptabilité pour paiement</h2>
+          <h2 style={{ fontSize: 15, marginBottom: 12 }}>{t("bc_s3_titre")}</h2>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
             <div>
-              <label style={miniLabel}>Date d'envoi compta</label>
+              <label style={miniLabel}>{t("bc_l_envoi_compta")}</label>
               <input type="date" value={transmission.dateEnvoiPaiement} onChange={(e) => setTransmission({ ...transmission, dateEnvoiPaiement: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <label style={miniLabel}>Date disponibilité paiement</label>
+              <label style={miniLabel}>{t("bc_l_dispo_paiement")}</label>
               <input type="date" value={transmission.dateDisponibilitePaiement} onChange={(e) => setTransmission({ ...transmission, dateDisponibilitePaiement: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <label style={miniLabel}>Destinataire</label>
-              <input placeholder="ex: Compta" value={transmission.destinatairePaiement} onChange={(e) => setTransmission({ ...transmission, destinatairePaiement: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+              <label style={miniLabel}>{t("bc_l_destinataire")}</label>
+              <input placeholder={t("bc_ph_ex_compta")} value={transmission.destinatairePaiement} onChange={(e) => setTransmission({ ...transmission, destinatairePaiement: e.target.value })} style={{ ...inputStyle, width: 130 }} />
             </div>
           </div>
-          <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>Documents complets joints</div>
+          <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>{t("bc_docs_joints")}</div>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             {[
-              ["docBcSigne", "BC signé"], ["docPvReception", "PV de réception"],
-              ["docBl", "Bon de livraison (BL)"], ["docFactureFournisseur", "Facture fournisseur"],
-              ...(estPetiteCaisse ? [["docFicheDecaissement", "Fiche de décaissement petite caisse validée par la direction"]] : []),
+              ["docBcSigne", t("bc_doc_bc_signe")], ["docPvReception", t("bc_doc_pv")],
+              ["docBl", t("bc_doc_bl")], ["docFactureFournisseur", t("bc_doc_facture")],
+              ...(estPetiteCaisse ? [["docFicheDecaissement", t("bc_doc_fiche_decaissement")]] : []),
             ].map(([champ, label]) => (
               <label key={champ} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
                 <input type="checkbox" checked={transmission[champ]} onChange={(e) => setTransmission({ ...transmission, [champ]: e.target.checked })} />
@@ -971,13 +987,13 @@ export default function CommandeDetailPage() {
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-          <h2 style={{ fontSize: 15, marginBottom: 8 }}>Observation (visible dans l'Historique)</h2>
-          <input id="observation-bc" data-casse-normale placeholder="Observation" value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
-          <p style={{ fontSize: 11, color: "#999", marginTop: 6 }}>Se remplit automatiquement à chaque étape (si vide), mais reste modifiable — plus jamais écrasée une fois que tu l'as personnalisée.</p>
+          <h2 style={{ fontSize: 15, marginBottom: 8 }}>{t("bc_obs_titre")}</h2>
+          <input id="observation-bc" data-casse-normale placeholder={t("col_observation")} value={observation} onChange={(e) => setObservation(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+          <p style={{ fontSize: 11, color: "#999", marginTop: 6 }}>{t("bc_obs_aide")}</p>
         </div>
 
         <button onClick={enregistrerTransmission} style={boutonSelonModif(transmissionModifiee)}>
-          {transmissionModifiee ? "● Enregistrer le suivi (modifié)" : "Enregistrer le suivi"}
+          {transmissionModifiee ? t("bc_btn_enregistrer_suivi_modifie") : t("bc_btn_enregistrer_suivi")}
         </button>
       </div>
       )}
@@ -986,13 +1002,13 @@ export default function CommandeDetailPage() {
       {onglet === "facture" && (
       <>
       <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Accusés de réception facture</h2>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>{t("bc_accuses_titre")}</h2>
         {accuses.length > 0 && (
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 12 }}>
             <thead>
               <tr>
-                <th style={thStyle}>Date accusé</th><th style={thStyle}>Date facture</th><th style={thStyle}>N° facture</th>
-                <th style={thStyle}>Montant</th><th style={thStyle}>Observation</th><th style={thStyle}></th>
+                <th style={thStyle}>{t("bc_h_date_accuse")}</th><th style={thStyle}>{t("bc_h_date_facture")}</th><th style={thStyle}>{t("bc_h_num_facture")}</th>
+                <th style={thStyle}>{t("col_montant")}</th><th style={thStyle}>{t("col_observation")}</th><th style={thStyle}></th>
               </tr>
             </thead>
             <tbody>
@@ -1003,35 +1019,35 @@ export default function CommandeDetailPage() {
                   <td style={{ ...tdStyle, textTransform: "uppercase" }}>{a.numero_facture}</td>
                   <td style={tdStyle}>{a.montant ? `${Number(a.montant).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "-"}</td>
                   <td style={tdStyle}>{a.observation || "-"}</td>
-                  <td style={tdStyle}><button onClick={() => supprimerAccuse(a.id)} style={{ ...linkBtn, display: "inline-flex", alignItems: "center" }} title="Supprimer"><IconTrash /></button></td>
+                  <td style={tdStyle}><button onClick={() => supprimerAccuse(a.id)} style={{ ...linkBtn, display: "inline-flex", alignItems: "center" }} title={t("btn_supprimer")}><IconTrash /></button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input type="date" placeholder="Date accusé" value={nouvelAccuse.date_accuse} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, date_accuse: e.target.value })} style={inputStyle} />
-          <input type="date" placeholder="Date facture" value={nouvelAccuse.date_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, date_facture: e.target.value })} style={inputStyle} />
-          <input placeholder="N° facture" value={nouvelAccuse.numero_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, numero_facture: e.target.value })} style={{ ...inputStyle, width: 140 }} />
-          <input type="number" placeholder="Montant" value={nouvelAccuse.montant} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, montant: e.target.value })} style={{ ...inputStyle, width: 130 }} />
-          <input data-casse-normale placeholder="Observation" value={nouvelAccuse.observation} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, observation: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-          <button onClick={ajouterAccuse} style={buttonStyle}>+ Ajouter</button>
+          <input type="date" placeholder={t("bc_h_date_accuse")} value={nouvelAccuse.date_accuse} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, date_accuse: e.target.value })} style={inputStyle} />
+          <input type="date" placeholder={t("bc_h_date_facture")} value={nouvelAccuse.date_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, date_facture: e.target.value })} style={inputStyle} />
+          <input placeholder={t("bc_h_num_facture")} value={nouvelAccuse.numero_facture} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, numero_facture: e.target.value })} style={{ ...inputStyle, width: 140 }} />
+          <input type="number" placeholder={t("col_montant")} value={nouvelAccuse.montant} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, montant: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+          <input data-casse-normale placeholder={t("col_observation")} value={nouvelAccuse.observation} onChange={(e) => setNouvelAccuse({ ...nouvelAccuse, observation: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <button onClick={ajouterAccuse} style={buttonStyle}>{t("btn_ajouter")}</button>
         </div>
       </div>
 
       {/* ---- Facture / paiement ---- */}
       <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Facture et paiement</h2>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>{t("bc_facture_titre")}</h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-          <input placeholder="N° de facture" value={facture.numero_facture} onChange={(e) => setFacture({ ...facture, numero_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder={t("bc_h_num_facture")} value={facture.numero_facture} onChange={(e) => setFacture({ ...facture, numero_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <input type="date" value={facture.date_facture} onChange={(e) => setFacture({ ...facture, date_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <div>
             <input
               type="number"
-              placeholder="Montant facturé (Ar)"
+              placeholder={t("bc_ph_montant_facture")}
               value={facture.montant_facture}
               onChange={(e) => setFacture({ ...facture, montant_facture: e.target.value })}
-              title="Par défaut le montant du BC — à corriger si la facture réelle diffère (livraison partielle, commande arrêtée...)"
+              title={t("bc_montant_facture_info")}
               style={{
                 ...inputStyle, width: 160,
                 ...(Math.abs((Number(facture.montant_facture) || 0) - (Number(bc.montant_ttc) || 0)) > 1
@@ -1044,30 +1060,30 @@ export default function CommandeDetailPage() {
               </div>
             )}
             {Math.abs((Number(facture.montant_facture) || 0) - (Number(bc.montant_ttc) || 0)) > 1 && (
-              <div style={{ fontSize: 10.5, color: "#C85A2A", marginTop: 2 }}>≠ montant BC ({Number(bc.montant_ttc).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar) — observation obligatoire</div>
+              <div style={{ fontSize: 10.5, color: "#C85A2A", marginTop: 2 }}>{t("bc_ecart_montant", { montant: Number(bc.montant_ttc).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) })}</div>
             )}
           </div>
-          <span style={{ ...inputStyle, background: "#F5F4F1", color: "#555", display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }} title="Calculée automatiquement : date facture + délai de paiement du fournisseur, non modifiable ici">
-            Échéance : {facture.date_facture
+          <span style={{ ...inputStyle, background: "#F5F4F1", color: "#555", display: "inline-flex", alignItems: "center", whiteSpace: "nowrap" }} title={t("bc_echeance_info")}>
+            {t("bc_echeance_label")} {facture.date_facture
               ? formatDate(new Date(new Date(facture.date_facture).getTime() + (fournisseurDetail?.conditions_paiement_jours || 30) * 86400000).toISOString())
-              : "—"} ({fournisseurDetail?.conditions_paiement_jours || 30}j)
+              : "—"} {t("bc_delai_jours", { n: fournisseurDetail?.conditions_paiement_jours || 30 })}
           </span>
-          <input data-casse-normale placeholder="Observation (obligatoire si écart avec le montant BC)" value={facture.observation_facture} onChange={(e) => setFacture({ ...facture, observation_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input data-casse-normale placeholder={t("bc_ph_obs_facture")} value={facture.observation_facture} onChange={(e) => setFacture({ ...facture, observation_facture: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <select value={facture.statut_paiement} onChange={(e) => setFacture({ ...facture, statut_paiement: e.target.value })} style={inputStyle}>
-            <option>Impayé</option>
-            <option>Payé</option>
+            <option value="Impayé">{t("cmd_impaye")}</option>
+            <option value="Payé">{t("cmd_paye")}</option>
           </select>
           {facture.statut_paiement === "Payé" && (
             <select value={facture.mode_paiement} onChange={(e) => setFacture({ ...facture, mode_paiement: e.target.value })} style={inputStyle}>
-              <option value="">Mode de règlement...</option>
-              <option>Chèque</option>
-              <option>Espèces</option>
-              <option>Virement</option>
+              <option value="">{t("bc_mode_reglement_ph")}</option>
+              <option value="Chèque">{t("bc_reg_cheque")}</option>
+              <option value="Espèces">{t("bc_reg_especes")}</option>
+              <option value="Virement">{t("bc_reg_virement")}</option>
             </select>
           )}
         </div>
         <button onClick={enregistrerFacture} style={boutonSelonModif(factureModifiee)}>
-          {factureModifiee ? "● Enregistrer (modifié)" : "Enregistrer"}
+          {factureModifiee ? t("bc_btn_enregistrer_modifie") : t("btn_enregistrer")}
         </button>
       </div>
       </>
