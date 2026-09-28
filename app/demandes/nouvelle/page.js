@@ -2,9 +2,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
+import { chargerAvecCache } from "../../../lib/cache";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import { inputStyle, buttonStyle, linkBtn } from "../../components/ui";
+import { useLangue } from "../../../lib/i18n";
 
 const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs", date_livraison: "" });
 const aujourdHui = () => new Date().toISOString().slice(0, 10);
@@ -25,6 +27,7 @@ function prefixeParDefaut(service) {
 
 export default function NouvelleDemandePage() {
   const router = useRouter();
+  const { t } = useLangue();
   const [articlesBase, setArticlesBase] = useState([]);
   const [service, setService] = useState("");
   const [demandeur, setDemandeur] = useState("");
@@ -40,7 +43,9 @@ export default function NouvelleDemandePage() {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000);
+      const data = await chargerAvecCache("articles-liste", () =>
+        supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000).then((r) => r.data)
+      );
       setArticlesBase(data || []);
     })();
   }, []);
@@ -124,7 +129,7 @@ export default function NouvelleDemandePage() {
   // compteur qui se souvient du dernier numéro par préfixe, remis à zéro chaque année.
   const genererNumeroDa = async () => {
     const prefixe = prefixeParDefaut(service);
-    if (!prefixe) { alert("Renseigne d'abord le service demandeur pour générer un numéro."); return; }
+    if (!prefixe) { alert(t("nd_alert_service")); return; }
     setGenererNumero(true);
     const annee = Number(new Date().getFullYear().toString().slice(-2));
     const { data: n } = await supabase.rpc("next_numero_da", { p_prefixe: prefixe, p_annee: annee });
@@ -139,7 +144,7 @@ export default function NouvelleDemandePage() {
     let numeroDaFinal = numeroDa.trim();
     if (numeroDaFinal) {
       const { data: existant } = await supabase.from("demandes").select("id").ilike("numero_da", numeroDaFinal).maybeSingle();
-      if (existant && !confirm(`Le numéro DA "${numeroDaFinal}" est déjà utilisé par une autre demande. Continuer quand même ?`)) return;
+      if (existant && !confirm(t("nd_confirm_da_existant", { numero: numeroDaFinal }))) return;
     } else {
       const prefixe = prefixeParDefaut(service);
       if (prefixe) {
@@ -189,29 +194,29 @@ export default function NouvelleDemandePage() {
 
   return (
     <AuthGuard>
-      <h1 style={{ fontSize: 18, marginBottom: 14 }}>Nouvelle demande</h1>
+      <h1 style={{ fontSize: 18, marginBottom: 14 }}>{t("nav_demandes_nouvelle")}</h1>
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-          <input placeholder="Service demandeur" value={service} onChange={(e) => setService(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-          <input placeholder="Nom du demandeur" value={demandeur} onChange={(e) => setDemandeur(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
-          <input placeholder="Motif / projet" value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
+          <input placeholder={t("dem_h_service")} value={service} onChange={(e) => setService(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder={t("nd_ph_nom_demandeur")} value={demandeur} onChange={(e) => setDemandeur(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder={t("nd_ph_motif")} value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...inputStyle, flex: 2 }} />
           <select value={priorite} onChange={(e) => setPriorite(e.target.value)} style={inputStyle}>
-            <option>Haute</option><option>Moyenne</option><option>Basse</option>
+            <option value="Haute">{t("prio_haute")}</option><option value="Moyenne">{t("prio_moyenne")}</option><option value="Basse">{t("prio_basse")}</option>
           </select>
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
           <div>
-            <label style={{ fontSize: 11, color: "#999", display: "block", marginBottom: 2 }}>Date DA (date de réception physique)</label>
+            <label style={{ fontSize: 11, color: "#999", display: "block", marginBottom: 2 }}>{t("nd_l_date_da")}</label>
             <input type="date" value={dateDa} onChange={(e) => setDateDa(e.target.value)} style={inputStyle} />
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={{ fontSize: 11, color: "#999", display: "block", marginBottom: 2 }}>N° DA (numéro physique — laisser vide pour générer automatiquement)</label>
+            <label style={{ fontSize: 11, color: "#999", display: "block", marginBottom: 2 }}>{t("nd_l_numero_da")}</label>
             <div style={{ display: "flex", gap: 6 }}>
-              <input placeholder="ex: MNTC-0115-26" value={numeroDa} onChange={(e) => setNumeroDa(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+              <input placeholder={t("nd_ph_ex_da")} value={numeroDa} onChange={(e) => setNumeroDa(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
               <button type="button" onClick={genererNumeroDa} disabled={genererNumero} style={{ ...buttonStyle, background: "#888", whiteSpace: "nowrap" }}>
-                {genererNumero ? "..." : "Générer"}
+                {genererNumero ? "..." : t("nd_btn_generer")}
               </button>
             </div>
           </div>
@@ -219,13 +224,12 @@ export default function NouvelleDemandePage() {
 
         <div style={{ marginBottom: 12 }}>
           <button type="button" onClick={() => setCollageOuvert((o) => !o)} style={{ ...buttonStyle, background: "#888" }}>
-            {collageOuvert ? "Fermer le collage multiple" : "📋 Coller plusieurs articles (Excel)"}
+            {collageOuvert ? t("nd_btn_collage_ferme") : t("nd_btn_collage")}
           </button>
           {collageOuvert && (
             <div style={{ marginTop: 8, border: "1px solid #ECEBE6", borderRadius: 8, padding: 12, background: "#FAFAF8" }}>
               <p style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
-                Colle ici plusieurs lignes copiées depuis Excel : une ligne = un article, colonnes Désignation / Quantité / Unité séparées par tabulation
-                (la quantité et l'unité sont facultatives — 1 et l'unité habituelle de l'article seront utilisées si absentes).
+                {t("nd_aide_collage")}
               </p>
               <textarea
                 value={collageTexte}
@@ -234,7 +238,7 @@ export default function NouvelleDemandePage() {
                 rows={5}
                 style={{ ...inputStyle, width: "100%", fontFamily: "inherit", resize: "vertical" }}
               />
-              <button type="button" onClick={traiterCollage} style={{ ...buttonStyle, marginTop: 8 }}>Répartir en lignes</button>
+              <button type="button" onClick={traiterCollage} style={{ ...buttonStyle, marginTop: 8 }}>{t("nd_btn_repartir")}</button>
             </div>
           )}
         </div>
@@ -246,12 +250,12 @@ export default function NouvelleDemandePage() {
                 type="date"
                 value={l.date_livraison || ""}
                 onChange={(e) => updateLigne(l.key, "date_livraison", e.target.value)}
-                title="Date de livraison réelle (un voyage = une ligne)"
+                title={t("ncmd_date_reelle_info")}
                 style={{ ...inputStyle, width: 150 }}
               />
             )}
             <Autocomplete
-              placeholder="Désignation de l'article (tape pour voir les suggestions)"
+              placeholder={t("nd_ph_designation")}
               value={l.designation}
               onChange={(val) => onDesignationChange(l.key, val)}
               suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
@@ -259,20 +263,20 @@ export default function NouvelleDemandePage() {
             />
             <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
             <input
-              placeholder="unité"
+              placeholder={t("ph_unite")}
               value={l.unite}
               onChange={(e) => updateLigne(l.key, "unite", e.target.value)}
               onBlur={(e) => onUniteBlur(l.key, l.designation, e.target.value)}
               style={{ ...inputStyle, flex: 1 }}
             />
-            <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
+            <button onClick={() => removeLigne(l.key)} style={linkBtn}>{t("btn_retirer")}</button>
           </div>
         ))}
-        <button onClick={addLigne} style={{ ...buttonStyle, background: "#888", marginTop: 4 }}>+ Ajouter une ligne</button>
+        <button onClick={addLigne} style={{ ...buttonStyle, background: "#888", marginTop: 4 }}>{t("btn_ajouter_ligne")}</button>
 
         <div style={{ marginTop: 16 }}>
           <button onClick={creer} disabled={envoi} style={buttonStyle}>
-            {envoi ? "Création..." : "Créer la demande et ouvrir le TCO"}
+            {envoi ? t("ncmd_creation") : t("nd_btn_creer")}
           </button>
         </div>
       </div>
