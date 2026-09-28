@@ -543,7 +543,7 @@ export default function CommandeDetailPage() {
     setExportingBc(true);
     const rows = lignes.map((l) => ({
       designation: l.designation, quantite: Number(l.quantite) || 0, unite: l.unite,
-      prixUnitaireHt: Number(l.prix_unitaire_ht) || 0, remise: Number(l.remise_pct) || 0,
+      prixUnitaireHt: Number(l.prix_unitaire_ht) || 0, remise: Number(l.remise_pct) || "",
       montantHt: Number(l.montant_ht) || 0,
       livre: cumulLivre(l.id),
     }));
@@ -697,7 +697,7 @@ export default function CommandeDetailPage() {
                     {Number(l.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar
                   </span>
                 )}
-                <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
+                <input type="number" placeholder="remise %" value={l.remise_pct === 0 ? "" : l.remise_pct} onChange={(e) => majEditLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
                 <button onClick={() => retirerEditLigne(l.key)} style={linkBtn}>Retirer</button>
               </div>
             ))}
@@ -725,7 +725,7 @@ export default function CommandeDetailPage() {
                   <td style={tdStyle}>{l.quantite}</td>
                   <td style={tdStyle}>{l.unite}</td>
                   <td style={tdStyle}>{Number(l.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
-                  <td style={tdStyle}>{l.remise_pct} %</td>
+                  <td style={tdStyle}>{Number(l.remise_pct) ? `${l.remise_pct} %` : ""}</td>
                   <td style={tdStyle}>{Number(l.montant_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   {lignes.some((x) => x.date_livraison) && <td style={tdStyle}>{l.date_livraison ? formatDate(l.date_livraison) : ""}</td>}
                 </tr>
