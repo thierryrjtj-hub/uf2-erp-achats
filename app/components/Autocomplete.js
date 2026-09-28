@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { useLangue } from "../../lib/i18n";
 
 // Champ texte avec liste de suggestions cliquable, fiable (remplace <input list="..."> natif
 // qui pose parfois problème avec React : le clic sur une suggestion ne se validait pas toujours).
@@ -10,6 +11,7 @@ import { useState, useRef, useEffect } from "react";
 // la liste (on peut ensuite continuer la saisie vers le champ suivant avec
 // Tab) ; Échap pour fermer sans rien choisir.
 export default function Autocomplete({ value, onChange, onSelect, suggestions, placeholder, style, inputAttrs }) {
+  const { t } = useLangue();
   const [ouvert, setOuvert] = useState(false);
   const [surligne, setSurligne] = useState(0);
   const blurTimeout = useRef(null);
@@ -82,8 +84,8 @@ export default function Autocomplete({ value, onChange, onSelect, suggestions, p
           type="button"
           tabIndex={-1}
           onMouseDown={(e) => { e.preventDefault(); onChange(""); }}
-          aria-label="Effacer"
-          title="Effacer"
+          aria-label={t("effacer")}
+          title={t("effacer")}
           style={{
             position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
             border: "none", background: "none", color: "#999", cursor: "pointer",
