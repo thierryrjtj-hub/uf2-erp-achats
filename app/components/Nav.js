@@ -4,57 +4,59 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { BRAND, ACCENT } from "./ui";
+import { useLangue, changerLangue, LANGUES } from "../../lib/i18n";
 
 const LINKS = [
-  { href: "/dashboard", label: "Tableau de bord", icon: IconGrid },
+  { href: "/dashboard", cle: "nav_dashboard", icon: IconGrid },
   {
-    href: "/demandes", label: "Demandes", icon: IconFile,
+    href: "/demandes", cle: "nav_demandes", icon: IconFile,
     children: [
-      { href: "/demandes", label: "Liste des demandes" },
-      { href: "/demandes/nouvelle", label: "Nouvelle demande" },
-      { href: "/petite-caisse", label: "Achat en petite caisse" },
-      { href: "/carburant-gaz", label: "Carburant / Gaz" },
+      { href: "/demandes", cle: "nav_demandes_liste" },
+      { href: "/demandes/nouvelle", cle: "nav_demandes_nouvelle" },
+      { href: "/petite-caisse", cle: "nav_petite_caisse" },
+      { href: "/carburant-gaz", cle: "nav_carburant_gaz" },
     ],
   },
-  { href: "/commandes", label: "Commandes", icon: IconCart },
+  { href: "/commandes", cle: "nav_commandes", icon: IconCart },
   {
-    href: "/historique", label: "Historique", icon: IconClock,
+    href: "/historique", cle: "nav_historique", icon: IconClock,
     children: [
-      { href: "/historique", label: "Vue globale" },
-      { href: "/historique/bois-chauffage", label: "Bois de chauffage" },
+      { href: "/historique", cle: "nav_historique_globale" },
+      { href: "/historique/bois-chauffage", cle: "nav_bois_chauffage" },
     ],
   },
-  { href: "/kpi", label: "KPI", icon: IconChart },
+  { href: "/kpi", cle: "nav_kpi", icon: IconChart },
   {
-    href: "/fournisseurs", label: "Fournisseurs", icon: IconTruck,
+    href: "/fournisseurs", cle: "nav_fournisseurs", icon: IconTruck,
     children: [
-      { href: "/fournisseurs", label: "Liste des fournisseurs" },
-      { href: "/fournisseurs/nouveau", label: "Ajouter un fournisseur" },
-    ],
-  },
-  {
-    href: "/articles", label: "Articles", icon: IconBox,
-    children: [
-      { href: "/articles", label: "Liste des articles" },
-      { href: "/articles/nouveau", label: "Ajouter un article" },
-      { href: "/articles/categories", label: "Gérer les catégories" },
+      { href: "/fournisseurs", cle: "nav_fournisseurs_liste" },
+      { href: "/fournisseurs/nouveau", cle: "nav_fournisseurs_ajouter" },
     ],
   },
   {
-    href: "/journal", label: "Administration", icon: IconList,
+    href: "/articles", cle: "nav_articles", icon: IconBox,
     children: [
-      { href: "/journal", label: "Journal d'audit" },
-      { href: "/controle-qualite", label: "Contrôle qualité" },
-      { href: "/erreurs", label: "Journal des erreurs" },
+      { href: "/articles", cle: "nav_articles_liste" },
+      { href: "/articles/nouveau", cle: "nav_articles_ajouter" },
+      { href: "/articles/categories", cle: "nav_articles_categories" },
     ],
   },
-  { href: "/sauvegarde", label: "Sauvegarde", icon: IconSave },
+  {
+    href: "/journal", cle: "nav_administration", icon: IconList,
+    children: [
+      { href: "/journal", cle: "nav_journal" },
+      { href: "/controle-qualite", cle: "nav_controle_qualite" },
+      { href: "/erreurs", cle: "nav_erreurs" },
+    ],
+  },
+  { href: "/sauvegarde", cle: "nav_sauvegarde", icon: IconSave },
 ];
 
 export default function Nav() {
   const router = useRouter();
   const pathname = usePathname();
   const [aideOuverte, setAideOuverte] = useState(false);
+  const { langue, t } = useLangue();
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -77,7 +79,7 @@ export default function Nav() {
             <div key={l.href} className="nav-parent-item">
               <Link
                 href={l.href}
-                title={l.label}
+                title={t(l.cle)}
                 style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "9px 12px", borderRadius: 999,
@@ -89,7 +91,7 @@ export default function Nav() {
                 }}
               >
                 <Icon color={actif ? "#fff" : "#A9C2BB"} />
-                <span className="nav-label" style={{ flex: 1 }}>{l.label}</span>
+                <span className="nav-label" style={{ flex: 1 }}>{t(l.cle)}</span>
                 {actif && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", flexShrink: 0 }} />}
               </Link>
               {l.children && actif && (
@@ -109,7 +111,7 @@ export default function Nav() {
                           borderRadius: 6,
                         }}
                       >
-                        {c.label}
+                        {t(c.cle)}
                       </Link>
                     );
                   })}
@@ -123,7 +125,7 @@ export default function Nav() {
       <div style={{ padding: 14, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
         <button
           onClick={logout}
-          title="Déconnexion"
+          title={t("nav_deconnexion")}
           style={{
             width: "100%", fontSize: 13, border: "1px solid rgba(255,255,255,0.15)",
             background: "transparent", color: "#A9C2BB", padding: "9px 12px",
@@ -131,8 +133,22 @@ export default function Nav() {
           }}
         >
           <IconLogout />
-          <span className="nav-label">Déconnexion</span>
+          <span className="nav-label">{t("nav_deconnexion")}</span>
         </button>
+        <select
+          value={langue}
+          onChange={(e) => changerLangue(e.target.value)}
+          title={t("langue")}
+          aria-label={t("langue")}
+          className="no-print"
+          style={{
+            width: "100%", fontSize: 12, border: "1px solid rgba(255,255,255,0.15)",
+            background: "transparent", color: "#A9C2BB", padding: "6px 10px",
+            borderRadius: 8, cursor: "pointer", marginTop: 8, textTransform: "none",
+          }}
+        >
+          {LANGUES.map((l) => <option key={l.code} value={l.code} style={{ color: "#1B2430" }}>{l.label}</option>)}
+        </select>
         <button
           onClick={() => setAideOuverte((o) => !o)}
           className="no-print"
@@ -143,27 +159,25 @@ export default function Nav() {
             marginTop: 8,
           }}
         >
-          ⌨ <span className="nav-label">Raccourcis clavier</span>
+          ⌨ <span className="nav-label">{t("nav_raccourcis")}</span>
         </button>
         {aideOuverte && (
           <div style={{ background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: 10, marginTop: 6, fontSize: 11, color: "#D8E8E2", lineHeight: 1.6 }}>
-            <div><strong>Ctrl+F</strong> — recherche de la page</div>
-            <div><strong>↓ / ↑</strong> — naviguer les suggestions</div>
-            <div><strong>Entrée</strong> — valider le champ / la suggestion</div>
-            <div><strong>Entrée</strong> (comparatif, colonne PU HT) — passe à la ligne suivante, puis au fournisseur suivant</div>
-            <div><strong>Échap</strong> — fermer une liste de suggestions</div>
-            <div><strong>R</strong> (hors saisie) — actualiser la page</div>
-            <div><strong>B</strong> (hors saisie) — retour à la page précédente</div>
+            <div><strong>Ctrl+F</strong> — {t("aide_ctrlf")}</div>
+            <div><strong>↓ / ↑</strong> — {t("aide_fleches")}</div>
+            <div><strong>{t("touche_entree")}</strong> — {t("aide_entree")}</div>
+            <div><strong>{t("touche_entree")}</strong> {t("aide_entree_tco")}</div>
+            <div><strong>{t("touche_echap")}</strong> — {t("aide_echap")}</div>
+            <div><strong>R</strong> {t("aide_actualiser")}</div>
+            <div><strong>B</strong> {t("aide_retour")}</div>
             <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.15)" }}>
-              <strong>Ouvrir un onglet</strong> (hors saisie) :<br />
-              T tableau de bord · D demandes (DN nouvelle, DP petite caisse, DC carburant/gaz) · C commandes ·
-              H historique (HB bois de chauffage) · K KPI · F fournisseurs (FA ajouter) ·
-              AR articles (ARN ajouter, ARG catégories) · AD administration (ADJ journal, ADQ qualité, ADE erreurs) · S sauvegarde
+              <strong>{t("aide_ouvrir_onglet")}</strong><br />
+              {t("aide_legende_onglets")}<br /><em>{t("aide_lettres_fixes")}</em>
             </div>
           </div>
         )}
         <p className="nav-footer" style={{ fontSize: 10.5, color: "#7A9C93", textAlign: "center", marginTop: 12, marginBottom: 0 }}>
-          Créé par Judicaël Randrianaivo — © Sept 2026
+          {t("nav_cree_par")} Judicaël Randrianaivo — © Sept 2026
         </p>
       </div>
     </div>
