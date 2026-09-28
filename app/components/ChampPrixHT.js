@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { useLangue } from "../../lib/i18n";
 
 // Champ de saisie de prix unitaire HT, avec un petit bouton calculatrice à côté :
 // permet de taper un montant TTC connu et de le convertir automatiquement en HT
@@ -11,8 +12,9 @@ import { useRef, useState } from "react";
 //   ET quand la calculatrice valide, pour rester cohérent avec les champs qui
 //   n'enregistrent qu'à la perte de focus)
 export default function ChampPrixHT({
-  value, defaultValue, onChange, onCommit, onBlurSync, tvaPct = 20, style, placeholder = "PU HT", disabled = false, id, onKeyDown,
+  value, defaultValue, onChange, onCommit, onBlurSync, tvaPct = 20, style, placeholder, disabled = false, id, onKeyDown,
 }) {
+  const { t: tr } = useLangue();
   const inputRef = useRef(null);
   const [ouvert, setOuvert] = useState(false);
   const [ttc, setTtc] = useState("");
@@ -45,12 +47,12 @@ export default function ChampPrixHT({
 
   return (
     <span style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 3 }}>
-      <input ref={inputRef} id={id} type="number" placeholder={placeholder} disabled={disabled} style={style} onKeyDown={onKeyDown} {...inputProps} />
+      <input ref={inputRef} id={id} type="number" placeholder={placeholder ?? tr("ph_pu_ht")} disabled={disabled} style={style} onKeyDown={onKeyDown} {...inputProps} />
       {!disabled && (
         <button
           type="button"
           onClick={() => setOuvert((o) => !o)}
-          title="Convertir depuis un montant TTC connu"
+          title={tr("calc_titre")}
           style={{ border: "1px solid #ddd", background: "#fff", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 12, flexShrink: 0, lineHeight: 1, padding: 0 }}
         >
           🧮
@@ -61,7 +63,7 @@ export default function ChampPrixHT({
           <input
             type="number"
             autoFocus
-            placeholder={`Montant TTC (${tvaPct}%)`}
+            placeholder={tr("calc_ph_ttc", { tva: tvaPct })}
             value={ttc}
             onChange={(e) => setTtc(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") appliquer(); if (e.key === "Escape") setOuvert(false); }}
