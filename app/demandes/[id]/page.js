@@ -299,7 +299,9 @@ export default function TCODetailPage() {
     setSauvegardesPrixEnCours((n) => n + 1);
     try {
       const existante = lignesOffre.find((x) => x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId);
-      const payload = { [field]: value === "" ? null : Number(value) };
+      // Une remise laissée vide vaut 0 (jamais null : la colonne attend un nombre) ;
+      // tous les autres champs vides restent null comme avant.
+      const payload = { [field]: value === "" ? (field === "remise_pct" ? 0 : null) : Number(value) };
       if (existante) {
         setLignesOffre((prev) =>
           prev.map((x) => (x.offre_id === offreId && x.ligne_demande_id === ligneDemandeId ? { ...x, [field]: value } : x))
@@ -905,7 +907,7 @@ export default function TCODetailPage() {
                               <input
                                 type="number"
                                 placeholder="remise %"
-                                defaultValue={lo.remise_pct ?? 0}
+                                defaultValue={Number(lo.remise_pct) ? lo.remise_pct : ""}
                                 onBlur={(e) => majPrix(o.id, ld.id, "remise_pct", e.target.value)}
                                 disabled={couverte}
                                 style={{ ...inputStyle, width: 65 }}
