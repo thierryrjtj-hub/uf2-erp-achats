@@ -1,10 +1,12 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { inputStyle, BRAND } from "./ui";
+import { useLangue } from "../../lib/i18n";
 
 // Icône de tri (façon "paramètres d'affichage") + menu déroulant pour choisir
 // la colonne et le sens. `colonnes` = [{ key, label }]. `tri` = { colonne, sens: "asc"|"desc" }.
 export default function TriMenu({ colonnes, tri, onChange }) {
+  const { t } = useLangue();
   const [ouvert, setOuvert] = useState(false);
   const ref = useRef(null);
 
@@ -20,16 +22,16 @@ export default function TriMenu({ colonnes, tri, onChange }) {
     <div ref={ref} style={{ position: "relative" }}>
       <button
         onClick={() => setOuvert((v) => !v)}
-        title="Trier l'affichage"
+        title={t("tri_titre")}
         style={{ ...inputStyle, display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: "#fff" }}
       >
         <IconTri sens={tri.sens} />
-        <span style={{ fontSize: 12 }}>{colonneActuelle ? colonneActuelle.label : "Trier"}</span>
+        <span style={{ fontSize: 12 }}>{colonneActuelle ? colonneActuelle.label : t("tri_trier")}</span>
       </button>
 
       {ouvert && (
         <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: "#fff", border: "1px solid #ddd", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 20, minWidth: 200, overflow: "hidden" }}>
-          <div style={{ padding: "8px 12px", fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #f0f0f0" }}>Trier par</div>
+          <div style={{ padding: "8px 12px", fontSize: 11, color: "#999", textTransform: "uppercase", letterSpacing: 0.3, borderBottom: "1px solid #f0f0f0" }}>{t("tri_par")}</div>
           {colonnes.map((c) => (
             <button
               key={c.key}
@@ -81,4 +83,3 @@ export function appliquerTri(lignes, tri) {
   });
   return copie;
 }
-
