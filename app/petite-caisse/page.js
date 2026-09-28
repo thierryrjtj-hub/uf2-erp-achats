@@ -45,17 +45,28 @@ export default function PetiteCaissePage() {
   const suiviEditForm = useDirty(editForm);
   const [filtreStatut, setFiltreStatut] = useState("");
 
+  const anneeActuelle = new Date().getFullYear();
+  const [filtreAnnee, setFiltreAnnee] = useState(String(anneeActuelle));
+  const anneesDisponibles = [];
+  for (let a = anneeActuelle; a >= anneeActuelle - 4; a--) anneesDisponibles.push(String(a));
+
   const charger = async () => {
-    const { data } = await supabase.from("petite_caisse").select("*, demande:demande_id(id, numero), commande:commande_id(id, numero)").order("date_demande", { ascending: false }).limit(5000);
+    const [{ data }, art, f] = await Promise.all([
+      (() => {
+        let q = supabase.from("petite_caisse").select("*, demande:demande_id(id, numero), commande:commande_id(id, numero)").order("date_demande", { ascending: false }).limit(5000);
+        if (filtreAnnee !== "toutes") q = q.gte("date_demande", `${filtreAnnee}-01-01`).lte("date_demande", `${filtreAnnee}-12-31`);
+        return q;
+      })(),
+      chargerAvecCache("articles", () => supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000).then((r) => r.data)),
+      chargerAvecCache("fournisseurs", () => supabase.from("fournisseurs").select("id, nom, tva_defaut_pct").order("nom").limit(10000).then((r) => r.data)),
+    ]);
     setListe(data || []);
-    const art = await chargerAvecCache("articles", () => supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000).then((r) => r.data));
     setArticlesBase(art || []);
-    const f = await chargerAvecCache("fournisseurs", () => supabase.from("fournisseurs").select("id, nom, tva_defaut_pct").order("nom").limit(10000).then((r) => r.data));
     setFournisseurs(f || []);
     setLoading(false);
   };
 
-  useEffect(() => { charger(); }, []);
+  useEffect(() => { charger(); }, [filtreAnnee]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resoudreSuccesseur = (article) => {
     let courant = article;
@@ -218,7 +229,13 @@ export default function PetiteCaissePage() {
     <AuthGuard>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <h1 style={{ fontSize: 18 }}>Achat en petite caisse ({filtrees.length})</h1>
-        <button onClick={() => setNouveauOuvert((o) => !o)} style={buttonStyle}>{nouveauOuvert ? "Fermer" : "+ Nouvel achat en petite caisse"}</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title="Par défaut, seule l'année en cours est affichée">
+            {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
+            <option value="toutes">Toutes les années</option>
+          </select>
+          <button onClick={() => setNouveauOuvert((o) => !o)} style={buttonStyle}>{nouveauOuvert ? "Fermer" : "+ Nouvel achat en petite caisse"}</button>
+        </div>
       </div>
 
       {nouveauOuvert && (
