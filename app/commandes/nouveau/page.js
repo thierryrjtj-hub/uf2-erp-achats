@@ -3,6 +3,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { chargerAvecCache } from "../../../lib/cache";
+import { useLangue } from "../../../lib/i18n";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import ChampPrixHT from "../../components/ChampPrixHT";
@@ -15,14 +16,16 @@ const estBoisDeChauffage = (designation) => {
 };
 
 export default function NouveauBCDirectPage() {
+  const { t } = useLangue();
   return (
-    <Suspense fallback={<AuthGuard><p>Chargement...</p></AuthGuard>}>
+    <Suspense fallback={<AuthGuard><p>{t("chargement")}</p></AuthGuard>}>
       <NouveauBCDirectInner />
     </Suspense>
   );
 }
 
 function NouveauBCDirectInner() {
+  const { t } = useLangue();
   const router = useRouter();
   const searchParams = useSearchParams();
   const demandeId = searchParams.get("demande_id");
@@ -189,42 +192,45 @@ function NouveauBCDirectInner() {
 
   return (
     <AuthGuard>
-      <button onClick={() => router.push(demandeId ? `/demandes/${demandeId}` : "/commandes")} style={{ ...linkBtn, marginBottom: 16 }}>&larr; Retour</button>
-      <h1 style={{ fontSize: 18, marginBottom: 4 }}>Créer un bon de commande directement</h1>
+      <button onClick={() => router.push(demandeId ? `/demandes/${demandeId}` : "/commandes")} style={{ ...linkBtn, marginBottom: 16 }}>&larr; {t("retour")}</button>
+      <h1 style={{ fontSize: 18, marginBottom: 4 }}>{t("ncmd_titre")}</h1>
       <p style={{ fontSize: 13, color: "#888", marginBottom: 16 }}>
-        {demande ? <>Depuis la demande <strong>{demande.numero}</strong> — sans passer par un comparatif TCO.</> : "Sans passer par une demande/TCO — pour les articles disponibles chez un seul fournisseur ou un fournisseur déjà recommandé/imposé."}
+        {demande ? (() => {
+          const [avant, apres] = t("ncmd_depuis_demande", { numero: "§" }).split("§");
+          return <>{avant}<strong>{demande.numero}</strong>{apres}</>;
+        })() : t("ncmd_sans_demande")}
       </p>
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Fournisseur</h2>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>{t("col_fournisseur")}</h2>
         {fournisseurChoisi ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <strong>{fournisseurChoisi.nom}</strong>
-            <button onClick={() => setFournisseurChoisi(null)} style={linkBtn}>Changer</button>
+            <button onClick={() => setFournisseurChoisi(null)} style={linkBtn}>{t("btn_changer")}</button>
             <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#666" }}>
               <input type="checkbox" checked={!assujettiTva} onChange={(e) => setAssujettiTva(!e.target.checked)} />
-              Fournisseur non taxable
+              {t("ncmd_non_taxable_check")}
             </label>
           </div>
         ) : (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Autocomplete
-              placeholder="Taper le nom du fournisseur..."
+              placeholder={t("ncmd_ph_fournisseur")}
               value={rechercheFournisseur}
               onChange={setRechercheFournisseur}
               onSelect={choisirFournisseur}
               suggestions={fournisseurs.map((f) => f.nom)}
               style={{ width: 320, maxWidth: "100%" }}
             />
-            <button onClick={() => choisirFournisseur(fournisseurs.find((x) => x.nom.toLowerCase() === rechercheFournisseur.trim().toLowerCase())?.nom)} style={buttonStyle}>Choisir</button>
+            <button onClick={() => choisirFournisseur(fournisseurs.find((x) => x.nom.toLowerCase() === rechercheFournisseur.trim().toLowerCase())?.nom)} style={buttonStyle}>{t("btn_choisir")}</button>
           </div>
         )}
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Référence</h2>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>{t("ncmd_h_reference")}</h2>
         <input
-          placeholder="Réf. devis fournisseur (visible sur le BC imprimé)"
+          placeholder={t("ncmd_ph_ref_devis")}
           value={referenceDevis}
           onChange={(e) => setReferenceDevis(e.target.value)}
           style={{ ...inputStyle, width: "100%" }}
@@ -232,7 +238,7 @@ function NouveauBCDirectInner() {
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-        <h2 style={{ fontSize: 15, marginBottom: 12 }}>Articles</h2>
+        <h2 style={{ fontSize: 15, marginBottom: 12 }}>{t("nav_articles")}</h2>
         {lignes.map((l) => {
           const bois = estBoisDeChauffage(l.designation);
           return (
@@ -249,12 +255,12 @@ function NouveauBCDirectInner() {
                   document.getElementById(`quantite-${l.key}`)?.focus();
                   document.getElementById(`quantite-${l.key}`)?.select?.();
                 }}
-                title="Date de livraison réelle (un voyage = une ligne)"
+                title={t("ncmd_date_reelle_info")}
                 style={{ ...inputStyle, width: 150 }}
               />
             )}
             <Autocomplete
-              placeholder="Désignation"
+              placeholder={t("ph_designation")}
               value={l.designation}
               onChange={(val) => onDesignationChange(l.key, val)}
               onSelect={(val) => {
@@ -266,30 +272,30 @@ function NouveauBCDirectInner() {
               suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
               style={{ flex: 2, minWidth: 160 }}
             />
-            <input id={`quantite-${l.key}`} type="number" placeholder="Qté" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
-            <input placeholder="unité" value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 80 }} />
+            <input id={`quantite-${l.key}`} type="number" placeholder={t("ph_qte")} value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
+            <input placeholder={t("ph_unite")} value={l.unite} onChange={(e) => updateLigne(l.key, "unite", e.target.value)} onBlur={(e) => onUniteBlur(l.designation, e.target.value)} style={{ ...inputStyle, width: 80 }} />
             <ChampPrixHT value={l.prix_unitaire_ht} onChange={(v) => updateLigne(l.key, "prix_unitaire_ht", v)} tvaPct={assujettiTva ? 20 : 0} style={{ ...inputStyle, width: 110 }} />
             {l.prix_unitaire_ht !== "" && (
               <span style={{ fontSize: 11, color: "#888", alignSelf: "center", whiteSpace: "nowrap" }}>
                 {Number(l.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar
               </span>
             )}
-            <input type="number" placeholder="remise %" value={l.remise_pct === 0 ? "" : l.remise_pct} onChange={(e) => updateLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
-            <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
+            <input type="number" placeholder={t("ph_remise")} value={l.remise_pct === 0 ? "" : l.remise_pct} onChange={(e) => updateLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
+            <button onClick={() => removeLigne(l.key)} style={linkBtn}>{t("btn_retirer")}</button>
           </div>
           );
         })}
-        <button onClick={addLigne} style={{ ...buttonStyle, background: "#888" }}>+ Ajouter une ligne</button>
+        <button onClick={addLigne} style={{ ...buttonStyle, background: "#888" }}>{t("btn_ajouter_ligne")}</button>
 
         <div style={{ marginTop: 16, fontSize: 13 }}>
-          <div>Total HT : <strong>{totaux.ht.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></div>
-          <div>TVA : {assujettiTva ? `${tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : "Non taxable"}</div>
-          <div>Total TTC : <strong>{ttc.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></div>
+          <div>{t("lbl_total_ht")} : <strong>{totaux.ht.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></div>
+          <div>{t("lbl_tva")} : {assujettiTva ? `${tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : t("lbl_non_taxable")}</div>
+          <div>{t("lbl_total_ttc")} : <strong>{ttc.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></div>
         </div>
 
         <div style={{ marginTop: 16 }}>
           <button onClick={creer} disabled={envoi || !fournisseurChoisi} style={buttonStyle}>
-            {envoi ? "Création..." : "Créer le bon de commande"}
+            {envoi ? t("ncmd_creation") : t("ncmd_btn_creer")}
           </button>
         </div>
       </div>
