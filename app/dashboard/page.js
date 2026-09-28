@@ -6,6 +6,7 @@ import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
 import { calculerFrequenceAchats, articlesAReapprovisionner } from "../../lib/frequenceAchats";
 import { useRole } from "../../lib/useRole";
+import { useLangue, moisCourt, ordinal } from "../../lib/i18n";
 
 async function enregistrerSignalementReappro(supabase, designation, joursAvantProchaine) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,8 +29,6 @@ async function enregistrerRelanceLivraison(supabase, bcId, etapeActuelle, joursA
   });
 }
 
-const ORDINAUX = ["1ère", "2ème", "3ème", "4ème", "5ème"];
-
 function joursDepuis(dateStr) {
   if (!dateStr) return null;
   const diff = (new Date() - new Date(dateStr)) / (1000 * 60 * 60 * 24);
@@ -43,6 +42,7 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 
 export default function DashboardPage() {
   const role = useRole();
+  const { langue, t } = useLangue();
   const [alertesDevis, setAlertesDevis] = useState([]);
   const [alertesLivraison, setAlertesLivraison] = useState([]);
   const [alertesPaiement, setAlertesPaiement] = useState([]);
@@ -240,7 +240,6 @@ export default function DashboardPage() {
       });
 
       // ---- Tendance des achats, 6 derniers mois ----
-      const MOIS_LABEL = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
       const points = [];
       for (let i = 5; i >= 0; i--) {
         const d = new Date();
@@ -248,7 +247,7 @@ export default function DashboardPage() {
         d.setMonth(d.getMonth() - i);
         const cle = d.toISOString().slice(0, 7);
         const montant = (commandes || []).filter((c) => (c.date || "").slice(0, 7) === cle && c.statut !== "Annulée").reduce((s, c) => s + Number(c.montant_ttc || 0), 0);
-        points.push({ label: MOIS_LABEL[d.getMonth()], montant });
+        points.push({ mois: d.getMonth(), montant });
       }
       setTendance(points);
 
@@ -277,23 +276,23 @@ export default function DashboardPage() {
   };
   const marquerTacheFaite = async (id) => {
     await supabase.from("taches_rapides").update({ fait: true, date_fait: new Date().toISOString() }).eq("id", id);
-    setTaches((prev) => prev.filter((t) => t.id !== id));
+    setTaches((prev) => prev.filter((tache) => tache.id !== id));
   };
 
 
-  if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
+  if (loading) return <AuthGuard><p>{t("chargement")}</p></AuthGuard>;
 
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <h1 style={{ fontSize: 18, marginBottom: 4, flexShrink: 0 }}>Tableau de bord</h1>
-        <p style={{ fontSize: 13, color: "#888", marginBottom: 14, flexShrink: 0 }}>À traiter aujourd'hui</p>
+        <h1 style={{ fontSize: 18, marginBottom: 4, flexShrink: 0 }}>{t("nav_dashboard")}</h1>
+        <p style={{ fontSize: 13, color: "#888", marginBottom: 14, flexShrink: 0 }}>{t("db_a_traiter")}</p>
 
         <div style={{ display: "flex", gap: 12, marginBottom: 18, flexShrink: 0, flexWrap: "wrap" }}>
-          <ResumeCard href="/demandes?filtre=a_traiter" valeur={resume.demandesATraiter} label="demande(s) à traiter" couleur="#F5A623" />
-          <ResumeCard href="/commandes?filtre=en_attente_livraison" valeur={resume.bcEnLivraison} label="BC en attente de livraison" couleur="#1B4C7A" />
-          <ResumeCard href="/commandes?filtre=en_attente_signature" valeur={resume.bcEnAttenteSignature} label="BC en attente de signature direction" couleur="#8A6100" />
-          <ResumeCard href="/commandes?filtre=impayees" valeur={resume.facturesImpayees} label="facture(s) impayée(s)" couleur="#B3261E" />
+          <ResumeCard href="/demandes?filtre=a_traiter" valeur={resume.demandesATraiter} label={t("db_resume_demandes")} couleur="#F5A623" />
+          <ResumeCard href="/commandes?filtre=en_attente_livraison" valeur={resume.bcEnLivraison} label={t("db_resume_bc_livraison")} couleur="#1B4C7A" />
+          <ResumeCard href="/commandes?filtre=en_attente_signature" valeur={resume.bcEnAttenteSignature} label={t("db_resume_bc_signature")} couleur="#8A6100" />
+          <ResumeCard href="/commandes?filtre=impayees" valeur={resume.facturesImpayees} label={t("db_resume_factures")} couleur="#B3261E" />
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -301,22 +300,22 @@ export default function DashboardPage() {
 
           {total === 0 && (
             <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, textAlign: "center" }}>
-              <p style={{ fontSize: 14, color: "#1B7A4C" }}>✓ Rien à signaler pour l'instant — tout est à jour.</p>
+              <p style={{ fontSize: 14, color: "#1B7A4C" }}>{t("db_rien")}</p>
             </div>
           )}
 
           {alertesDevis.length > 0 && (
-            <Section titre="Relances devis fournisseurs" couleur="#8A6100" fond="#FFF3D6">
+            <Section titre={t("db_sec_devis")} couleur="#8A6100" fond="#FFF3D6">
               {alertesDevis.map((d) => (
                 <LigneAlerte key={d.id} href={`/demandes/${d.id}`}>
-                  <strong>{d.numero}</strong> ({d.service || "-"}) — créée il y a {joursDepuis(d.created_at)} jour(s), toujours sans prix saisi
+                  <strong>{d.numero}</strong> ({d.service || "-"}) — {t("db_devis_ligne", { n: joursDepuis(d.created_at) })}
                 </LigneAlerte>
               ))}
             </Section>
           )}
 
           {alertesLivraison.length > 0 && (
-            <Section titre="Suivi livraison / enlèvement fournisseurs" couleur="#8A6100" fond="#FFF3D6">
+            <Section titre={t("db_sec_livraison")} couleur="#8A6100" fond="#FFF3D6">
               {alertesLivraison.map((c) => {
                 const estEnlevement = c.mode_envoi_fournisseur === "Enlèvement par nos soins" || c.mode_envoi_fournisseur === "Prestation / Travaux";
                 return (
@@ -324,12 +323,12 @@ export default function DashboardPage() {
                     <Link
                       href={`/commandes/${c.id}`}
                       style={{ flex: 1, color: "#1B2430", textDecoration: "none" }}
-                      title={articlesParBc[c.id]?.length ? articlesParBc[c.id].join("\n") : "Aucun article"}
+                      title={articlesParBc[c.id]?.length ? articlesParBc[c.id].join("\n") : t("db_aucun_article")}
                     >
                       <strong>{c.numero}</strong> — {c.fournisseur_nom} — {estEnlevement
-                        ? `enlèvement par nos soins prévu — avez-vous déjà planifié la récupération avec le coursier ? (envoyé il y a ${joursDepuis(c.date_envoi_fournisseur)} jour(s))`
-                        : `envoyé au fournisseur il y a ${joursDepuis(c.date_envoi_fournisseur)} jour(s), toujours pas reçu`}
-                      {c.relance && <span style={{ marginLeft: 8, fontSize: 11.5, color: "#8A6100" }}>({ORDINAUX[c.relance.etape - 1] || `${c.relance.etape}ème`} {estEnlevement ? "vérification faite" : "relance envoyée"})</span>}
+                        ? t("db_livraison_enlevement", { n: joursDepuis(c.date_envoi_fournisseur) })
+                        : t("db_livraison_fournisseur", { n: joursDepuis(c.date_envoi_fournisseur) })}
+                      {c.relance && <span style={{ marginLeft: 8, fontSize: 11.5, color: "#8A6100" }}>({t(estEnlevement ? "db_relance_verification" : "db_relance_envoyee", { ord: ordinal(langue, c.relance.etape) })})</span>}
                     </Link>
                     {role === "acheteur" && (
                       <button
@@ -339,10 +338,10 @@ export default function DashboardPage() {
                           await enregistrerRelanceLivraison(supabase, c.id, etapeActuelle, jours);
                           setAlertesLivraison((prev) => prev.filter((x) => x.id !== c.id));
                         }}
-                        title={estEnlevement ? "Récupération déjà planifiée — masquer jusqu'à ce que le retard s'aggrave" : "J'ai relancé le fournisseur — masquer jusqu'à ce que le retard s'aggrave"}
+                        title={estEnlevement ? t("db_titre_planifie") : t("db_titre_relance")}
                         style={{ border: "none", background: "#1E3A34", color: "#fff", borderRadius: 999, padding: "6px 14px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
                       >
-                        {estEnlevement ? "Déjà planifié" : "Relancer"}
+                        {estEnlevement ? t("db_btn_deja_planifie") : t("db_btn_relancer")}
                       </button>
                     )}
                   </div>
@@ -352,27 +351,27 @@ export default function DashboardPage() {
           )}
 
           {alertesEstimation.length > 0 && (
-            <Section titre="Reste à livrer — date estimée atteinte" couleur="#1B4C7A" fond="#E8F0FA">
+            <Section titre={t("db_sec_estimation")} couleur="#1B4C7A" fond="#E8F0FA">
               {alertesEstimation.map((c) => (
                 <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
-                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — reste attendu pour le {formatDate(c.date_estimee_reste)}
+                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — {t("db_estimation_ligne", { date: formatDate(c.date_estimee_reste) })}
                 </LigneAlerte>
               ))}
             </Section>
           )}
 
           {alertesPaiement.length > 0 && (
-            <Section titre="Factures fournisseurs en retard de paiement" couleur="#B3261E" fond="#FDECEA">
+            <Section titre={t("db_sec_paiement")} couleur="#B3261E" fond="#FDECEA">
               {alertesPaiement.map((c) => (
                 <LigneAlerte key={c.id} href={`/commandes/${c.id}`}>
-                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — échéance dépassée
+                  <strong>{c.numero}</strong> — {c.fournisseur_nom} — {t("db_paiement_ligne")}
                 </LigneAlerte>
               ))}
             </Section>
           )}
 
           {alertesImport.length > 0 && (
-            <Section titre="Demandeurs à aviser par mail (article non disponible localement)" couleur="#B3261E" fond="#FDECEA">
+            <Section titre={t("db_sec_import")} couleur="#B3261E" fond="#FDECEA">
               {alertesImport.map((d) => (
                 <LigneAlerte key={d.id} href={`/demandes/${d.id}`}>
                   <strong>{d.numero}</strong> ({d.service || d.demandeur || "-"}) — {d.observation}
@@ -382,12 +381,12 @@ export default function DashboardPage() {
           )}
 
           {alertesReappro.length > 0 && (
-            <Section titre="Réapprovisionnement à prévoir (cycle d'achat habituel qui approche)" couleur="#8A6100" fond="#FFF3D6">
+            <Section titre={t("db_sec_reappro")} couleur="#8A6100" fond="#FFF3D6">
               {alertesReappro.map((a) => (
                 <div key={a.designation} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "8px 10px", borderRadius: 6, background: "#FAFAF8", marginBottom: 6 }}>
                   <Link href="/kpi" style={{ flex: 1, color: "#1B2430", textDecoration: "none" }}>
-                    <strong>{a.designation}</strong> — commandé habituellement tous les {a.cycleJours} jours, dernière commande il y a {a.joursDepuisDernier} jours
-                    {a.joursAvantProchaine <= 0 ? " — délai dépassé" : ` — prochaine échéance dans ${a.joursAvantProchaine} jour(s)`}
+                    <strong>{a.designation}</strong> — {t("db_reappro_habitude", { cycle: a.cycleJours, depuis: a.joursDepuisDernier })}
+                    {" — "}{a.joursAvantProchaine <= 0 ? t("db_reappro_depasse") : t("db_reappro_prochaine", { n: a.joursAvantProchaine })}
                   </Link>
                   {role === "acheteur" && (
                     <button
@@ -395,10 +394,10 @@ export default function DashboardPage() {
                         await enregistrerSignalementReappro(supabase, a.designation, a.joursAvantProchaine);
                         setAlertesReappro((prev) => prev.filter((x) => x.designation !== a.designation));
                       }}
-                      title="J'ai avisé les personnes concernées — masquer jusqu'à ce que le retard s'aggrave"
+                      title={t("db_titre_traite")}
                       style={{ border: "none", background: "#1E3A34", color: "#fff", borderRadius: 999, padding: "6px 14px", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}
                     >
-                      Traité
+                      {t("db_btn_traite")}
                     </button>
                   )}
                 </div>
@@ -407,10 +406,10 @@ export default function DashboardPage() {
           )}
 
           {alertesStandByReappro.length > 0 && (
-            <Section titre="Demandes en stand-by dont le cycle habituel revient — décision à prendre" couleur="#C85A2A" fond="#FFEEE6">
+            <Section titre={t("db_sec_standby")} couleur="#C85A2A" fond="#FFEEE6">
               {alertesStandByReappro.map((d) => (
                 <Link key={d.id} href={`/demandes/${d.id}`} style={{ display: "block", fontSize: 13, padding: "9px 12px", borderRadius: 10, background: "#F7F6F2", marginBottom: 6, color: "#1B2430", textDecoration: "none" }}>
-                  <strong>{d.numero}</strong> ({d.demandeur || "-"}) — {d.motif_projet} — en stand-by, mais {d.articlesConcernes.join(", ")} {d.articlesConcernes.length > 1 ? "arrivent" : "arrive"} à échéance de réapprovisionnement habituelle : à toi de décider si tu relances ou pas
+                  <strong>{d.numero}</strong> ({d.demandeur || "-"}) — {d.motif_projet} — {t(d.articlesConcernes.length > 1 ? "db_standby_plusieurs" : "db_standby_un", { articles: d.articlesConcernes.join(", ") })}
                 </Link>
               ))}
             </Section>
@@ -460,6 +459,7 @@ function LigneAlerte({ href, children }) {
 // Courbe en aire lissée (dégradé vert), pour la tendance des achats des 6
 // derniers mois — un aperçu visuel plus parlant qu'un simple tableau de chiffres.
 function GraphiqueTendance({ points }) {
+  const { langue, t } = useLangue();
   const largeur = 600, hauteur = 150, marge = 26;
   const max = Math.max(...points.map((p) => p.montant), 1);
   const pas = points.length > 1 ? (largeur - marge * 2) / (points.length - 1) : 0;
@@ -479,7 +479,7 @@ function GraphiqueTendance({ points }) {
 
   return (
     <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
-      <h2 style={{ fontSize: 14, marginBottom: 10, color: "#1E3A34" }}>Tendance des achats (6 derniers mois, TTC)</h2>
+      <h2 style={{ fontSize: 14, marginBottom: 10, color: "#1E3A34" }}>{t("db_tendance")}</h2>
       <svg viewBox={`0 0 ${largeur} ${hauteur}`} style={{ width: "100%", height: 150 }}>
         <defs>
           <linearGradient id="degradeTendance" x1="0" y1="0" x2="0" y2="1">
@@ -492,7 +492,7 @@ function GraphiqueTendance({ points }) {
         {coords.map((c, i) => (
           <g key={i}>
             <circle cx={c.x} cy={c.y} r="4" fill="#1E3A34" />
-            <text x={c.x} y={hauteur - 6} fontSize="10" fill="#888" textAnchor="middle">{c.label}</text>
+            <text x={c.x} y={hauteur - 6} fontSize="10" fill="#888" textAnchor="middle">{moisCourt(langue, c.mois)}</text>
             {c.montant > 0 && <text x={c.x} y={c.y - 10} fontSize="10" fill="#1E3A34" textAnchor="middle">{Math.round(c.montant / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}k</text>}
           </g>
         ))}
@@ -503,6 +503,7 @@ function GraphiqueTendance({ points }) {
 
 // Bloc agenda / rendez-vous rapide — un simple pense-bête, pas un vrai calendrier.
 function BlocAgenda({ agenda, onAjouter, onFait }) {
+  const { t } = useLangue();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [heure, setHeure] = useState("");
   const [titre, setTitre] = useState("");
@@ -514,19 +515,19 @@ function BlocAgenda({ agenda, onAjouter, onFait }) {
 
   return (
     <div style={{ flex: 1, minWidth: 280, background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-      <h2 style={{ fontSize: 14, marginBottom: 10, color: "#1E3A34" }}>Agenda / rendez-vous rapide</h2>
+      <h2 style={{ fontSize: 14, marginBottom: 10, color: "#1E3A34" }}>{t("db_agenda_titre")}</h2>
       <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...miniInput, width: 130 }} />
         <input type="time" value={heure} onChange={(e) => setHeure(e.target.value)} style={{ ...miniInput, width: 90 }} />
-        <input placeholder="Rendez-vous..." value={titre} onChange={(e) => setTitre(e.target.value)} onKeyDown={(e) => e.key === "Enter" && soumettre()} style={{ ...miniInput, flex: 1, minWidth: 120 }} />
+        <input placeholder={t("db_agenda_placeholder")} value={titre} onChange={(e) => setTitre(e.target.value)} onKeyDown={(e) => e.key === "Enter" && soumettre()} style={{ ...miniInput, flex: 1, minWidth: 120 }} />
         <button onClick={soumettre} style={miniBtn}>+</button>
       </div>
-      {agenda.length === 0 && <p style={{ fontSize: 12.5, color: "#999" }}>Aucun rendez-vous à venir.</p>}
+      {agenda.length === 0 && <p style={{ fontSize: 12.5, color: "#999" }}>{t("db_agenda_vide")}</p>}
       {agenda.map((r) => (
         <div key={r.id} style={ligneMini}>
           <input type="checkbox" onChange={() => onFait(r.id)} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>
-            <strong>{formatDate(r.date_rdv)}</strong>{r.heure ? ` à ${r.heure}` : ""} — {r.titre}
+            <strong>{formatDate(r.date_rdv)}</strong>{r.heure ? t("db_agenda_a", { h: r.heure }) : ""} — {r.titre}
           </span>
         </div>
       ))}
@@ -536,6 +537,7 @@ function BlocAgenda({ agenda, onAjouter, onFait }) {
 
 // Bloc notes / tâches rapides — case "fait" = disparaît de la liste.
 function BlocTaches({ taches, onAjouter, onFait }) {
+  const { t } = useLangue();
   const [texte, setTexte] = useState("");
 
   const soumettre = () => {
@@ -545,16 +547,16 @@ function BlocTaches({ taches, onAjouter, onFait }) {
 
   return (
     <div style={{ flex: 1, minWidth: 280, background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-      <h2 style={{ fontSize: 14, marginBottom: 10, color: "#1E3A34" }}>Notes / tâches rapides</h2>
+      <h2 style={{ fontSize: 14, marginBottom: 10, color: "#1E3A34" }}>{t("db_taches_titre")}</h2>
       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-        <input placeholder="Nouvelle tâche..." value={texte} onChange={(e) => setTexte(e.target.value)} onKeyDown={(e) => e.key === "Enter" && soumettre()} style={{ ...miniInput, flex: 1 }} />
+        <input placeholder={t("db_taches_placeholder")} value={texte} onChange={(e) => setTexte(e.target.value)} onKeyDown={(e) => e.key === "Enter" && soumettre()} style={{ ...miniInput, flex: 1 }} />
         <button onClick={soumettre} style={miniBtn}>+</button>
       </div>
-      {taches.length === 0 && <p style={{ fontSize: 12.5, color: "#999" }}>Aucune tâche en attente.</p>}
-      {taches.map((t) => (
-        <div key={t.id} style={ligneMini}>
-          <input type="checkbox" onChange={() => onFait(t.id)} style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1 }}>{t.texte}</span>
+      {taches.length === 0 && <p style={{ fontSize: 12.5, color: "#999" }}>{t("db_taches_vide")}</p>}
+      {taches.map((tache) => (
+        <div key={tache.id} style={ligneMini}>
+          <input type="checkbox" onChange={() => onFait(tache.id)} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>{tache.texte}</span>
         </div>
       ))}
     </div>
