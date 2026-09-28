@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import Nav from "./Nav";
+import { useLangue } from "../../lib/i18n";
 
 export default function AuthGuard({ children }) {
   const [ready, setReady] = useState(false);
+  const { t } = useLangue();
   const router = useRouter();
 
   useEffect(() => {
@@ -154,7 +156,7 @@ export default function AuthGuard({ children }) {
     };
   }, [router]);
 
-  if (!ready) return <p style={{ padding: 24 }}>Chargement...</p>;
+  if (!ready) return <p style={{ padding: 24 }}>{t("chargement")}</p>;
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -163,7 +165,7 @@ export default function AuthGuard({ children }) {
         <button
           onClick={() => window.location.reload()}
           className="no-print"
-          title="Actualiser la page (raccourci : R)"
+          title={t("actualiser_page")}
           style={{
             position: "fixed", top: 12, right: 16, zIndex: 50,
             width: 34, height: 34, borderRadius: "50%", border: "1px solid #DDDBD3",
