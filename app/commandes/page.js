@@ -11,6 +11,7 @@ import { IconTrash, IconBan } from "../components/Icons";
 import { formatDate } from "../../lib/format";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 import { chargerAvecCache } from "../../lib/cache";
+import { useLangue, libelleStatut } from "../../lib/i18n";
 
 const PAGE_SIZE = 100;
 // Statuts connus à l'avance (pour le filtre), sans avoir besoin de charger
@@ -19,8 +20,9 @@ const STATUTS_CONNUS = ["A faire", "En cours", "Envoyée", "Livraison en cours",
 const GROUPE_TERMINAL = new Set(["Clôturée", "Clôturée (rupture)", "Annulée"]);
 
 export default function CommandesPage() {
+  const { t } = useLangue();
   return (
-    <Suspense fallback={<AuthGuard><p>Chargement...</p></AuthGuard>}>
+    <Suspense fallback={<AuthGuard><p>{t("chargement")}</p></AuthGuard>}>
       <CommandesInner />
     </Suspense>
   );
@@ -28,6 +30,7 @@ export default function CommandesPage() {
 
 function CommandesInner() {
   const role = useRole();
+  const { t } = useLangue();
   const searchParams = useSearchParams();
   const filtreDepuisTableauDeBord = searchParams.get("filtre") === "en_attente_livraison";
   const filtreSignature = searchParams.get("filtre") === "en_attente_signature";
@@ -60,8 +63,8 @@ function CommandesInner() {
   // Debounce de la recherche : on attend une petite pause dans la saisie
   // avant de relancer une requête serveur, plutôt qu'à chaque lettre tapée.
   useEffect(() => {
-    const t = setTimeout(() => setRechercheEffective(recherche.trim()), 350);
-    return () => clearTimeout(t);
+    const minuteur = setTimeout(() => setRechercheEffective(recherche.trim()), 350);
+    return () => clearTimeout(minuteur);
   }, [recherche]);
 
   // Construit les tables de correspondance (articles, catégorie "prestation")
@@ -214,7 +217,7 @@ function CommandesInner() {
   };
 
   const supprimerBc = async (c) => {
-    if (!confirm(`Supprimer définitivement le bon de commande ${c.numero} ? Sa réception et son historique seront aussi supprimés.`)) return;
+    if (!confirm(t("cmd_confirm_supprimer", { numero: c.numero }))) return;
     await supabase.from("commandes").delete().eq("id", c.id);
     if (c.demande_id) {
       const { data: autresBc } = await supabase.from("commandes").select("id").eq("demande_id", c.demande_id);
@@ -227,12 +230,12 @@ function CommandesInner() {
 
   const annulerBc = async (c) => {
     if (c.statut === "Annulée") {
-      if (!confirm(`Réactiver le BC ${c.numero} (retirer le statut Annulée) ?`)) return;
+      if (!confirm(t("cmd_confirm_reactiver", { numero: c.numero }))) return;
       await supabase.from("commandes").update({ statut: "Clôturée" }).eq("id", c.id);
       charger();
       return;
     }
-    const motif = prompt(`Pourquoi annuler le BC ${c.numero} ? (raison obligatoire)`);
+    const motif = prompt(t("cmd_prompt_annuler", { numero: c.numero }));
     if (!motif || !motif.trim()) return;
     await supabase.from("commandes").update({ statut: "Annulée", observation: motif.trim() }).eq("id", c.id);
     charger();
@@ -449,24 +452,24 @@ function CommandesInner() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 18 }}>Bons de commande</h1>
+          <h1 style={{ fontSize: 18 }}>{t("cmd_titre")}</h1>
           <div style={{ display: "flex", gap: 8 }}>
             <Link href="/commandes/nouveau" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
-              + Créer un BC directement
+              {t("cmd_btn_creer")}
             </Link>
             <Link href="/commandes/pv-vierge" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
-              PV vierge
+              {t("cmd_btn_pv")}
             </Link>
             <button onClick={exporter} disabled={exporting} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B2430", color: "#fff", fontSize: 13, cursor: "pointer" }}>
-              {exporting ? "Génération..." : "Exporter en Excel"}
+              {exporting ? t("generation") : t("btn_exporter_excel")}
             </button>
             {selectionnes.size > 0 && (
               <button onClick={exporterSelectionExcel} disabled={exportingSelection} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "#1B7A4C", color: "#fff", fontSize: 13, cursor: "pointer" }}>
-                {exportingSelection ? "Génération..." : `Exporter le contenu de ${selectionnes.size} BC sélectionné(s)`}
+                {exportingSelection ? t("generation") : t("cmd_btn_export_selection", { n: selectionnes.size })}
               </button>
             )}
-            <button onClick={exporterFacturesImpayees} disabled={exportingImpayees} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #B3261E", background: "#fff", color: "#B3261E", fontSize: 13, cursor: "pointer" }} title="Rapport à envoyer au service Finance">
-              {exportingImpayees ? "Génération..." : "Rapport factures impayées"}
+            <button onClick={exporterFacturesImpayees} disabled={exportingImpayees} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #B3261E", background: "#fff", color: "#B3261E", fontSize: 13, cursor: "pointer" }} title={t("cmd_rapport_info")}>
+              {exportingImpayees ? t("generation") : t("cmd_btn_rapport_impayees")}
             </button>
           </div>
         </div>
@@ -474,13 +477,9 @@ function CommandesInner() {
         {modeSpecial && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#E8F0FA", color: "#1B4C7A", borderRadius: 8, padding: "8px 14px", marginBottom: 12, fontSize: 13, flexShrink: 0 }}>
             <span>
-              Filtré depuis le Tableau de bord : seuls les {filtrees.length} BC
-              {filtreDepuisTableauDeBord && " en attente de livraison"}
-              {filtreSignature && " en attente de signature direction"}
-              {filtreImpayees && " avec facture impayée"}
-              {" "}sont affichés.
+              {t(filtreDepuisTableauDeBord ? "cmd_banniere_livraison" : filtreSignature ? "cmd_banniere_signature" : "cmd_banniere_impayees", { n: filtrees.length })}
             </span>
-            <Link href="/commandes" style={{ color: "#1B4C7A", textDecoration: "underline" }}>Voir tous les BC</Link>
+            <Link href="/commandes" style={{ color: "#1B4C7A", textDecoration: "underline" }}>{t("cmd_voir_tous")}</Link>
           </div>
         )}
 
@@ -488,40 +487,42 @@ function CommandesInner() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
             <h2 style={{ fontSize: 15 }}>
               {modeSpecial
-                ? `Liste (${filtrees.length} / ${liste.length})`
-                : `Liste (${liste.length} chargés / ${totalCount} au total${filtreAnnee !== "toutes" ? `, année ${filtreAnnee}` : ""})`}
+                ? t("cmd_liste_special", { a: filtrees.length, b: liste.length })
+                : filtreAnnee !== "toutes"
+                  ? t("cmd_liste_annee", { charges: liste.length, total: totalCount, annee: filtreAnnee })
+                  : t("cmd_liste_toutes", { charges: liste.length, total: totalCount })}
             </h2>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ position: "relative", width: 260 }}>
-                <input data-search-field placeholder="Rechercher (N° BC, fournisseur...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
-                {recherche && <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer">×</button>}
+                <input data-search-field placeholder={t("cmd_recherche")} value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+                {recherche && <button onClick={() => setRecherche("")} style={clearBtn} aria-label={t("effacer")}>×</button>}
               </div>
               <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)} style={inputStyle}>
-                <option value="">Tous les statuts</option>
-                {STATUTS_CONNUS.map((s) => <option key={s} value={s}>{s}</option>)}
+                <option value="">{t("tous_statuts")}</option>
+                {STATUTS_CONNUS.map((s) => <option key={s} value={s}>{libelleStatut(t, s)}</option>)}
               </select>
               {!modeSpecial && (
-                <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title="Par défaut, seule l'année en cours est affichée">
+                <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title={t("annee_defaut_info")}>
                   {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
-                  <option value="toutes">Toutes les années</option>
+                  <option value="toutes">{t("toutes_annees")}</option>
                 </select>
               )}
               <TriMenu
                 colonnes={[
-                  { key: "created_at", label: "Date" },
-                  { key: "numero", label: "N° BC" },
-                  { key: "fournisseur_nom", label: "Fournisseur" },
-                  { key: "montant_ttc", label: "Montant TTC" },
-                  { key: "statut", label: "Statut" },
+                  { key: "created_at", label: t("col_date") },
+                  { key: "numero", label: t("col_numero_bc") },
+                  { key: "fournisseur_nom", label: t("col_fournisseur") },
+                  { key: "montant_ttc", label: t("col_montant_ttc") },
+                  { key: "statut", label: t("col_statut") },
                 ]}
                 tri={tri}
                 onChange={setTri}
               />
             </div>
           </div>
-          {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
+          {loading && <p style={{ color: "#888", fontSize: 13 }}>{t("chargement")}</p>}
           {!loading && filtrees.length === 0 && (
-            <p style={{ color: "#888", fontSize: 13 }}>Aucun bon de commande pour ces filtres.</p>
+            <p style={{ color: "#888", fontSize: 13 }}>{t("cmd_aucun")}</p>
           )}
           <div ref={conteneurScrollRef} style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -538,18 +539,18 @@ function CommandesInner() {
                       return next;
                     });
                   }}
-                  title="Tout sélectionner"
+                  title={t("tout_selectionner")}
                 />
               </th>
-              <th style={thStyle}>Date BC</th>
-              <th style={{ ...thStyle, minWidth: 190 }}>N° BC</th>
-              <th style={thStyle}>Fournisseur</th>
-              <th style={thStyle}>Total TTC</th>
-              <th style={thStyle}>Service / Demandeur</th>
-              <th style={thStyle}>Statut</th>
-              <th style={thStyle}>Réception</th>
-              <th style={thStyle}>Paiement</th>
-              <th style={thStyle}>Observation</th>
+              <th style={thStyle}>{t("cmd_h_date_bc")}</th>
+              <th style={{ ...thStyle, minWidth: 190 }}>{t("col_numero_bc")}</th>
+              <th style={thStyle}>{t("col_fournisseur")}</th>
+              <th style={thStyle}>{t("cmd_h_total_ttc")}</th>
+              <th style={thStyle}>{t("cmd_h_service")}</th>
+              <th style={thStyle}>{t("col_statut")}</th>
+              <th style={thStyle}>{t("cmd_h_reception")}</th>
+              <th style={thStyle}>{t("cmd_h_paiement")}</th>
+              <th style={thStyle}>{t("col_observation")}</th>
               <th style={thStyle}></th>
             </tr>
           </thead>
@@ -584,7 +585,7 @@ function CommandesInner() {
                     <Link
                       href={`/commandes/${c.id}`}
                       style={{ color: "#1E3A34", textDecoration: "underline" }}
-                      title={articlesParBc[c.id]?.length ? articlesParBc[c.id].join("\n") : "Aucun article"}
+                      title={articlesParBc[c.id]?.length ? articlesParBc[c.id].join("\n") : t("db_aucun_article")}
                     >
                       {c.numero}
                     </Link>
@@ -597,32 +598,26 @@ function CommandesInner() {
                   </td>
                   <td style={tdStyle}>
                     <select value={c.statut} onChange={(e) => changerStatut(c.id, e.target.value)} style={inputStyle}>
-                      <option>A faire</option>
-                      <option>En cours</option>
-                      <option>Envoyée</option>
-                      <option>Livraison en cours</option>
-                      <option>Clôturée</option>
-                      <option>Clôturée (rupture)</option>
-                      <option>Annulée</option>
+                      {STATUTS_CONNUS.map((s) => <option key={s} value={s}>{libelleStatut(t, s)}</option>)}
                     </select>
                   </td>
                   <td style={tdStyle}>
                     {reception ? (
                       <span style={{ fontSize: 12, color: reception.statut === "Totale" ? "#1B7A4C" : "#8A6100" }}>
                         {estPrestation
-                          ? (reception.statut === "Totale" ? "Prestation effectuée" : "Prestation partielle")
+                          ? (reception.statut === "Totale" ? t("cmd_prestation_effectuee") : t("cmd_prestation_partielle"))
                           : reception.receptionnaire === "Magasin"
-                            ? (reception.statut === "Totale" ? "Livré au Magasin" : "Livré partiellement au Magasin")
-                            : (reception.statut === "Totale" ? "Livré" : "Livré partiellement")}
+                            ? (reception.statut === "Totale" ? t("cmd_livre_magasin") : t("cmd_livre_partiel_magasin"))
+                            : (reception.statut === "Totale" ? t("cmd_livre") : t("cmd_livre_partiel"))}
                         {reception.receptionnaire !== "Magasin" && <br />}
                         {reception.receptionnaire === "Import historique" ? (
-                          <span style={{ color: "#1B4C7A" }} title="Date d'import de l'historique, pas la date réelle de réception">📥 import historique</span>
+                          <span style={{ color: "#1B4C7A" }} title={t("cmd_import_info")}>{t("cmd_import_historique")}</span>
                         ) : reception.receptionnaire !== "Magasin" ? (
-                          <span style={{ color: "#999" }}>par {reception.receptionnaire || reception.confirme_par}</span>
+                          <span style={{ color: "#999" }}>{t("cmd_par", { nom: reception.receptionnaire || reception.confirme_par })}</span>
                         ) : null}
                       </span>
                     ) : (
-                      <span style={{ fontSize: 12, color: "#999" }}>{estPrestation ? "Prestation non effectuée" : "Non livré"}</span>
+                      <span style={{ fontSize: 12, color: "#999" }}>{estPrestation ? t("cmd_prestation_non") : t("cmd_non_livre")}</span>
                     )}
                   </td>
                   <td style={tdStyle}>
@@ -631,13 +626,13 @@ function CommandesInner() {
                       background: c.statut_paiement === "Payé" ? "#EAF7EE" : enRetard ? "#FDECEA" : "#FFF3D6",
                       color: c.statut_paiement === "Payé" ? "#1B7A4C" : enRetard ? "#B3261E" : "#8A6100",
                     }}>
-                      {c.statut_paiement === "Payé" ? "Payé" : enRetard ? "Échéance dépassée" : "Impayé"}
+                      {c.statut_paiement === "Payé" ? t("cmd_paye") : enRetard ? t("cmd_echeance_depassee") : t("cmd_impaye")}
                     </span>
                   </td>
                   <td style={{ ...tdStyle, color: "#666" }}>{c.observation || "-"}</td>
                   <td style={tdStyle}>
-                    <button onClick={() => annulerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: c.statut === "Annulée" ? "#1B7A4C" : "#8A6100", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, marginRight: 8 }} title={c.statut === "Annulée" ? "Réactiver" : "Annuler"}><IconBan /></button>
-                    <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", display: role === "acheteur" ? "inline-flex" : "none", alignItems: "center", gap: 5 }} title="Supprimer"><IconTrash /></button>
+                    <button onClick={() => annulerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: c.statut === "Annulée" ? "#1B7A4C" : "#8A6100", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, marginRight: 8 }} title={c.statut === "Annulée" ? t("btn_reactiver") : t("btn_annuler")}><IconBan /></button>
+                    <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", display: role === "acheteur" ? "inline-flex" : "none", alignItems: "center", gap: 5 }} title={t("btn_supprimer")}><IconTrash /></button>
                   </td>
                 </tr>
               );
@@ -646,7 +641,7 @@ function CommandesInner() {
         </table>
         {!modeSpecial && resteAcharger > 0 && (
           <div ref={sentinelleRef} style={{ display: "flex", justifyContent: "center", padding: 12, flexShrink: 0, fontSize: 12, color: "#999" }}>
-            {loadingPlus ? "Chargement de la suite..." : `${resteAcharger} de plus en bas...`}
+            {loadingPlus ? t("chargement_suite") : t("n_de_plus", { n: resteAcharger })}
           </div>
         )}
         </div>
