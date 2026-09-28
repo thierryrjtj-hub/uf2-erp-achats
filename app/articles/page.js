@@ -11,6 +11,7 @@ import ChampPrixHT from "../components/ChampPrixHT";
 import { formatDate } from "../../lib/format";
 import { inputStyle, buttonStyle, linkBtn, boutonSelonModif } from "../components/ui";
 import { useDirty } from "../../lib/useDirty";
+import { useLangue } from "../../lib/i18n";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 function matchRecherche(a, q) {
@@ -21,6 +22,7 @@ function matchRecherche(a, q) {
 
 export default function ArticlesListePage() {
   const role = useRole();
+  const { t } = useLangue();
   const [liste, setListe] = useState([]);
   const [categories, setCategories] = useState([]);
   const [lignesBc, setLignesBc] = useState([]);
@@ -130,9 +132,9 @@ export default function ArticlesListePage() {
 
   const copierFiche = async (a, dernier) => {
     const texte = [
-      a.designation, a.unite_defaut && `Unité : ${a.unite_defaut}`, a.categorieNom && `Catégorie : ${a.categorieNom}`,
-      a.dernier_prix_ht && `Dernier prix HT (référence) : ${Number(a.dernier_prix_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`,
-      dernier && `Dernier achat réel : ${dernier.fournisseur} — ${dernier.pu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar HT le ${formatDate(dernier.date)} (BC ${dernier.bc})`,
+      a.designation, a.unite_defaut && `${t("col_unite")} : ${a.unite_defaut}`, a.categorieNom && `${t("art_l_categorie")} : ${a.categorieNom}`,
+      a.dernier_prix_ht && `${t("art_l_dernier_prix_ref")} : ${Number(a.dernier_prix_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`,
+      dernier && `${t("art_l_dernier_achat")} : ${t("art_copie_dernier_achat", { fournisseur: dernier.fournisseur, pu: dernier.pu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), date: formatDate(dernier.date), bc: dernier.bc })}`,
     ].filter(Boolean).join("\n");
     try { await navigator.clipboard.writeText(texte); } catch (e) {}
   };
@@ -167,36 +169,36 @@ export default function ArticlesListePage() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 18 }}>Liste des articles ({loading ? "…" : filtrees.length} / {liste.length})</h1>
-          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
+          <h1 style={{ fontSize: 18 }}>{t("art_titre_liste", { a: loading ? "…" : filtrees.length, b: liste.length })}</h1>
+          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? t("generation") : t("btn_exporter_excel")}</button>
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexShrink: 0, alignItems: "center" }}>
             <div style={{ position: "relative", width: 300 }}>
-              <input data-search-field placeholder="Rechercher un article (désignation, catégorie...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+              <input data-search-field placeholder={t("art_ph_recherche")} value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
               {recherche && (
-                <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
+                <button onClick={() => setRecherche("")} style={clearBtn} aria-label={t("effacer")}>×</button>
               )}
             </div>
             <TriMenu
               colonnes={[
-                { key: "designation", label: "Désignation" },
-                { key: "categorie", label: "Catégorie" },
-                { key: "dernier_prix_ht", label: "Dernier prix HT" },
+                { key: "designation", label: t("ph_designation") },
+                { key: "categorie", label: t("art_l_categorie") },
+                { key: "dernier_prix_ht", label: t("art_l_dernier_prix_ht") },
               ]}
               tri={tri}
               onChange={setTri}
             />
             <select value={filtreCategorie} onChange={(e) => setFiltreCategorie(e.target.value)} style={inputStyle}>
-              <option value="">Toutes les catégories</option>
+              <option value="">{t("art_toutes_categories")}</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
-              {nbSansCategorie > 0 && <option value="(vide)">— Sans catégorie ({nbSansCategorie}) —</option>}
+              {nbSansCategorie > 0 && <option value="(vide)">{t("art_sans_categorie", { n: nbSansCategorie })}</option>}
             </select>
-            <Link href="/articles/categories" style={linkBtn}>Gérer les catégories</Link>
+            <Link href="/articles/categories" style={linkBtn}>{t("nav_articles_categories")}</Link>
           </div>
 
-          {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
+          {loading && <p style={{ color: "#888", fontSize: 13 }}>{t("chargement")}</p>}
 
           <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
             {filtrees.map((a) => {
@@ -209,23 +211,23 @@ export default function ArticlesListePage() {
                   {enEdition ? (
                     <div>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                        <input placeholder="Désignation" value={editForm.designation} onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-                        <Autocomplete placeholder="Unité" value={editForm.unite_defaut} onChange={(val) => setEditForm({ ...editForm, unite_defaut: val })} suggestions={uniteOptions} style={{ width: 160 }} />
+                        <input placeholder={t("ph_designation")} value={editForm.designation} onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+                        <Autocomplete placeholder={t("col_unite")} value={editForm.unite_defaut} onChange={(val) => setEditForm({ ...editForm, unite_defaut: val })} suggestions={uniteOptions} style={{ width: 160 }} />
                         <select value={editForm.categorie_id} onChange={(e) => setEditForm({ ...editForm, categorie_id: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
-                          <option value="">— Choisir une catégorie —</option>
+                          <option value="">{t("art_choisir_categorie")}</option>
                           {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
                         </select>
-                        <ChampPrixHT value={editForm.dernier_prix_ht} onChange={(v) => setEditForm({ ...editForm, dernier_prix_ht: v })} placeholder="Dernier prix HT" style={{ ...inputStyle, width: 140 }} />
+                        <ChampPrixHT value={editForm.dernier_prix_ht} onChange={(v) => setEditForm({ ...editForm, dernier_prix_ht: v })} placeholder={t("art_l_dernier_prix_ht")} style={{ ...inputStyle, width: 140 }} />
                       </div>
                       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
                         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
                           <input type="checkbox" checked={editForm.endormi} onChange={(e) => setEditForm({ ...editForm, endormi: e.target.checked })} />
-                          Article endormi (exclu de l'alerte réapprovisionnement)
+                          {t("art_endormi_label")}
                         </label>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 13, color: "#666" }}>Continue par :</span>
+                          <span style={{ fontSize: 13, color: "#666" }}>{t("art_continue_par")}</span>
                           <Autocomplete
-                            placeholder="Tape le nom de l'article de remplacement..."
+                            placeholder={t("art_ph_remplacement")}
                             value={editForm.continueParTexte}
                             onChange={(val) => {
                               const match = liste.find((x) => x.id !== editId && x.designation.toLowerCase() === val.toLowerCase());
@@ -239,59 +241,62 @@ export default function ArticlesListePage() {
                               type="button"
                               onClick={() => setEditForm({ ...editForm, continue_par_id: "", continueParTexte: "" })}
                               style={{ ...linkBtn, color: "#B3261E" }}
-                              title="Rompre le lien — cet article redevient indépendant"
+                              title={t("art_rompre_info")}
                             >
-                              Rompre le lien
+                              {t("art_rompre")}
                             </button>
                           )}
                         </div>
                       </div>
-                      <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 8 }}>Enregistrer</button>
-                      <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
+                      <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 8 }}>{t("btn_enregistrer")}</button>
+                      <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>{t("btn_annuler")}</button>
                     </div>
                   ) : (
                     <>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <div style={{ fontWeight: 700, fontSize: 15 }}>
                           {a.designation}
-                          {a.endormi && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: "#8A6100", background: "#FFF3D6", borderRadius: 4, padding: "2px 6px" }}>😴 Endormi</span>}
+                          {a.endormi && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: "#8A6100", background: "#FFF3D6", borderRadius: 4, padding: "2px 6px" }}>{t("art_endormi_badge")}</span>}
                           {!a.endormi && achatArreteParId[a.id] && (
-                            <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: "#1B4C7A", background: "#E8F0FA", borderRadius: 4, padding: "2px 6px" }} title="Dernier achat remontant à plus de 3 fois le cycle habituel — probablement plus utilisé">
-                              ⏸ Achat probablement arrêté
+                            <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 500, color: "#1B4C7A", background: "#E8F0FA", borderRadius: 4, padding: "2px 6px" }} title={t("art_arrete_info")}>
+                              {t("art_arrete")}
                             </span>
                           )}
                         </div>
                         <div>
-                          <button onClick={() => copierFiche(a, dernier)} style={iconBtn} title="Copier toutes les infos"><IconCopy /></button>
-                          <button onClick={() => modifier(a)} style={iconBtn} title="Modifier"><IconEdit /></button>
+                          <button onClick={() => copierFiche(a, dernier)} style={iconBtn} title={t("art_copier_infos")}><IconCopy /></button>
+                          <button onClick={() => modifier(a)} style={iconBtn} title={t("btn_modifier")}><IconEdit /></button>
                           {role === "acheteur" && (
-                            <button onClick={() => supprimer(a.id)} style={{ ...iconBtn, color: "#B3261E" }} title="Supprimer"><IconTrash /></button>
+                            <button onClick={() => supprimer(a.id)} style={{ ...iconBtn, color: "#B3261E" }} title={t("btn_supprimer")}><IconTrash /></button>
                           )}
                         </div>
                       </div>
                       {a.continue_par_id && designationParId[a.continue_par_id] && (
-                        <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>Continué par : <strong>{designationParId[a.continue_par_id]}</strong></div>
+                        <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{t("art_continue_par_passif")} <strong>{designationParId[a.continue_par_id]}</strong></div>
                       )}
                       <div style={grid}>
-                        <Champ label="Unité d'achat" value={a.unite_defaut} />
-                        <Champ label="Catégorie" value={a.categorieNom} />
-                        <Champ label="Dernier prix HT (référence)" value={a.dernier_prix_ht ? `${Number(a.dernier_prix_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""} />
+                        <Champ label={t("art_l_unite_achat")} value={a.unite_defaut} />
+                        <Champ label={t("art_l_categorie")} value={a.categorieNom} />
+                        <Champ label={t("art_l_dernier_prix_ref")} value={a.dernier_prix_ht ? `${Number(a.dernier_prix_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : ""} />
                       </div>
                       {dernier ? (
                         <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid #f0f0f0" }}>
-                          <div style={champLabel}>Dernier achat réel</div>
+                          <div style={champLabel}>{t("art_l_dernier_achat")}</div>
                           <div style={{ fontSize: 13, marginTop: 2 }}>
-                            <strong>{dernier.fournisseur}</strong> — {dernier.pu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar HT
-                            ({dernier.puTtc.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar TTC) — qté {dernier.qte} — le {formatDate(dernier.date)} — BC {dernier.bc}
+                            <strong>{dernier.fournisseur}</strong> — {t("art_dernier_achat_detail", {
+                              pu: dernier.pu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                              puTtc: dernier.puTtc.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                              qte: dernier.qte, date: formatDate(dernier.date), bc: dernier.bc,
+                            })}
                           </div>
                           {autres.length > 0 && (
                             <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
-                              Autres fournisseurs consultés : {autres.map((h) => `${h.fournisseur} (${h.pu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar)`).join(", ")}
+                              {t("art_autres_fournisseurs")} {autres.map((h) => `${h.fournisseur} (${h.pu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar)`).join(", ")}
                             </div>
                           )}
                         </div>
                       ) : (
-                        <div style={{ fontSize: 12, color: "#999", marginTop: 10 }}>Aucun achat enregistré pour l'instant sur cet article.</div>
+                        <div style={{ fontSize: 12, color: "#999", marginTop: 10 }}>{t("art_aucun_achat")}</div>
                       )}
                     </>
                   )}
