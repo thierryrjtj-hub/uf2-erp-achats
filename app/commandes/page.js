@@ -410,7 +410,7 @@ function CommandesInner() {
         ],
         rows: lignesDeCeBc.map((l) => ({
           designation: l.designation, quantite: Number(l.quantite) || 0, unite: l.unite,
-          prixUnitaireHt: Number(l.prix_unitaire_ht) || 0, remise: Number(l.remise_pct) || 0,
+          prixUnitaireHt: Number(l.prix_unitaire_ht) || 0, remise: Number(l.remise_pct) || "",
           montantHt: Number(l.montant_ht) || 0,
         })),
         currencyKeys: ["prixUnitaireHt", "montantHt"],
