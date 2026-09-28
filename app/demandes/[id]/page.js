@@ -12,6 +12,7 @@ import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../../compon
 import { formatDate } from "../../../lib/format";
 import { useRole } from "../../../lib/useRole";
 import { useUserId } from "../../../lib/useUserId";
+import { useLangue, libellePriorite } from "../../../lib/i18n";
 import BandeauLectureSeule from "../../components/BandeauLectureSeule";
 
 function computeTotal(lignesOffre, lignesDemande, assujettiTva) {
@@ -72,6 +73,7 @@ export default function TCODetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const role = useRole();
+  const { langue, t } = useLangue();
   const userId = useUserId();
   const [nomCreateurDemande, setNomCreateurDemande] = useState("");
   const [demande, setDemande] = useState(null);
@@ -176,11 +178,11 @@ export default function TCODetailPage() {
         if (moinsCherParLigne[ld.id] === o.id) numeros.push(i + 1);
       });
       if (numeros.length === 0) { map[o.id] = null; return; }
-      if (numeros.length === lignesDemande.length) { map[o.id] = "moins cher"; return; }
-      map[o.id] = `moins cher — article n°${numeros.join(", n°")}`;
+      if (numeros.length === lignesDemande.length) { map[o.id] = t("dt_moins_cher"); return; }
+      map[o.id] = t("dt_moins_cher_articles", { liste: numeros.map((n) => t("dt_num_n", { n })).join(", ") });
     });
     return map;
-  }, [offresAvecTotaux, lignesDemande, moinsCherParLigne]);
+  }, [offresAvecTotaux, lignesDemande, moinsCherParLigne, langue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalPreconisation = useMemo(() => {
     let ht = 0, tva = 0;
@@ -365,7 +367,7 @@ export default function TCODetailPage() {
 
   const supprimerLigneDemande = async (ligne) => {
     if (lectureSeule) return;
-    if (!confirm(`Retirer "${ligne.designation}" de la demande ?`)) return;
+    if (!confirm(t("dt_confirm_retirer", { designation: ligne.designation }))) return;
     await supabase.from("lignes_offre").delete().eq("ligne_demande_id", ligne.id);
     await supabase.from("lignes_demande").delete().eq("id", ligne.id);
     setLignesDemande((prev) => prev.filter((l) => l.id !== ligne.id));
@@ -491,9 +493,9 @@ export default function TCODetailPage() {
     setGenerating(false);
     if (echecs.length > 0 || restantsSansPrix.length > 0) {
       const morceaux = [];
-      if (echecs.length > 0) morceaux.push(`le BC n'a pas pu être créé pour ${echecs.join(", ")} — les lignes correspondantes restent disponibles pour une nouvelle tentative`);
-      if (restantsSansPrix.length > 0) morceaux.push(`${restantsSansPrix.length} article(s) sans aucun prix ont été transférés vers une nouvelle demande dédiée (à rechercher ailleurs ou à signaler aux demandeurs)`);
-      alert(`Attention : ${morceaux.join(" ; ")}.`);
+      if (echecs.length > 0) morceaux.push(t("dt_echec_bc", { noms: echecs.join(", ") }));
+      if (restantsSansPrix.length > 0) morceaux.push(t("dt_reliquat", { n: restantsSansPrix.length }));
+      alert(t("dt_attention", { morceaux: morceaux.join(" ; ") }));
       charger();
     } else {
       router.push("/commandes");
@@ -519,8 +521,8 @@ export default function TCODetailPage() {
     charger();
   };
 
-  if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
-  if (!demande) return <AuthGuard><p>Demande introuvable.</p></AuthGuard>;
+  if (loading) return <AuthGuard><p>{t("chargement")}</p></AuthGuard>;
+  if (!demande) return <AuthGuard><p>{t("dt_introuvable")}</p></AuthGuard>;
 
   const pagesImpression = [];
   for (let i = 0; i < offresAvecTotaux.length; i += FOURNISSEURS_PAR_PAGE) {
@@ -558,7 +560,7 @@ export default function TCODetailPage() {
       `}</style>
 
       <div className="no-print">
-      <button onClick={() => router.back()} style={{ ...linkBtn, marginBottom: 16 }}>&larr; Retour</button>
+      <button onClick={() => router.back()} style={{ ...linkBtn, marginBottom: 16 }}>&larr; {t("retour")}</button>
 
       {role && role !== "acheteur" && demande?.created_by && demande.created_by !== userId && (
         <BandeauLectureSeule nomCreateur={nomCreateurDemande} />
@@ -572,7 +574,7 @@ export default function TCODetailPage() {
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
               <div style={{ width: 150 }}>
-                <div style={lblStyle}>Date DA</div>
+                <div style={lblStyle}>{t("dem_h_date_da")}</div>
                 <input
                   type="date"
                   defaultValue={demande.date_da ? demande.date_da.slice(0, 10) : ""}
@@ -582,7 +584,7 @@ export default function TCODetailPage() {
                 />
               </div>
               <div style={{ width: 170 }}>
-                <div style={lblStyle}>N° DA</div>
+                <div style={lblStyle}>{t("dem_h_numero_da")}</div>
                 <input
                   defaultValue={demande.numero_da || ""}
                   disabled={lectureSeule}
@@ -591,7 +593,7 @@ export default function TCODetailPage() {
                 />
               </div>
               <div style={{ flex: 1, minWidth: 160 }}>
-                <div style={lblStyle}>Service demandeur</div>
+                <div style={lblStyle}>{t("dem_h_service")}</div>
                 <input
                   defaultValue={demande.service || ""}
                   disabled={lectureSeule}
@@ -600,7 +602,7 @@ export default function TCODetailPage() {
                 />
               </div>
               <div style={{ flex: 1, minWidth: 160 }}>
-                <div style={lblStyle}>Nom demandeur</div>
+                <div style={lblStyle}>{t("dem_h_nom")}</div>
                 <input
                   defaultValue={demande.demandeur || ""}
                   disabled={lectureSeule}
@@ -609,21 +611,21 @@ export default function TCODetailPage() {
                 />
               </div>
               <div style={{ width: 140 }}>
-                <div style={lblStyle}>Priorité</div>
+                <div style={lblStyle}>{t("dt_l_priorite")}</div>
                 <select
                   defaultValue={demande.priorite || "Moyenne"}
                   disabled={lectureSeule}
                   onChange={(e) => majDemande({ priorite: e.target.value })}
                   style={{ ...inputStyle, width: "100%" }}
                 >
-                  <option value="Basse">Basse</option>
-                  <option value="Moyenne">Moyenne</option>
-                  <option value="Haute">Haute</option>
+                  <option value="Basse">{libellePriorite(t, "Basse")}</option>
+                  <option value="Moyenne">{libellePriorite(t, "Moyenne")}</option>
+                  <option value="Haute">{libellePriorite(t, "Haute")}</option>
                 </select>
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <div style={lblStyle}>Motif de la demande</div>
+              <div style={lblStyle}>{t("dt_l_motif")}</div>
               <input
                 defaultValue={demande.motif_projet || ""}
                 disabled={lectureSeule}
@@ -632,7 +634,7 @@ export default function TCODetailPage() {
               />
             </div>
             <div style={{ marginBottom: 12 }}>
-              <div style={lblStyle}>Observation</div>
+              <div style={lblStyle}>{t("col_observation")}</div>
               <textarea
                 defaultValue={demande.observation || ""}
                 disabled={lectureSeule}
@@ -645,14 +647,14 @@ export default function TCODetailPage() {
                   onClick={async () => { await supabase.from("demandes").update({ demandeur_avise: true }).eq("id", id); charger(); }}
                   style={{ ...linkBtn, marginTop: 6, color: "#B3261E" }}
                 >
-                  Marquer le demandeur avisé
+                  {t("dt_btn_marquer_avise")}
                 </button>
               )}
-              {demande.observation && demande.demandeur_avise && <p style={{ marginTop: 6, color: "#1B7A4C", fontSize: 12.5 }}>✓ Demandeur avisé</p>}
+              {demande.observation && demande.demandeur_avise && <p style={{ marginTop: 6, color: "#1B7A4C", fontSize: 12.5 }}>{t("dt_demandeur_avise")}</p>}
             </div>
             {bcGeneres.length > 0 && (
               <p style={{ fontSize: 13, marginBottom: 12 }}>
-                <strong>Bon(s) de commande généré(s) :</strong>{" "}
+                <strong>{t("dt_bc_generes")}</strong>{" "}
                 {bcGeneres.map((bc, i) => (
                   <span key={bc.id}>
                     {i > 0 && ", "}
@@ -663,17 +665,17 @@ export default function TCODetailPage() {
             )}
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => { setModeImpression("demande"); setTimeout(() => window.print(), 60); }} style={buttonStyle}>Imprimer la demande</button>
+            <button onClick={() => { setModeImpression("demande"); setTimeout(() => window.print(), 60); }} style={buttonStyle}>{t("dt_btn_imprimer_demande")}</button>
           </div>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={thStyle}>N°</th>
-              <th style={thStyle}>Article</th>
-              <th style={thStyle}>Qté</th>
-              <th style={thStyle}>Unité</th>
-              <th style={thStyle}>Non dispo. localement</th>
+              <th style={thStyle}>{t("col_num")}</th>
+              <th style={thStyle}>{t("col_article")}</th>
+              <th style={thStyle}>{t("ph_qte")}</th>
+              <th style={thStyle}>{t("col_unite")}</th>
+              <th style={thStyle}>{t("dt_h_non_dispo")}</th>
               {!lectureSeule && <th style={thStyle}></th>}
             </tr>
           </thead>
@@ -685,7 +687,7 @@ export default function TCODetailPage() {
                   {lectureSeule ? (
                     <>
                       {l.designation}
-                      {l.non_disponible_localement && <span style={{ marginLeft: 8, fontSize: 11, color: "#B3261E" }}>— à rechercher à l'import</span>}
+                      {l.non_disponible_localement && <span style={{ marginLeft: 8, fontSize: 11, color: "#B3261E" }}>{t("dt_a_rechercher_import")}</span>}
                     </>
                   ) : (
                     <Autocomplete
@@ -724,7 +726,7 @@ export default function TCODetailPage() {
                 </td>
                 {!lectureSeule && (
                   <td style={tdStyle}>
-                    <button onClick={() => supprimerLigneDemande(l)} style={{ ...linkBtn, color: "#B3261E" }}>Retirer</button>
+                    <button onClick={() => supprimerLigneDemande(l)} style={{ ...linkBtn, color: "#B3261E" }}>{t("btn_retirer")}</button>
                   </td>
                 )}
               </tr>
@@ -732,33 +734,33 @@ export default function TCODetailPage() {
           </tbody>
         </table>
         {!lectureSeule && (
-          <button onClick={ajouterLigneDemande} style={{ ...buttonStyle, marginTop: 10 }}>+ Ajouter un article</button>
+          <button onClick={ajouterLigneDemande} style={{ ...buttonStyle, marginTop: 10 }}>{t("dt_btn_ajouter_article")}</button>
         )}
       </div>
 
-      <CadreExtensible titre="Tableau comparatif (TCO)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
+      <CadreExtensible titre={t("dt_tco_titre")} style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-          <h2 style={{ fontSize: 15 }}>Tableau comparatif (TCO)</h2>
+          <h2 style={{ fontSize: 15 }}>{t("dt_tco_titre")}</h2>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <select
               value={orientationManuelle}
               onChange={(e) => setOrientationManuelle(e.target.value)}
               style={inputStyle}
-              title="Par défaut automatique (portrait ≤2 fournisseurs, paysage au-delà) — modifiable ici si besoin"
+              title={t("dt_orient_info")}
             >
-              <option value="">Orientation auto ({offresAvecTotaux.length > 2 ? "paysage" : "portrait"})</option>
-              <option value="portrait">Forcer portrait</option>
-              <option value="landscape">Forcer paysage</option>
+              <option value="">{t("dt_orient_auto", { orient: t(offresAvecTotaux.length > 2 ? "dt_paysage" : "dt_portrait") })}</option>
+              <option value="portrait">{t("dt_forcer_portrait")}</option>
+              <option value="landscape">{t("dt_forcer_paysage")}</option>
             </select>
             <button onClick={() => { setModeImpression("comparatif"); setTimeout(() => window.print(), 60); }} disabled={sauvegardesPrixEnCours > 0} style={buttonStyle}>
-              {sauvegardesPrixEnCours > 0 ? "Enregistrement des prix..." : "Imprimer le comparatif"}
+              {sauvegardesPrixEnCours > 0 ? t("dt_enreg_prix") : t("dt_btn_imprimer_comparatif")}
             </button>
           </div>
         </div>
 
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           <Autocomplete
-            placeholder="Taper le nom du fournisseur à comparer..."
+            placeholder={t("dt_ph_fournisseur")}
             value={rechercheFournisseur}
             onChange={setRechercheFournisseur}
             onSelect={(nom) => {
@@ -775,33 +777,33 @@ export default function TCODetailPage() {
             }}
             style={buttonStyle}
           >
-            + Ajouter
+            {t("btn_ajouter")}
           </button>
         </div>
 
         {offresAvecTotaux.length === 0 && (
           <div className="no-print" style={{ background: "#F5F4F1", borderRadius: 8, padding: 16, marginBottom: 16 }}>
-            <p style={{ fontSize: 13, marginBottom: 10 }}>Comment veux-tu traiter cette demande ?</p>
+            <p style={{ fontSize: 13, marginBottom: 10 }}>{t("dt_comment_traiter")}</p>
             <div style={{ display: "flex", gap: 8 }}>
-              <span style={{ ...buttonStyle, opacity: 0.6, cursor: "default" }}>↓ Comparer des fournisseurs (TCO) — ajoute-en un ci-dessous</span>
+              <span style={{ ...buttonStyle, opacity: 0.6, cursor: "default" }}>{t("dt_comparer")}</span>
               <button onClick={() => router.push(`/commandes/nouveau?demande_id=${id}`)} style={{ ...buttonStyle, background: "#888" }}>
-                Créer le BC directement (sans comparatif)
+                {t("dt_creer_bc_direct")}
               </button>
             </div>
           </div>
         )}
-        {offresAvecTotaux.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Ajoute au moins un fournisseur pour saisir ses prix.</p>}
+        {offresAvecTotaux.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>{t("dt_ajouter_un_fournisseur")}</p>}
 
         {offresAvecTotaux.length > 0 && (
           <div className="ecran-seulement">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>N°</th>
-                  <th style={thStyle}>Article</th>
-                  <th style={thStyle}>Qté</th>
-                  <th style={thStyle}>Unité</th>
-                  <th style={{ ...thStyle, color: "#1B7A4C" }}>Préconisation</th>
+                  <th style={thStyle}>{t("col_num")}</th>
+                  <th style={thStyle}>{t("col_article")}</th>
+                  <th style={thStyle}>{t("ph_qte")}</th>
+                  <th style={thStyle}>{t("col_unite")}</th>
+                  <th style={{ ...thStyle, color: "#1B7A4C" }}>{t("dt_h_preconisation")}</th>
                   {offresAvecTotaux.map((o, oi) => (
                     <th key={o.id} style={{ ...thStyle, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
                       {o.fournisseur_nom}
@@ -809,17 +811,17 @@ export default function TCODetailPage() {
                       <button onClick={() => retirerOffre(o.id)} style={{ ...linkBtn, marginLeft: 8 }}>x</button>
                       <div style={{ display: "flex", gap: 4, fontWeight: 400, color: "#aaa", fontSize: 11, marginTop: 4 }}>
                         <span style={{ width: 30 }}></span>
-                        <span style={{ width: 80 }}>Prix unitaire HT</span>
-                        <span style={{ width: 65 }}>Remise %</span>
+                        <span style={{ width: 80 }}>{t("dt_h_prix_unitaire_ht")}</span>
+                        <span style={{ width: 65 }}>{t("dt_h_remise_pct")}</span>
                       </div>
                       <label style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 400, color: "#666", fontSize: 11, marginTop: 6 }}>
                         <input type="checkbox" checked={o.assujetti_tva === false} onChange={() => toggleTva(o.id, o.assujetti_tva)} />
-                        Fournisseur non taxable
+                        {t("ncmd_non_taxable_check")}
                       </label>
                       <div className="no-print" style={{ display: "flex", gap: 4, marginTop: 6 }}>
                         <input
                           id={`numero-devis-${oi}`}
-                          placeholder="N° devis"
+                          placeholder={t("dt_ph_num_devis")}
                           defaultValue={o.numero_devis || ""}
                           onBlur={(e) => majOffre(o.id, "numero_devis", e.target.value)}
                           style={{ ...inputStyle, width: 70, fontWeight: 400, fontSize: 11, padding: "4px 6px" }}
@@ -833,7 +835,7 @@ export default function TCODetailPage() {
                       </div>
                       <textarea
                         className="no-print"
-                        data-casse-normale placeholder="Observation (dispo, conditions, précision article...)"
+                        data-casse-normale placeholder={t("dt_ph_obs_offre")}
                         defaultValue={o.observation || ""}
                         onBlur={(e) => majOffre(o.id, "observation", e.target.value)}
                         style={{ ...inputStyle, width: "100%", minHeight: 30, fontWeight: 400, fontSize: 11, marginTop: 6, resize: "vertical" }}
@@ -852,7 +854,7 @@ export default function TCODetailPage() {
                       <td style={tdStyle}>{i + 1}</td>
                       <td style={tdStyle}>
                         {ld.designation}
-                        {couverte && <span style={{ marginLeft: 6, fontSize: 11, color: "#1B7A4C" }}>✓ BC déjà généré</span>}
+                        {couverte && <span style={{ marginLeft: 6, fontSize: 11, color: "#1B7A4C" }}>{t("dt_bc_deja_genere")}</span>}
                       </td>
                       <td style={tdStyle}>{ld.quantite.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td style={tdStyle}>{ld.unite}</td>
@@ -861,7 +863,7 @@ export default function TCODetailPage() {
                           <>
                             <strong>{offreRetenue.fournisseur_nom}</strong><br />
                             {montantRetenu != null ? (
-                              <>HT {montantRetenu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</>
+                              <>{t("dt_ht")} {montantRetenu.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</>
                             ) : "-"}
                           </>
                         ) : "-"}
@@ -882,7 +884,7 @@ export default function TCODetailPage() {
                                   setSelection((prev) => ({ ...prev, [ld.id]: o.id }));
                                   setSelectionManuelle((prev) => new Set(prev).add(ld.id));
                                 }}
-                                title="Retenir ce fournisseur pour cet article"
+                                title={t("dt_retenir_fournisseur")}
                               />
                               <ChampPrixHT
                                 id={`pu-${oi}-${i}`}
@@ -906,7 +908,7 @@ export default function TCODetailPage() {
                               />
                               <input
                                 type="number"
-                                placeholder="remise %"
+                                placeholder={t("ph_remise")}
                                 defaultValue={Number(lo.remise_pct) ? lo.remise_pct : ""}
                                 onBlur={(e) => majPrix(o.id, ld.id, "remise_pct", e.target.value)}
                                 disabled={couverte}
@@ -920,7 +922,7 @@ export default function TCODetailPage() {
                   );
                 })}
                 <tr style={{ borderTop: "2px solid #eee" }}>
-                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>Total des articles au prix le moins cher retenu (HT)</td>
+                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 700 }}>{t("dt_total_moins_cher")}</td>
                   <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.ht.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
@@ -929,16 +931,16 @@ export default function TCODetailPage() {
                   ))}
                 </tr>
                 <tr>
-                  <td colSpan={4} style={tdStyle}>TVA</td>
+                  <td colSpan={4} style={tdStyle}>{t("lbl_tva")}</td>
                   <td style={{ ...tdStyle, color: "#1B7A4C" }}>{totalPreconisation.tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={tdStyle}>
-                      {o.assujetti_tva === false ? <span style={{ color: "#999" }}>Non taxable</span> : `${o.tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`}
+                      {o.assujetti_tva === false ? <span style={{ color: "#999" }}>{t("lbl_non_taxable")}</span> : `${o.tva.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`}
                     </td>
                   ))}
                 </tr>
                 <tr>
-                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 600 }}>Total TTC</td>
+                  <td colSpan={4} style={{ ...tdStyle, fontWeight: 600 }}>{t("lbl_total_ttc")}</td>
                   <td style={{ ...tdStyle, fontWeight: 700, color: "#1B7A4C" }}>{totalPreconisation.ttc.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
                   {offresAvecTotaux.map((o) => (
                     <td key={o.id} style={{ ...tdStyle, fontWeight: 600, ...(etiquetteParOffre[o.id] ? { color: "#1B7A4C" } : {}) }}>
@@ -953,10 +955,10 @@ export default function TCODetailPage() {
 
         {offresAvecTotaux.length > 0 && (
           <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
-            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Remarque de la demande (pour le TCO imprimé)</p>
+            <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{t("dt_remarque_titre")}</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
               <textarea
-                placeholder="Ex. article surligné en jaune abordable... / Autres fournisseurs consultés : Sanifer et Batimax pas de dispo, MC Mining en attente de réponse..."
+                placeholder={t("dt_remarque_ph")}
                 value={notesTco.remarque}
                 onChange={(e) => setNotesTco({ ...notesTco, remarque: e.target.value })}
                 onBlur={enregistrerNotesTco}
@@ -969,19 +971,19 @@ export default function TCODetailPage() {
         {offresAvecTotaux.length > 0 && lignesDemande.some((ld) => !dejaCouvertes.has(ld.id)) && (
           <div className="no-print" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
             <p style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>
-              Le point (radio) coché sur chaque article indique le fournisseur retenu pour cet article (par défaut le moins cher). Change-le si besoin avant de générer les bons de commande — un BC distinct sera créé par fournisseur retenu, seulement pour les articles pas encore attribués.
+              {t("dt_aide_radio")}
             </p>
             <button onClick={genererBC} disabled={generating || sauvegardesPrixEnCours > 0} style={buttonStyle}>
-              {generating ? "Génération..." : sauvegardesPrixEnCours > 0 ? "Enregistrement des prix..." : "Générer le(s) bon(s) de commande"}
+              {generating ? t("generation") : sauvegardesPrixEnCours > 0 ? t("dt_enreg_prix") : t("dt_btn_generer_bc")}
             </button>
             {sauvegardesPrixEnCours > 0 && (
-              <p style={{ fontSize: 11.5, color: "#8A6100", marginTop: 6 }}>Un instant — le calcul du fournisseur le moins cher se met à jour après ta dernière saisie de prix.</p>
+              <p style={{ fontSize: 11.5, color: "#8A6100", marginTop: 6 }}>{t("dt_un_instant")}</p>
             )}
           </div>
         )}
         {offresAvecTotaux.length > 0 && lignesDemande.length > 0 && lignesDemande.every((ld) => dejaCouvertes.has(ld.id)) && (
           <p className="no-print" style={{ fontSize: 13, color: "#1B7A4C", marginTop: 20, paddingTop: 16, borderTop: "1px solid #eee" }}>
-            ✓ Tous les articles de cette demande ont déjà un bon de commande.
+            {t("dt_tous_couverts")}
           </p>
         )}
       </CadreExtensible>
