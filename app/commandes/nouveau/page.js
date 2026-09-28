@@ -274,7 +274,7 @@ function NouveauBCDirectInner() {
                 {Number(l.prix_unitaire_ht).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar
               </span>
             )}
-            <input type="number" placeholder="remise %" value={l.remise_pct} onChange={(e) => updateLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
+            <input type="number" placeholder="remise %" value={l.remise_pct === 0 ? "" : l.remise_pct} onChange={(e) => updateLigne(l.key, "remise_pct", e.target.value)} style={{ ...inputStyle, width: 90 }} />
             <button onClick={() => removeLigne(l.key)} style={linkBtn}>Retirer</button>
           </div>
           );
@@ -296,3 +296,4 @@ function NouveauBCDirectInner() {
     </AuthGuard>
   );
 }
+
