@@ -9,14 +9,16 @@ import { linkBtn, inputStyle, thStyle, tdStyle } from "../components/ui";
 import { IconCopy, IconBan, IconTrash } from "../components/Icons";
 import { useRole } from "../../lib/useRole";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
+import { useLangue, libelleStatut, libellePriorite } from "../../lib/i18n";
 
 const GROUPE_TERMINAL = new Set(["Basculée en commande", "Clôturée", "Annulée", "En stand-by"]);
 const PAGE_SIZE = 100;
 const STATUTS_CONNUS = ["A faire", "Partiellement traitée", "Basculée en commande", "En stand-by", "Clôturée", "Annulée"];
 
 export default function DemandesListePage() {
+  const { t } = useLangue();
   return (
-    <Suspense fallback={<AuthGuard><p>Chargement...</p></AuthGuard>}>
+    <Suspense fallback={<AuthGuard><p>{t("chargement")}</p></AuthGuard>}>
       <DemandesInner />
     </Suspense>
   );
@@ -24,6 +26,7 @@ export default function DemandesListePage() {
 
 function DemandesInner() {
   const role = useRole();
+  const { t } = useLangue();
   const searchParams = useSearchParams();
   const filtreATraiter = searchParams.get("filtre") === "a_traiter";
   const [liste, setListe] = useState([]);
@@ -45,8 +48,8 @@ function DemandesInner() {
   }, [anneeActuelle]);
 
   useEffect(() => {
-    const t = setTimeout(() => setRechercheEffective(recherche.trim()), 350);
-    return () => clearTimeout(t);
+    const minuteur = setTimeout(() => setRechercheEffective(recherche.trim()), 350);
+    return () => clearTimeout(minuteur);
   }, [recherche]);
 
   // ---- Mode spécial (venu du Tableau de bord) : comportement inchangé,
@@ -201,13 +204,13 @@ function DemandesInner() {
           "text/plain": new Blob([texte], { type: "text/plain" }),
         }),
       ]);
-      alert("Copié — colle-le dans un e-mail (Outlook/Gmail), il ne reste qu'à mettre l'objet et le(s) destinataire(s).");
+      alert(t("dem_copie_ok"));
     } catch (e) {
       try {
         await navigator.clipboard.writeText(texte);
-        alert("Copié en texte brut (le tableau formaté n'a pas pu être copié) — colle-le dans un e-mail.");
+        alert(t("dem_copie_texte"));
       } catch (e2) {
-        alert("La copie a échoué. Réessaie.");
+        alert(t("dem_copie_echec"));
       }
     }
   };
@@ -220,12 +223,12 @@ function DemandesInner() {
 
   const annulerDemande = async (d) => {
     if (d.statut === "Annulée") {
-      if (!confirm(`Réactiver la demande ${d.numero} (retirer le statut Annulée) ?`)) return;
+      if (!confirm(t("dem_confirm_reactiver", { numero: d.numero }))) return;
       await supabase.from("demandes").update({ statut: "A faire" }).eq("id", d.id);
       charger();
       return;
     }
-    const motif = prompt(`Pourquoi annuler la demande ${d.numero} ? (raison obligatoire)`);
+    const motif = prompt(t("dem_prompt_annuler", { numero: d.numero }));
     if (!motif || !motif.trim()) return;
     await supabase.from("demandes").update({ statut: "Annulée", observation: motif.trim() }).eq("id", d.id);
     charger();
@@ -240,7 +243,7 @@ function DemandesInner() {
       charger();
       return;
     }
-    const motif = prompt(`Pourquoi mettre en stand-by la demande ${d.numero} ? (optionnel)`);
+    const motif = prompt(t("dem_prompt_standby", { numero: d.numero }));
     const ligne = `[${dateDuJour}] Mise en stand-by${motif?.trim() ? ` — ${motif.trim()}` : ""}`;
     const trace = d.historique_stand_by ? `${d.historique_stand_by}\n${ligne}` : ligne;
     await supabase.from("demandes").update({ statut: "En stand-by", historique_stand_by: trace }).eq("id", d.id);
@@ -251,10 +254,10 @@ function DemandesInner() {
     const { data: bcLies } = await supabase.from("commandes").select("id, numero").eq("demande_id", d.id);
     if (bcLies && bcLies.length > 0) {
       const noms = bcLies.map((b) => b.numero).join(", ");
-      if (!confirm(`La demande ${d.numero} a ${bcLies.length} bon(s) de commande lié(s) (${noms}). Les supprimer aussi (avec leur réception/historique) et supprimer la demande ?`)) return;
+      if (!confirm(t("dem_confirm_supprimer_avec_bc", { numero: d.numero, n: bcLies.length, noms }))) return;
       await supabase.from("commandes").delete().eq("demande_id", d.id);
     } else {
-      if (!confirm(`Supprimer définitivement la demande ${d.numero} ?`)) return;
+      if (!confirm(t("dem_confirm_supprimer", { numero: d.numero }))) return;
     }
     await supabase.from("demandes").delete().eq("id", d.id);
     charger();
@@ -264,57 +267,61 @@ function DemandesInner() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <h1 style={{ fontSize: 18, marginBottom: 14, flexShrink: 0 }}>
-          {filtreATraiter ? `Liste des demandes (${filtrees.length} / ${liste.length})` : `Liste des demandes (${liste.length} chargées / ${totalCount} au total${filtreAnnee !== "toutes" ? `, année ${filtreAnnee}` : ""})`}
+          {filtreATraiter
+            ? t("dem_liste_special", { a: filtrees.length, b: liste.length })
+            : filtreAnnee !== "toutes"
+              ? t("dem_liste_annee", { charges: liste.length, total: totalCount, annee: filtreAnnee })
+              : t("dem_liste_toutes", { charges: liste.length, total: totalCount })}
         </h1>
 
         {filtreATraiter && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#E8F0FA", color: "#1B4C7A", borderRadius: 8, padding: "8px 14px", marginBottom: 12, fontSize: 13, flexShrink: 0 }}>
-            <span>Filtré depuis le Tableau de bord : seules les {filtrees.length} demande(s) à traiter sont affichées.</span>
-            <Link href="/demandes" style={{ color: "#1B4C7A", textDecoration: "underline" }}>Voir toutes les demandes</Link>
+            <span>{t("dem_banniere", { n: filtrees.length })}</span>
+            <Link href="/demandes" style={{ color: "#1B4C7A", textDecoration: "underline" }}>{t("dem_voir_toutes")}</Link>
           </div>
         )}
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap", flexShrink: 0 }}>
             <div style={{ position: "relative", flex: 1, minWidth: 240 }}>
-              <input data-search-field placeholder="Rechercher (N°, service, demandeur, motif...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
-              {recherche && <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer">×</button>}
+              <input data-search-field placeholder={t("dem_recherche")} value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+              {recherche && <button onClick={() => setRecherche("")} style={clearBtn} aria-label={t("effacer")}>×</button>}
             </div>
             <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)} style={inputStyle}>
-              <option value="">Tous les statuts</option>
-              {STATUTS_CONNUS.map((s) => <option key={s} value={s}>{s}</option>)}
+              <option value="">{t("tous_statuts")}</option>
+              {STATUTS_CONNUS.map((s) => <option key={s} value={s}>{libelleStatut(t, s)}</option>)}
             </select>
             {!filtreATraiter && (
-              <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title="Par défaut, seule l'année en cours est affichée">
+              <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title={t("annee_defaut_info")}>
                 {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
-                <option value="toutes">Toutes les années</option>
+                <option value="toutes">{t("toutes_annees")}</option>
               </select>
             )}
             <TriMenu
               colonnes={[
-                { key: "created_at", label: "Date" },
-                { key: "numero", label: "N°" },
-                { key: "service", label: "Service" },
-                { key: "statut", label: "Statut" },
+                { key: "created_at", label: t("col_date") },
+                { key: "numero", label: t("col_numero") },
+                { key: "service", label: t("col_service") },
+                { key: "statut", label: t("col_statut") },
               ]}
               tri={tri}
               onChange={setTri}
             />
           </div>
 
-          {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-          {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune demande pour ces filtres.</p>}
+          {loading && <p style={{ color: "#888", fontSize: 13 }}>{t("chargement")}</p>}
+          {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>{t("dem_aucune")}</p>}
           <div ref={conteneurScrollRef} style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Date DA</th>
-                  <th style={thStyle}>N° DA</th>
-                  <th style={thStyle}>Service demandeur</th>
-                  <th style={thStyle}>Nom demandeur</th>
-                  <th style={thStyle}>Statut</th>
-                  <th style={thStyle}>Demande</th>
-                  <th style={thStyle}>Observation</th>
+                  <th style={thStyle}>{t("dem_h_date_da")}</th>
+                  <th style={thStyle}>{t("dem_h_numero_da")}</th>
+                  <th style={thStyle}>{t("dem_h_service")}</th>
+                  <th style={thStyle}>{t("dem_h_nom")}</th>
+                  <th style={thStyle}>{t("col_statut")}</th>
+                  <th style={thStyle}>{t("dem_h_demande")}</th>
+                  <th style={thStyle}>{t("col_observation")}</th>
                   <th style={thStyle}></th>
                 </tr>
               </thead>
@@ -326,21 +333,21 @@ function DemandesInner() {
                     <td style={tdStyle}>{d.service || "-"}</td>
                     <td style={tdStyle}>{d.demandeur || "-"}</td>
                     <td style={tdStyle}>
-                      <button onClick={() => setFiltreStatut(d.statut)} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100", border: "none", cursor: "pointer" }} title="Filtrer sur ce statut">{d.statut}</button>
+                      <button onClick={() => setFiltreStatut(d.statut)} style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: "#FFF3D6", color: "#8A6100", border: "none", cursor: "pointer" }} title={t("dem_filtrer_statut")}>{libelleStatut(t, d.statut)}</button>
                     </td>
                     <td style={tdStyle}>
                       <Link
                         href={`/demandes/${d.id}`}
                         style={{ fontWeight: 600, color: "#1E3A34", textDecoration: "underline" }}
-                        title={articlesParDemande[d.id]?.length ? articlesParDemande[d.id].join("\n") : "Aucun article saisi"}
+                        title={articlesParDemande[d.id]?.length ? articlesParDemande[d.id].join("\n") : t("dem_aucun_article")}
                       >
                         {d.numero}
                       </Link>
                       <div style={{ fontSize: 12, color: "#888" }}>{d.motif_projet}</div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
-                        <span title={`Priorité : ${d.priorite || "Moyenne"}`} style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: prioriteCouleur(d.priorite), flexShrink: 0, cursor: "help" }} />
+                        <span title={t("dem_priorite", { p: libellePriorite(t, d.priorite) })} style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: prioriteCouleur(d.priorite), flexShrink: 0, cursor: "help" }} />
                         {demandesAvecNonDispo.has(d.id) && (
-                          <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 5, background: "#FDECEA", color: "#B3261E" }}>À rechercher import</span>
+                          <span style={{ fontSize: 10.5, padding: "2px 6px", borderRadius: 5, background: "#FDECEA", color: "#B3261E" }}>{t("dem_a_rechercher_import")}</span>
                         )}
                       </div>
                     </td>
@@ -354,10 +361,10 @@ function DemandesInner() {
                     </td>
                     <td style={tdStyle}>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button onClick={() => copierPourDevis(d)} style={linkBtnBleu} title="Copier pour demande de devis">
-                          <IconCopy /> Devis
+                        <button onClick={() => copierPourDevis(d)} style={linkBtnBleu} title={t("dem_copier_devis")}>
+                          <IconCopy /> {t("dem_btn_devis")}
                         </button>
-                        <button onClick={() => annulerDemande(d)} style={{ ...linkBtn, color: d.statut === "Annulée" ? "#1B7A4C" : "#8A6100", display: "inline-flex", alignItems: "center" }} title={d.statut === "Annulée" ? "Réactiver" : "Annuler"}>
+                        <button onClick={() => annulerDemande(d)} style={{ ...linkBtn, color: d.statut === "Annulée" ? "#1B7A4C" : "#8A6100", display: "inline-flex", alignItems: "center" }} title={d.statut === "Annulée" ? t("btn_reactiver") : t("btn_annuler")}>
                           <IconBan />
                         </button>
                         {(d.statut === "En stand-by" || !["Basculée en commande", "Clôturée", "Annulée"].includes(d.statut)) && (
@@ -365,15 +372,15 @@ function DemandesInner() {
                             onClick={() => standByDemande(d)}
                             style={{ ...linkBtn, color: d.statut === "En stand-by" ? "#1B7A4C" : "#8A6100" }}
                             title={
-                              (d.statut === "En stand-by" ? "Réactiver (sortir du stand-by)" : "Mettre en stand-by")
-                              + (d.historique_stand_by ? `\n\nHistorique :\n${d.historique_stand_by}` : "")
+                              (d.statut === "En stand-by" ? t("dem_reactiver_standby") : t("dem_mettre_standby"))
+                              + (d.historique_stand_by ? `\n\n${t("dem_historique_label")}\n${d.historique_stand_by}` : "")
                             }
                           >
                             {d.statut === "En stand-by" ? "▶" : "⏸"}
                           </button>
                         )}
                         {role === "acheteur" && (
-                          <button onClick={() => supprimerDemande(d)} style={{ ...linkBtn, color: "#B3261E", display: "inline-flex", alignItems: "center" }} title="Supprimer">
+                          <button onClick={() => supprimerDemande(d)} style={{ ...linkBtn, color: "#B3261E", display: "inline-flex", alignItems: "center" }} title={t("btn_supprimer")}>
                             <IconTrash />
                           </button>
                         )}
@@ -385,7 +392,7 @@ function DemandesInner() {
             </table>
             {!filtreATraiter && resteAcharger > 0 && (
               <div ref={sentinelleRef} style={{ display: "flex", justifyContent: "center", padding: 12, fontSize: 12, color: "#999" }}>
-                {loadingPlus ? "Chargement de la suite..." : `${resteAcharger} de plus en bas...`}
+                {loadingPlus ? t("chargement_suite") : t("n_de_plus", { n: resteAcharger })}
               </div>
             )}
           </div>
