@@ -44,7 +44,7 @@ export default function NouvelleDemandePage() {
   useEffect(() => {
     (async () => {
       const data = await chargerAvecCache("articles-liste", () =>
-        supabase.from("articles").select("id, designation, unite_defaut, continue_par_id, designation_en, designation_mg, designation_hi, designation_mfe").limit(10000).then((r) => r.data)
+        supabase.from("articles").select("id, designation, unite_defaut, continue_par_id, endormi, designation_en, designation_mg, designation_hi, designation_mfe").limit(10000).then((r) => r.data)
       );
       setArticlesBase(data || []);
     })();
@@ -259,7 +259,7 @@ export default function NouvelleDemandePage() {
                 placeholder={t("nd_ph_designation")}
                 value={l.designation}
                 onChange={(val) => onDesignationChange(l.key, val)}
-                suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
+                suggestions={articlesBase.filter((a) => !a.continue_par_id && !a.endormi).map((a) => a.designation)}
                 style={{ width: "100%" }}
               />
               {langue !== "fr" && (() => {
