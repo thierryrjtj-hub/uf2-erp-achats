@@ -11,7 +11,7 @@ import ChampPrixHT from "../components/ChampPrixHT";
 import { formatDate } from "../../lib/format";
 import { inputStyle, buttonStyle, linkBtn, boutonSelonModif } from "../components/ui";
 import { useDirty } from "../../lib/useDirty";
-import { useLangue } from "../../lib/i18n";
+import { useLangue, composerDesignation } from "../../lib/i18n";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 
 function matchRecherche(a, q) {
@@ -102,11 +102,14 @@ export default function ArticlesListePage() {
   const modifier = (a) => {
     setEditId(a.id);
     const initial = {
-      designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie_id: a.categorie_id || "",
+      // Ancien article sans structure standard : nom = désignation complète
+      // par défaut, à corriger si besoin plutôt que de partir de zéro.
+      code_article: a.code_article || "", nom: a.nom_article || a.designation || "",
+      marque: a.marque || "", reference_fournisseur: a.reference_fournisseur || "",
+      unite_defaut: a.unite_defaut || "pcs", categorie_id: a.categorie_id || "",
       dernier_prix_ht: a.dernier_prix_ht ?? "", endormi: !!a.endormi, continue_par_id: a.continue_par_id || "",
       continueParTexte: a.continue_par_id ? (designationParId[a.continue_par_id] || "") : "",
-      designation_en: a.designation_en || "", designation_mg: a.designation_mg || "",
-      designation_hi: a.designation_hi || "", designation_mfe: a.designation_mfe || "",
+      nom_en: a.nom_en || "", nom_mg: a.nom_mg || "", nom_hi: a.nom_hi || "", nom_mfe: a.nom_mfe || "",
     };
     setEditForm(initial);
     suiviEditForm.reinitialiser(initial);
@@ -114,14 +117,16 @@ export default function ArticlesListePage() {
 
   const enregistrerEdition = async () => {
     const payload = {
-      designation: editForm.designation,
+      designation: composerDesignation({ code_article: editForm.code_article, nom: editForm.nom, marque: editForm.marque, reference_fournisseur: editForm.reference_fournisseur }),
+      code_article: editForm.code_article.trim() || null, nom_article: editForm.nom.trim() || null,
+      marque: editForm.marque.trim() || null, reference_fournisseur: editForm.reference_fournisseur.trim() || null,
       unite_defaut: editForm.unite_defaut,
       categorie_id: editForm.categorie_id || null,
       dernier_prix_ht: editForm.dernier_prix_ht === "" ? null : Number(editForm.dernier_prix_ht),
       endormi: editForm.endormi,
       continue_par_id: editForm.continue_par_id || null,
-      designation_en: editForm.designation_en.trim() || null, designation_mg: editForm.designation_mg.trim() || null,
-      designation_hi: editForm.designation_hi.trim() || null, designation_mfe: editForm.designation_mfe.trim() || null,
+      nom_en: editForm.nom_en.trim() || null, nom_mg: editForm.nom_mg.trim() || null,
+      nom_hi: editForm.nom_hi.trim() || null, nom_mfe: editForm.nom_mfe.trim() || null,
     };
     await supabase.from("articles").update(payload).eq("id", editId);
     setEditId(null);
@@ -215,7 +220,17 @@ export default function ArticlesListePage() {
                   {enEdition ? (
                     <div>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                        <input placeholder={t("ph_designation")} value={editForm.designation} onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+                        <input placeholder={t("art_ph_code")} value={editForm.code_article} onChange={(e) => setEditForm({ ...editForm, code_article: e.target.value })} style={{ ...inputStyle, width: 130 }} />
+                        <input placeholder={t("art_ph_nom")} value={editForm.nom} onChange={(e) => setEditForm({ ...editForm, nom: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+                        <input placeholder={t("art_ph_marque")} value={editForm.marque} onChange={(e) => setEditForm({ ...editForm, marque: e.target.value })} style={{ ...inputStyle, width: 140 }} />
+                        <input placeholder={t("art_ph_reference")} value={editForm.reference_fournisseur} onChange={(e) => setEditForm({ ...editForm, reference_fournisseur: e.target.value })} style={{ ...inputStyle, width: 160 }} />
+                      </div>
+                      {editForm.nom.trim() && (
+                        <p style={{ fontSize: 12, color: "#1B7A4C", marginTop: 6, marginBottom: 8 }}>
+                          {t("art_apercu_designation", { designation: composerDesignation({ code_article: editForm.code_article, nom: editForm.nom, marque: editForm.marque, reference_fournisseur: editForm.reference_fournisseur }) })}
+                        </p>
+                      )}
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
                         <Autocomplete placeholder={t("col_unite")} value={editForm.unite_defaut} onChange={(val) => setEditForm({ ...editForm, unite_defaut: val })} suggestions={uniteOptions} style={{ width: 160 }} />
                         <select value={editForm.categorie_id} onChange={(e) => setEditForm({ ...editForm, categorie_id: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
                           <option value="">{t("art_choisir_categorie")}</option>
@@ -253,13 +268,13 @@ export default function ArticlesListePage() {
                         </div>
                       </div>
                       <div style={{ marginBottom: 10 }}>
-                        <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{t("art_traductions_titre")}</p>
-                        <p style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>{t("art_traductions_aide")}</p>
+                        <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{t("art_traductions_nom_titre")}</p>
+                        <p style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>{t("art_traductions_nom_aide")}</p>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <input placeholder="English" value={editForm.designation_en} onChange={(e) => setEditForm({ ...editForm, designation_en: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
-                          <input placeholder="Malagasy" value={editForm.designation_mg} onChange={(e) => setEditForm({ ...editForm, designation_mg: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
-                          <input placeholder="हिन्दी" value={editForm.designation_hi} onChange={(e) => setEditForm({ ...editForm, designation_hi: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
-                          <input placeholder="Kreol Morisien" value={editForm.designation_mfe} onChange={(e) => setEditForm({ ...editForm, designation_mfe: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+                          <input placeholder="English" value={editForm.nom_en} onChange={(e) => setEditForm({ ...editForm, nom_en: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+                          <input placeholder="Malagasy" value={editForm.nom_mg} onChange={(e) => setEditForm({ ...editForm, nom_mg: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+                          <input placeholder="हिन्दी" value={editForm.nom_hi} onChange={(e) => setEditForm({ ...editForm, nom_hi: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+                          <input placeholder="Kreol Morisien" value={editForm.nom_mfe} onChange={(e) => setEditForm({ ...editForm, nom_mfe: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
                         </div>
                       </div>
                       <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 8 }}>{t("btn_enregistrer")}</button>
