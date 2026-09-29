@@ -9,6 +9,7 @@ import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn, boutonSelonModif } 
 import { formatDate } from "../../lib/format";
 import { chargerAvecCache, invaliderCache } from "../../lib/cache";
 import { useDirty } from "../../lib/useDirty";
+import { useLangue } from "../../lib/i18n";
 
 const empty = {
   date_demande: new Date().toISOString().slice(0, 10), article: "", quantite: 1, unite: "pcs",
@@ -27,12 +28,15 @@ const COULEUR_STATUT = {
   "Décaissé": { bg: "#FFF3D6", fg: "#8A6100" },
   "Justifié": { bg: "#EAF7EE", fg: "#1B7A4C" },
 };
+const CLE_STATUT_PC = { "Demandé": "pc_st_demande", "Décaissé": "pc_st_decaisse", "Justifié": "pc_st_justifie" };
+function libelleStatutPc(t, valeur) { return CLE_STATUT_PC[valeur] ? t(CLE_STATUT_PC[valeur]) : valeur; }
 
 const OBSERVATION_PETITE_CAISSE = "Achat en petite caisse — Payé en espèce";
 const NOM_FOURNISSEUR_DIVERS = "Fournisseurs divers";
 
 export default function PetiteCaissePage() {
   const role = useRole();
+  const { t } = useLangue();
   const [liste, setListe] = useState([]);
   const [articlesBase, setArticlesBase] = useState([]);
   const [fournisseurs, setFournisseurs] = useState([]);
@@ -207,7 +211,7 @@ export default function PetiteCaissePage() {
   };
 
   const supprimer = async (p) => {
-    if (!confirm(p.demande_id ? "Supprimer cette ligne, ainsi que la demande et le BC qu'elle avait générés ?" : "Supprimer cette ligne de petite caisse ?")) return;
+    if (!confirm(p.demande_id ? t("pc_confirm_suppr_avec_bc") : t("pc_confirm_suppr"))) return;
     if (p.commande_id) {
       const { data: receptionsC } = await supabase.from("receptions").select("id").eq("bc_id", p.commande_id);
       for (const r of receptionsC || []) {
@@ -228,78 +232,76 @@ export default function PetiteCaissePage() {
   return (
     <AuthGuard>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <h1 style={{ fontSize: 18 }}>Achat en petite caisse ({filtrees.length})</h1>
+        <h1 style={{ fontSize: 18 }}>{t("pc_titre", { n: filtrees.length })}</h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title="Par défaut, seule l'année en cours est affichée">
+          <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title={t("annee_defaut_info")}>
             {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
-            <option value="toutes">Toutes les années</option>
+            <option value="toutes">{t("toutes_annees")}</option>
           </select>
-          <button onClick={() => setNouveauOuvert((o) => !o)} style={buttonStyle}>{nouveauOuvert ? "Fermer" : "+ Nouvel achat en petite caisse"}</button>
+          <button onClick={() => setNouveauOuvert((o) => !o)} style={buttonStyle}>{nouveauOuvert ? t("pc_fermer") : t("pc_btn_nouveau")}</button>
         </div>
       </div>
 
       {nouveauOuvert && (
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
           <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
-            Dès l'enregistrement, une demande et un bon de commande sont créés automatiquement (achat déjà validé
-            par la direction via la fiche de décaissement — pas besoin de signature de BC), visibles dans les listes
-            Demandes/Commandes et dans l'historique, marqués "payé en espèce".
+            {t("pc_aide_creation")}
           </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
             <input type="date" value={form.date_demande} onChange={(e) => setForm({ ...form, date_demande: e.target.value })} style={{ ...inputStyle, width: 160 }} />
             <Autocomplete
-              placeholder="Article (recherche dans la liste des articles)"
+              placeholder={t("pc_ph_article")}
               value={form.article}
               onChange={onArticleChange}
               suggestions={articlesBase.filter((a) => !a.continue_par_id && !a.endormi).map((a) => a.designation)}
               style={{ flex: 2 }}
             />
-            <input type="number" placeholder="Qté" value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} style={{ ...inputStyle, width: 80 }} />
-            <input placeholder="Unité" value={form.unite} onChange={(e) => setForm({ ...form, unite: e.target.value })} style={{ ...inputStyle, width: 90 }} />
+            <input type="number" placeholder={t("ph_qte")} value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} style={{ ...inputStyle, width: 80 }} />
+            <input placeholder={t("col_unite")} value={form.unite} onChange={(e) => setForm({ ...form, unite: e.target.value })} style={{ ...inputStyle, width: 90 }} />
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Autocomplete
-              placeholder="Fournisseur (laisser vide = Fournisseurs divers, à préciser plus tard)"
+              placeholder={t("pc_ph_fournisseur")}
               value={form.fournisseur}
               onChange={(val) => setForm({ ...form, fournisseur: val })}
               suggestions={fournisseurs.map((f) => f.nom)}
               style={{ flex: 1 }}
             />
-            <input placeholder="Motif / précision (optionnel)" value={form.motif} onChange={(e) => setForm({ ...form, motif: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-            <input type="number" placeholder="Montant demandé (Ar)" value={form.montant_demande} onChange={(e) => setForm({ ...form, montant_demande: e.target.value })} style={{ ...inputStyle, width: 180 }} />
+            <input placeholder={t("pc_ph_motif")} value={form.motif} onChange={(e) => setForm({ ...form, motif: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <input type="number" placeholder={t("pc_ph_montant_demande")} value={form.montant_demande} onChange={(e) => setForm({ ...form, montant_demande: e.target.value })} style={{ ...inputStyle, width: 180 }} />
           </div>
-          <button onClick={creer} disabled={envoi} style={{ ...buttonStyle, marginTop: 10 }}>{envoi ? "Création..." : "Créer la demande"}</button>
+          <button onClick={creer} disabled={envoi} style={{ ...buttonStyle, marginTop: 10 }}>{envoi ? t("ncmd_creation") : t("pc_btn_creer")}</button>
         </div>
       )}
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
           <select value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value)} style={inputStyle}>
-            <option value="">Tous les statuts</option>
-            <option>Demandé</option>
-            <option>Décaissé</option>
-            <option>Justifié</option>
+            <option value="">{t("tous_statuts")}</option>
+            <option value="Demandé">{t("pc_st_demande")}</option>
+            <option value="Décaissé">{t("pc_st_decaisse")}</option>
+            <option value="Justifié">{t("pc_st_justifie")}</option>
           </select>
-          <span style={{ fontSize: 13, color: "#666" }}>Total {filtreStatut ? `(${filtreStatut})` : ""} : <strong>{total.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></span>
+          <span style={{ fontSize: 13, color: "#666" }}>{t("pc_total", { filtre: filtreStatut ? `(${libelleStatutPc(t, filtreStatut)})` : "" })} <strong>{total.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></span>
         </div>
 
-        {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-        {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune ligne pour ce filtre.</p>}
+        {loading && <p style={{ color: "#888", fontSize: 13 }}>{t("chargement")}</p>}
+        {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>{t("pc_aucune_ligne")}</p>}
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={thStyle}>Date</th>
-              <th style={thStyle}>Article</th>
-              <th style={thStyle}>Qté</th>
-              <th style={thStyle}>Unité</th>
-              <th style={thStyle}>PU HT</th>
-              <th style={thStyle}>Montant demandé</th>
-              <th style={thStyle}>Signataire direction</th>
-              <th style={thStyle}>Montant dépensé</th>
-              <th style={thStyle}>Pièce de caisse</th>
-              <th style={thStyle}>DA / BC liés</th>
-              <th style={thStyle}>Statut</th>
+              <th style={thStyle}>{t("col_date")}</th>
+              <th style={thStyle}>{t("col_article")}</th>
+              <th style={thStyle}>{t("ph_qte")}</th>
+              <th style={thStyle}>{t("col_unite")}</th>
+              <th style={thStyle}>{t("col_pu_ht")}</th>
+              <th style={thStyle}>{t("pc_h_montant_demande")}</th>
+              <th style={thStyle}>{t("pc_h_signataire")}</th>
+              <th style={thStyle}>{t("pc_h_montant_depense")}</th>
+              <th style={thStyle}>{t("pc_h_piece_caisse")}</th>
+              <th style={thStyle}>{t("pc_h_da_bc_lies")}</th>
+              <th style={thStyle}>{t("col_statut")}</th>
               <th style={thStyle}></th>
             </tr>
           </thead>
@@ -319,18 +321,18 @@ export default function PetiteCaissePage() {
                       <td style={tdStyle}><input type="number" value={editForm.prix_unitaire} onChange={(e) => setEditForm({ ...editForm, prix_unitaire: e.target.value })} style={{ ...inputStyle, width: 100 }} /></td>
                       <td style={tdStyle}><input type="number" value={editForm.montant_demande} onChange={(e) => setEditForm({ ...editForm, montant_demande: e.target.value })} style={{ ...inputStyle, width: 110 }} /></td>
                       <td style={tdStyle}>
-                        <input placeholder="Nom" value={editForm.signataire_direction} onChange={(e) => setEditForm({ ...editForm, signataire_direction: e.target.value })} style={{ ...inputStyle, width: 110, marginBottom: 4 }} />
+                        <input placeholder={t("bc_ph_nom")} value={editForm.signataire_direction} onChange={(e) => setEditForm({ ...editForm, signataire_direction: e.target.value })} style={{ ...inputStyle, width: 110, marginBottom: 4 }} />
                         <input type="date" value={editForm.date_signature} onChange={(e) => setEditForm({ ...editForm, date_signature: e.target.value })} style={{ ...inputStyle, width: 140 }} />
                       </td>
                       <td style={tdStyle}><input type="number" value={editForm.montant_depense} onChange={(e) => setEditForm({ ...editForm, montant_depense: e.target.value })} style={{ ...inputStyle, width: 110 }} /></td>
-                      <td style={tdStyle}><input placeholder="N° pièce" value={editForm.justificatif} onChange={(e) => setEditForm({ ...editForm, justificatif: e.target.value })} style={{ ...inputStyle, width: 110 }} /></td>
+                      <td style={tdStyle}><input placeholder={t("pc_ph_num_piece")} value={editForm.justificatif} onChange={(e) => setEditForm({ ...editForm, justificatif: e.target.value })} style={{ ...inputStyle, width: 110 }} /></td>
                       <td style={tdStyle}>
                         {p.demande?.numero && <Link href={`/demandes/${p.demande.id}`} style={{ display: "block", fontSize: 12 }}>{p.demande.numero}</Link>}
                         {p.commande?.numero && <Link href={`/commandes/${p.commande.id}`} style={{ display: "block", fontSize: 12 }}>{p.commande.numero}</Link>}
                       </td>
                       <td style={tdStyle} colSpan={2}>
-                        <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 6 }}>Enregistrer</button>
-                        <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
+                        <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 6 }}>{t("btn_enregistrer")}</button>
+                        <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>{t("btn_annuler")}</button>
                       </td>
                     </>
                   ) : (
@@ -350,11 +352,11 @@ export default function PetiteCaissePage() {
                         {!p.demande?.numero && !p.commande?.numero && "—"}
                       </td>
                       <td style={tdStyle}>
-                        <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: c.bg, color: c.fg }}>{st}</span>
+                        <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: c.bg, color: c.fg }}>{libelleStatutPc(t, st)}</span>
                       </td>
                       <td style={tdStyle}>
-                        <button onClick={() => modifier(p)} style={linkBtn}>Modifier</button>
-                        {role === "acheteur" && <button onClick={() => supprimer(p)} style={{ ...linkBtn, color: "#B3261E" }}>Suppr.</button>}
+                        <button onClick={() => modifier(p)} style={linkBtn}>{t("btn_modifier")}</button>
+                        {role === "acheteur" && <button onClick={() => supprimer(p)} style={{ ...linkBtn, color: "#B3261E" }}>{t("pc_suppr")}</button>}
                       </td>
                     </>
                   )}
