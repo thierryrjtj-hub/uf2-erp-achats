@@ -6,7 +6,7 @@ import { chargerAvecCache } from "../../../lib/cache";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import { inputStyle, buttonStyle, linkBtn } from "../../components/ui";
-import { useLangue } from "../../../lib/i18n";
+import { useLangue, nomArticleTraduit } from "../../../lib/i18n";
 
 const ligneVide = () => ({ key: Math.random().toString(36).slice(2), designation: "", quantite: 1, unite: "pcs", date_livraison: "" });
 const aujourdHui = () => new Date().toISOString().slice(0, 10);
@@ -27,7 +27,7 @@ function prefixeParDefaut(service) {
 
 export default function NouvelleDemandePage() {
   const router = useRouter();
-  const { t } = useLangue();
+  const { langue, t } = useLangue();
   const [articlesBase, setArticlesBase] = useState([]);
   const [service, setService] = useState("");
   const [demandeur, setDemandeur] = useState("");
@@ -44,7 +44,7 @@ export default function NouvelleDemandePage() {
   useEffect(() => {
     (async () => {
       const data = await chargerAvecCache("articles-liste", () =>
-        supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000).then((r) => r.data)
+        supabase.from("articles").select("id, designation, unite_defaut, continue_par_id, designation_en, designation_mg, designation_hi, designation_mfe").limit(10000).then((r) => r.data)
       );
       setArticlesBase(data || []);
     })();
@@ -254,13 +254,22 @@ export default function NouvelleDemandePage() {
                 style={{ ...inputStyle, width: 150 }}
               />
             )}
-            <Autocomplete
-              placeholder={t("nd_ph_designation")}
-              value={l.designation}
-              onChange={(val) => onDesignationChange(l.key, val)}
-              suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
-              style={{ flex: 3 }}
-            />
+            <div style={{ flex: 3, minWidth: 0 }}>
+              <Autocomplete
+                placeholder={t("nd_ph_designation")}
+                value={l.designation}
+                onChange={(val) => onDesignationChange(l.key, val)}
+                suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
+                style={{ width: "100%" }}
+              />
+              {langue !== "fr" && (() => {
+                const article = articlesBase.find((a) => a.designation.toLowerCase() === l.designation.toLowerCase());
+                const traduit = article ? nomArticleTraduit(article, langue) : "";
+                return traduit && traduit !== l.designation ? (
+                  <div style={{ fontSize: 11, color: "#1B7A4C", marginTop: 2 }}>{traduit}</div>
+                ) : null;
+              })()}
+            </div>
             <input type="number" min="0" value={l.quantite} onChange={(e) => updateLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, flex: 1 }} />
             <input
               placeholder={t("ph_unite")}
