@@ -9,7 +9,7 @@ import { inputStyle, buttonStyle, linkBtn } from "../../components/ui";
 import { useLangue } from "../../../lib/i18n";
 
 const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
-const empty = { designation: "", unite_defaut: "pcs", categorie_id: "", dernier_prix_ht: "" };
+const empty = { designation: "", unite_defaut: "pcs", categorie_id: "", dernier_prix_ht: "", designation_en: "", designation_mg: "", designation_hi: "", designation_mfe: "" };
 
 export default function NouvelArticlePage() {
   const router = useRouter();
@@ -41,6 +41,8 @@ export default function NouvelArticlePage() {
       unite_defaut: form.unite_defaut,
       categorie_id: form.categorie_id || null,
       dernier_prix_ht: form.dernier_prix_ht === "" ? null : Number(form.dernier_prix_ht),
+      designation_en: form.designation_en.trim() || null, designation_mg: form.designation_mg.trim() || null,
+      designation_hi: form.designation_hi.trim() || null, designation_mfe: form.designation_mfe.trim() || null,
     };
     await supabase.from("articles").insert(payload);
     setEnvoi(false);
@@ -67,7 +69,17 @@ export default function NouvelArticlePage() {
           </select>
           <input type="number" placeholder={t("art_l_dernier_prix_ht")} value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
         </div>
-        <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f0f0f0" }}>
+          <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{t("art_traductions_titre")}</p>
+          <p style={{ fontSize: 11.5, color: "#888", marginBottom: 10 }}>{t("art_traductions_aide")}</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input placeholder="English" value={form.designation_en} onChange={(e) => setForm({ ...form, designation_en: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 180 }} />
+            <input placeholder="Malagasy" value={form.designation_mg} onChange={(e) => setForm({ ...form, designation_mg: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 180 }} />
+            <input placeholder="हिन्दी" value={form.designation_hi} onChange={(e) => setForm({ ...form, designation_hi: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 180 }} />
+            <input placeholder="Kreol Morisien" value={form.designation_mfe} onChange={(e) => setForm({ ...form, designation_mfe: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 180 }} />
+          </div>
+        </div>
+        <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center" }}>
           <button onClick={enregistrer} disabled={envoi} style={buttonStyle}>{envoi ? t("ncmd_creation") : t("btn_ajouter_simple")}</button>
           <Link href="/articles/categories" style={linkBtn}>{t("nav_articles_categories")}</Link>
         </div>
