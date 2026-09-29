@@ -44,7 +44,7 @@ export default function NouvelleDemandePage() {
   useEffect(() => {
     (async () => {
       const data = await chargerAvecCache("articles-liste", () =>
-        supabase.from("articles").select("id, designation, unite_defaut, continue_par_id, endormi, designation_en, designation_mg, designation_hi, designation_mfe").limit(10000).then((r) => r.data)
+        supabase.from("articles").select("id, designation, unite_defaut, continue_par_id, endormi, code_article, nom_article, marque, reference_fournisseur, nom_en, nom_mg, nom_hi, nom_mfe").limit(10000).then((r) => r.data)
       );
       setArticlesBase(data || []);
     })();
