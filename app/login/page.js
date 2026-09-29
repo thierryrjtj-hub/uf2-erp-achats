@@ -71,8 +71,8 @@ export default function LoginPage() {
     }
 
     const { data: session, error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       const nouveauTotal = tentativesActuelles + 1;
       localStorage.setItem(cle, String(nouveauTotal));
       if (nouveauTotal >= MAX_TENTATIVES) {
@@ -91,10 +91,13 @@ export default function LoginPage() {
     // Première connexion : mot de passe temporaire à changer avant d'entrer dans l'appli
     const { data: profil } = await supabase.from("profiles").select("mot_de_passe_a_changer").eq("id", session.user.id).maybeSingle();
     if (profil?.mot_de_passe_a_changer) {
+      setLoading(false);
       setEtape("changerMdp");
       return;
     }
 
+    // Le bouton "Connexion..." reste affiché jusqu'à la navigation elle-même,
+    // pour ne jamais repasser par "Se connecter" juste avant que la page change.
     router.push("/dashboard");
   };
 
