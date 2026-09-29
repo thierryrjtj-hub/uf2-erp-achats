@@ -8,6 +8,7 @@ import { useRole } from "../../lib/useRole";
 import { IconCopy, IconEdit, IconTrash } from "../components/Icons";
 import { inputStyle, buttonStyle } from "../components/ui";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
+import { useLangue } from "../../lib/i18n";
 
 function matchRecherche(f, q) {
   if (!q.trim()) return true;
@@ -17,6 +18,7 @@ function matchRecherche(f, q) {
 
 export default function FournisseursListePage() {
   const role = useRole();
+  const { t } = useLangue();
   const [liste, setListe] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [recherche, setRecherche] = useState("");
@@ -38,13 +40,13 @@ export default function FournisseursListePage() {
 
   const copierFiche = async (f) => {
     const texte = [
-      f.nom, f.contact && `Contact : ${f.contact}`, f.telephone && `Tél : ${f.telephone}`, f.email && `E-mail : ${f.email}`,
-      f.adresse && `Adresse : ${f.adresse}${f.code_postal ? " " + f.code_postal : ""}`,
+      f.nom, f.contact && `${t("four_l_contact")} : ${f.contact}`, f.telephone && `${t("four_l_telephone")} : ${f.telephone}`, f.email && `E-mail : ${f.email}`,
+      f.adresse && `${t("four_l_adresse")} : ${f.adresse}${f.code_postal ? " " + f.code_postal : ""}`,
       f.nif && `NIF : ${f.nif}`, f.stat && `STAT : ${f.stat}`, f.rcs && `RCS : ${f.rcs}`, f.cin && `CIN : ${f.cin}`,
-      f.type_reglement && `Règlement : ${f.type_reglement}`, `TVA : ${f.tva_defaut_pct === 0 ? "Non assujetti" : (f.tva_defaut_pct ?? 20) + "%"}`,
-      f.activite && `Activité : ${f.activite}`,
-      f.moment_paiement && `Moment du paiement : ${f.moment_paiement}`,
-      f.acompte_pct ? `Acompte à la commande : ${f.acompte_pct}% (solde ${f.solde_a || "à la livraison"})` : null,
+      f.type_reglement && `${t("four_l_type_reglement")} : ${f.type_reglement}`, `${t("four_l_tva")} : ${f.tva_defaut_pct === 0 ? t("four_non_assujetti") : (f.tva_defaut_pct ?? 20) + "%"}`,
+      f.activite && `${t("four_l_activite")} : ${f.activite}`,
+      f.moment_paiement && `${t("four_l_moment_paiement")} : ${f.moment_paiement}`,
+      f.acompte_pct ? `${t("four_l_acompte")} : ${f.acompte_pct}% (${t("four_solde_livraison")} ${f.solde_a || t("four_solde_livraison")})` : null,
     ].filter(Boolean).join("\n");
     try { await navigator.clipboard.writeText(texte); } catch (e) {}
   };
@@ -83,23 +85,23 @@ export default function FournisseursListePage() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 18 }}>Liste des fournisseurs ({filtrees.length} / {liste.length})</h1>
-          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
+          <h1 style={{ fontSize: 18 }}>{t("four_titre_liste", { a: filtrees.length, b: liste.length })}</h1>
+          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? t("generation") : t("btn_exporter_excel")}</button>
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 12, flexShrink: 0 }}>
             <div style={{ position: "relative", width: 300 }}>
-              <input data-search-field placeholder="Rechercher un fournisseur (nom, contact, activité, tél...)" value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
+              <input data-search-field placeholder={t("four_ph_recherche")} value={recherche} onChange={(e) => setRecherche(e.target.value)} style={{ ...inputStyle, width: "100%", paddingRight: 30 }} />
               {recherche && (
-                <button onClick={() => setRecherche("")} style={clearBtn} aria-label="Effacer la recherche">×</button>
+                <button onClick={() => setRecherche("")} style={clearBtn} aria-label={t("effacer")}>×</button>
               )}
             </div>
             <TriMenu
               colonnes={[
-                { key: "nom", label: "Nom" },
-                { key: "activite", label: "Activité" },
-                { key: "created_at", label: "Date de création" },
+                { key: "nom", label: t("four_l_nom") },
+                { key: "activite", label: t("four_l_activite") },
+                { key: "created_at", label: t("four_l_date_creation") },
               ]}
               tri={tri}
               onChange={setTri}
@@ -111,36 +113,36 @@ export default function FournisseursListePage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{f.nom}</div>
               <div>
-                <button onClick={() => copierFiche(f)} style={iconBtn} title="Copier toutes les infos">
+                <button onClick={() => copierFiche(f)} style={iconBtn} title={t("four_copier_infos")}>
                   <IconCopy />
                 </button>
-                <Link href={`/fournisseurs/nouveau?id=${f.id}`} style={{ ...iconBtn, textDecoration: "none" }} title="Modifier">
+                <Link href={`/fournisseurs/nouveau?id=${f.id}`} style={{ ...iconBtn, textDecoration: "none" }} title={t("btn_modifier")}>
                   <IconEdit />
                 </Link>
                 {role === "acheteur" && (
-                  <button onClick={() => supprimer(f.id)} style={{ ...iconBtn, color: "#B3261E" }} title="Supprimer">
+                  <button onClick={() => supprimer(f.id)} style={{ ...iconBtn, color: "#B3261E" }} title={t("btn_supprimer")}>
                     <IconTrash />
                   </button>
                 )}
               </div>
             </div>
             <div style={grid}>
-              <Champ label="Nom du contact" value={f.contact} />
-              <ChampCopiable label="Téléphone" value={f.telephone} />
+              <Champ label={t("four_l_contact")} value={f.contact} />
+              <ChampCopiable label={t("four_l_telephone")} value={f.telephone} />
               <ChampCopiable label="E-mail" value={f.email} />
-              <Champ label="Adresse" value={f.adresse} />
-              <Champ label="Code postal" value={f.code_postal} />
+              <Champ label={t("four_l_adresse")} value={f.adresse} />
+              <Champ label={t("four_l_code_postal")} value={f.code_postal} />
               <Champ label="NIF" value={f.nif} />
               <Champ label="STAT" value={f.stat} />
               <Champ label="RCS" value={f.rcs} />
               <Champ label="CIN" value={f.cin} />
-              <Champ label="Type de règlement" value={f.type_reglement} />
-              <Champ label="TVA" value={f.tva_defaut_pct === 0 ? "Non assujetti" : `${f.tva_defaut_pct ?? 20}%`} />
-              <Champ label="Activité" value={f.activite} />
-              <Champ label="Délai paiement" value={f.conditions_paiement_jours ? `${f.conditions_paiement_jours} jours` : ""} />
-              <Champ label="Remise par défaut" value={f.remise_par_defaut_pct ? `${f.remise_par_defaut_pct}%` : ""} />
-              <Champ label="Moment du paiement" value={f.moment_paiement} />
-              <Champ label="Acompte à la commande" value={f.acompte_pct ? `${f.acompte_pct}% (solde ${f.solde_a || "à la livraison"})` : ""} />
+              <Champ label={t("four_l_type_reglement")} value={f.type_reglement} />
+              <Champ label={t("four_l_tva")} value={f.tva_defaut_pct === 0 ? t("four_non_assujetti") : `${f.tva_defaut_pct ?? 20}%`} />
+              <Champ label={t("four_l_activite")} value={f.activite} />
+              <Champ label={t("four_l_delai_paiement")} value={f.conditions_paiement_jours ? t("four_jours", { n: f.conditions_paiement_jours }) : ""} />
+              <Champ label={t("four_l_remise_defaut")} value={f.remise_par_defaut_pct ? `${f.remise_par_defaut_pct}%` : ""} />
+              <Champ label={t("four_l_moment_paiement")} value={f.moment_paiement} />
+              <Champ label={t("four_l_acompte")} value={f.acompte_pct ? `${f.acompte_pct}% (${t("four_solde_livraison")} ${f.solde_a || t("four_solde_livraison")})` : ""} />
             </div>
           </div>
           ))}
@@ -162,6 +164,7 @@ function Champ({ label, value }) {
 }
 
 function ChampCopiable({ label, value }) {
+  const { t } = useLangue();
   const [copie, setCopie] = useState(false);
   if (!value) return null;
   const copier = async () => {
@@ -171,7 +174,7 @@ function ChampCopiable({ label, value }) {
     <div>
       <div style={champLabel}>{label}</div>
       <div style={{ fontSize: 13, marginTop: 2, wordBreak: "break-word" }}>{value}</div>
-      <button onClick={copier} style={{ ...copyBtn, marginTop: 4 }}>{copie ? "Copié !" : "Copier"}</button>
+      <button onClick={copier} style={{ ...copyBtn, marginTop: 4 }}>{copie ? t("four_copie") : t("four_copier")}</button>
     </div>
   );
 }
