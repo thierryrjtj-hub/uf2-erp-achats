@@ -12,7 +12,7 @@ import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn } from "../../compon
 import { formatDate } from "../../../lib/format";
 import { useRole } from "../../../lib/useRole";
 import { useUserId } from "../../../lib/useUserId";
-import { useLangue, libellePriorite } from "../../../lib/i18n";
+import { useLangue, libellePriorite, nomArticleTraduit } from "../../../lib/i18n";
 import BandeauLectureSeule from "../../components/BandeauLectureSeule";
 
 function computeTotal(lignesOffre, lignesDemande, assujettiTva) {
@@ -102,7 +102,7 @@ export default function TCODetailPage() {
       supabase.from("lignes_demande").select("*").eq("demande_id", id).order("created_at"),
       supabase.from("fournisseurs").select("*").order("nom").limit(10000),
       supabase.from("offres").select("*").eq("demande_id", id),
-      supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000),
+      supabase.from("articles").select("id, designation, unite_defaut, continue_par_id, designation_en, designation_mg, designation_hi, designation_mfe").limit(10000),
       supabase.from("commandes").select("id, numero, fournisseur_nom, statut").eq("demande_id", id),
     ]);
     // Étape 2 : tout ce qui dépend des résultats ci-dessus, à nouveau en parallèle.
@@ -690,12 +690,21 @@ export default function TCODetailPage() {
                       {l.non_disponible_localement && <span style={{ marginLeft: 8, fontSize: 11, color: "#B3261E" }}>{t("dt_a_rechercher_import")}</span>}
                     </>
                   ) : (
-                    <Autocomplete
-                      value={l.designation}
-                      onChange={(val) => onDesignationLigneChange(l.id, val)}
-                      suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
-                      style={{ width: "100%" }}
-                    />
+                    <>
+                      <Autocomplete
+                        value={l.designation}
+                        onChange={(val) => onDesignationLigneChange(l.id, val)}
+                        suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
+                        style={{ width: "100%" }}
+                      />
+                      {langue !== "fr" && (() => {
+                        const article = articlesBase.find((a) => a.designation.toLowerCase() === l.designation.toLowerCase());
+                        const traduit = article ? nomArticleTraduit(article, langue) : "";
+                        return traduit && traduit !== l.designation ? (
+                          <div style={{ fontSize: 11, color: "#1B7A4C", marginTop: 2 }}>{traduit}</div>
+                        ) : null;
+                      })()}
+                    </>
                   )}
                 </td>
                 <td style={tdStyle}>
