@@ -7,8 +7,10 @@ import { exportExcel } from "../../lib/exportExcel";
 import { buttonStyle } from "../components/ui";
 import { calculerFrequenceAchats, resoudreDesignation } from "../../lib/frequenceAchats";
 import { CATEGORIES_MATIERES_PREMIERES } from "../../lib/categoriesArticles";
+import { useLangue, moisCourt } from "../../lib/i18n";
 
 export default function KpiPage() {
+  const { langue, t } = useLangue();
   const [commandes, setCommandes] = useState([]);
   const [lignesBc, setLignesBc] = useState([]);
   const [demandes, setDemandes] = useState([]);
@@ -139,14 +141,13 @@ export default function KpiPage() {
 
     // ---- Achats par mois, 12 derniers mois ----
     const parMois = [];
-    const MOIS_LABEL = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
     for (let i = 11; i >= 0; i--) {
       const d = new Date();
       d.setDate(1);
       d.setMonth(d.getMonth() - i);
       const cle = d.toISOString().slice(0, 7);
       const montant = commandes.filter((c) => (c.date || "").slice(0, 7) === cle).reduce((s, c) => s + montantReel(c), 0);
-      parMois.push({ mois: cle, label: MOIS_LABEL[d.getMonth()], montant });
+      parMois.push({ mois: cle, indexMois: d.getMonth(), montant });
     }
 
     return { totalTTC, totalMois, nbCommandesMois: commandesMois.length, topFournisseurs, topArticles, topFrequenceArticles, topCycles, impayesCount: impayes.length, totalImpaye, demandesEnAttente, bcNonRecus, delaiMoyenBc, delaiMoyenReception, parMois };
@@ -191,7 +192,7 @@ export default function KpiPage() {
     setExporting(false);
   };
 
-  if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
+  if (loading) return <AuthGuard><p>{t("chargement")}</p></AuthGuard>;
 
   const maxFournisseur = stats.topFournisseurs[0]?.[1] || 1;
   const maxArticle = stats.topArticles[0]?.[1] || 1;
@@ -201,32 +202,32 @@ export default function KpiPage() {
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 18 }}>KPI Achats</h1>
+          <h1 style={{ fontSize: 18 }}>{t("kpi_titre")}</h1>
           <button onClick={exporter} disabled={exporting} style={buttonStyle}>
-            {exporting ? "Génération..." : "Exporter tout en Excel"}
+            {exporting ? t("generation") : t("kpi_btn_exporter_tout")}
           </button>
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
           <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-            <Card label="Total des achats" value={`${stats.totalTTC.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`} />
-            <Card label="Ce mois-ci" value={`${stats.totalMois.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`} sub={`${stats.nbCommandesMois} BC`} />
-            <Card label="Demandes en attente de BC" value={stats.demandesEnAttente} />
-            <Card label="BC en attente de réception" value={stats.bcNonRecus} />
-            <Card label="Factures impayées" value={stats.impayesCount} sub={stats.totalImpaye ? `${stats.totalImpaye.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : null} />
-            <Card label="Délai moyen jusqu'au BC" value={stats.delaiMoyenBc != null ? `${stats.delaiMoyenBc} j` : "-"} sub="depuis réception de la DA" />
-            <Card label="Délai moyen jusqu'à réception" value={stats.delaiMoyenReception != null ? `${stats.delaiMoyenReception} j` : "-"} sub="depuis réception de la DA" />
+            <Card label={t("kpi_carte_total")} value={`${stats.totalTTC.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`} />
+            <Card label={t("kpi_carte_ce_mois")} value={`${stats.totalMois.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar`} sub={t("kpi_carte_bc", { n: stats.nbCommandesMois })} />
+            <Card label={t("kpi_carte_demandes_attente")} value={stats.demandesEnAttente} />
+            <Card label={t("kpi_carte_bc_attente")} value={stats.bcNonRecus} />
+            <Card label={t("kpi_carte_factures_impayees")} value={stats.impayesCount} sub={stats.totalImpaye ? `${stats.totalImpaye.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar` : null} />
+            <Card label={t("kpi_carte_delai_bc")} value={stats.delaiMoyenBc != null ? `${stats.delaiMoyenBc} j` : "-"} sub={t("kpi_depuis_da")} />
+            <Card label={t("kpi_carte_delai_reception")} value={stats.delaiMoyenReception != null ? `${stats.delaiMoyenReception} j` : "-"} sub={t("kpi_depuis_da")} />
           </div>
 
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
-            <CadreExtensible titre="Top fournisseurs (montant TTC)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
+            <CadreExtensible titre={t("kpi_top_fournisseurs")} style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
               {(etendu) => (
                 <>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <h2 style={{ fontSize: 15 }}>Top fournisseurs (montant TTC)</h2>
-                    <button className="no-print" onClick={() => exporterClassement("Top fournisseurs", "top-fournisseurs", "Fournisseur", stats.topFournisseurs, " Ar")} style={miniExportBtn}>Exporter</button>
+                    <h2 style={{ fontSize: 15 }}>{t("kpi_top_fournisseurs")}</h2>
+                    <button className="no-print" onClick={() => exporterClassement("Top fournisseurs", "top-fournisseurs", "Fournisseur", stats.topFournisseurs, " Ar")} style={miniExportBtn}>{t("kpi_btn_exporter")}</button>
                   </div>
-                  {stats.topFournisseurs.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>}
+                  {stats.topFournisseurs.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>{t("kpi_pas_commande")}</p>}
                   {(etendu ? stats.topFournisseurs : stats.topFournisseurs.slice(0, 6)).map(([nom, montant]) => (
                     <BarRow key={nom} label={nom} value={montant} max={maxFournisseur} suffix=" Ar" />
                   ))}
@@ -234,14 +235,14 @@ export default function KpiPage() {
               )}
             </CadreExtensible>
 
-            <CadreExtensible titre="Top articles (montant HT)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
+            <CadreExtensible titre={t("kpi_top_articles")} style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
               {(etendu) => (
                 <>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <h2 style={{ fontSize: 15 }}>Top articles (montant HT)</h2>
-                    <button className="no-print" onClick={() => exporterClassement("Top articles", "top-articles", "Article", stats.topArticles, " Ar")} style={miniExportBtn}>Exporter</button>
+                    <h2 style={{ fontSize: 15 }}>{t("kpi_top_articles")}</h2>
+                    <button className="no-print" onClick={() => exporterClassement("Top articles", "top-articles", "Article", stats.topArticles, " Ar")} style={miniExportBtn}>{t("kpi_btn_exporter")}</button>
                   </div>
-                  {stats.topArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
+                  {stats.topArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>{t("kpi_pas_achat")}</p>}
                   {(etendu ? stats.topArticles : stats.topArticles.slice(0, 6)).map(([nom, montant]) => (
                     <BarRow key={nom} label={nom} value={montant} max={maxArticle} suffix=" Ar" />
                   ))}
@@ -249,15 +250,15 @@ export default function KpiPage() {
               )}
             </CadreExtensible>
 
-            <CadreExtensible titre="Articles les plus achetés (fréquence)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
+            <CadreExtensible titre={t("kpi_top_frequence")} style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minWidth: 320 }}>
               {(etendu) => (
                 <>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <h2 style={{ fontSize: 15 }}>Articles les plus achetés (fréquence)</h2>
-                    <button className="no-print" onClick={() => exporterClassement("Fréquence d'achat", "frequence-achat", "Article", stats.topFrequenceArticles, " achats")} style={miniExportBtn}>Exporter</button>
+                    <h2 style={{ fontSize: 15 }}>{t("kpi_top_frequence")}</h2>
+                    <button className="no-print" onClick={() => exporterClassement("Fréquence d'achat", "frequence-achat", "Article", stats.topFrequenceArticles, " achats")} style={miniExportBtn}>{t("kpi_btn_exporter")}</button>
                   </div>
-                  <p style={{ fontSize: 11, color: "#999", marginBottom: 10 }}>Compté par bon de commande distinct (pas par ligne).</p>
-                  {stats.topFrequenceArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore d'achat.</p>}
+                  <p style={{ fontSize: 11, color: "#999", marginBottom: 10 }}>{t("kpi_compte_par_bc")}</p>
+                  {stats.topFrequenceArticles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>{t("kpi_pas_achat")}</p>}
                   {(etendu ? stats.topFrequenceArticles : stats.topFrequenceArticles.slice(0, 6)).map(([nom, nb]) => (
                     <BarRow key={nom} label={nom} value={nb} max={maxFrequence} suffix=" achats" />
                   ))}
@@ -266,19 +267,19 @@ export default function KpiPage() {
             </CadreExtensible>
           </div>
 
-          <CadreExtensible titre="Cycle de réapprovisionnement (durée moyenne entre deux commandes)" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
+          <CadreExtensible titre={t("kpi_cycle_titre_complet")} style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
             {(etendu) => (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                  <h2 style={{ fontSize: 15 }}>Cycle de réapprovisionnement</h2>
-                  <button className="no-print" onClick={() => exporterClassement("Cycle de réapprovisionnement", "cycle-reappro", "Article", stats.topCycles.map((f) => [f.designation, f.cycleJours]), " jours")} style={miniExportBtn}>Exporter</button>
+                  <h2 style={{ fontSize: 15 }}>{t("kpi_cycle_titre")}</h2>
+                  <button className="no-print" onClick={() => exporterClassement("Cycle de réapprovisionnement", "cycle-reappro", "Article", stats.topCycles.map((f) => [f.designation, f.cycleJours]), " jours")} style={miniExportBtn}>{t("kpi_btn_exporter")}</button>
                 </div>
-                <p style={{ fontSize: 11, color: "#999", marginBottom: 10 }}>Articles achetés au moins 3 fois — durée moyenne entre deux commandes. Les alertes de réapprovisionnement approchant apparaissent au Tableau de bord.</p>
-                {stats.topCycles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Pas encore assez d'historique pour établir un cycle.</p>}
+                <p style={{ fontSize: 11, color: "#999", marginBottom: 10 }}>{t("kpi_cycle_aide")}</p>
+                {stats.topCycles.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>{t("kpi_pas_assez_historique")}</p>}
                 {(etendu ? stats.topCycles : stats.topCycles.slice(0, 10)).map((f) => (
                   <div key={f.designation} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f4f4f0", fontSize: 13 }}>
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }} title={f.designation}>{f.designation}</span>
-                    <span style={{ color: "#666", marginLeft: 12, whiteSpace: "nowrap" }}>tous les <strong style={{ color: "#1E3A34" }}>{f.cycleJours} j</strong> ({f.nombreAchats} achats)</span>
+                    <span style={{ color: "#666", marginLeft: 12, whiteSpace: "nowrap" }}>{t("kpi_tous_les_j", { n: f.cycleJours, achats: f.nombreAchats })}</span>
                   </div>
                 ))}
               </>
@@ -286,9 +287,9 @@ export default function KpiPage() {
           </CadreExtensible>
 
           <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-            <h2 style={{ fontSize: 15, marginBottom: 12 }}>Achats par mois (12 derniers mois, TTC)</h2>
+            <h2 style={{ fontSize: 15, marginBottom: 12 }}>{t("kpi_achats_par_mois")}</h2>
             {stats.parMois.every((m) => m.montant === 0) ? (
-              <p style={{ color: "#888", fontSize: 13 }}>Pas encore de commande.</p>
+              <p style={{ color: "#888", fontSize: 13 }}>{t("kpi_pas_commande")}</p>
             ) : (
               <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 160, paddingTop: 10 }}>
                 {stats.parMois.map((m) => {
@@ -297,7 +298,7 @@ export default function KpiPage() {
                     <div key={m.mois} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                       <div style={{ fontSize: 10, color: "#888" }}>{m.montant ? `${Math.round(m.montant / 1000).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}k` : ""}</div>
                       <div style={{ width: "100%", maxWidth: 34, height: `${(m.montant / maxMois) * 110 || 1}px`, background: "#1E3A34", borderRadius: 4 }} />
-                      <div style={{ fontSize: 11, color: "#666" }}>{m.label}</div>
+                      <div style={{ fontSize: 11, color: "#666" }}>{moisCourt(langue, m.indexMois)}</div>
                     </div>
                   );
                 })}
@@ -333,4 +334,3 @@ function BarRow({ label, value, max, suffix = "" }) {
 }
 
 const miniExportBtn = { fontSize: 11, padding: "4px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fff", color: "#1B2430", cursor: "pointer" };
-
