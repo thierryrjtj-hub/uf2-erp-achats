@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useLangue } from "../../lib/i18n";
 
 // Enveloppe un cadre pour lui donner un bouton "Agrandir" qui l'affiche
 // temporairement en plein écran, avec un bouton "Réduire" pour revenir.
 // Usage : <CadreExtensible titre="Tableau comparatif"><table>...</table></CadreExtensible>
 export default function CadreExtensible({ titre, children, style, contentStyle, className }) {
+  const { t } = useLangue();
   const [etendu, setEtendu] = useState(false);
 
   useEffect(() => {
@@ -19,8 +21,8 @@ export default function CadreExtensible({ titre, children, style, contentStyle, 
       <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 1000, display: "flex", flexDirection: "column" }}>
         <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #ECEBE6", flexShrink: 0 }}>
           {titre && <h2 style={{ fontSize: 15, margin: 0 }}>{titre}</h2>}
-          <button onClick={() => setEtendu(false)} title="Réduire (Échap)" style={boutonStyle}>
-            <IconReduire /> Réduire
+          <button onClick={() => setEtendu(false)} title={t("ce_reduire")} style={boutonStyle}>
+            <IconReduire /> {t("ce_reduire_btn")}
           </button>
         </div>
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 20, ...contentStyle }}>
@@ -32,7 +34,7 @@ export default function CadreExtensible({ titre, children, style, contentStyle, 
 
   return (
     <div className={className} style={{ position: "relative", ...style }}>
-      <button onClick={() => setEtendu(true)} title="Agrandir en plein écran" style={{ ...boutonPetit }} className="no-print">
+      <button onClick={() => setEtendu(true)} title={t("ce_agrandir")} style={{ ...boutonPetit }} className="no-print">
         <IconAgrandir />
       </button>
       {typeof children === "function" ? children(false) : children}
