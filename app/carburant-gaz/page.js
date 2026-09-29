@@ -42,7 +42,7 @@ export default function CarburantGazPage() {
         if (filtreAnnee !== "toutes") q = q.gte("date_operation", `${filtreAnnee}-01-01`).lte("date_operation", `${filtreAnnee}-12-31`);
         return q;
       })(),
-      chargerAvecCache("articles", () => supabase.from("articles").select("id, designation, unite_defaut, continue_par_id").limit(10000).then((r) => r.data)),
+      chargerAvecCache("articles", () => supabase.from("articles").select("id, designation, unite_defaut, continue_par_id, endormi").limit(10000).then((r) => r.data)),
       chargerAvecCache("fournisseurs", () => supabase.from("fournisseurs").select("id, nom, tva_defaut_pct").order("nom").limit(10000).then((r) => r.data)),
     ]);
     setListe(data || []);
@@ -247,7 +247,7 @@ export default function CarburantGazPage() {
               placeholder="Article (recherche dans la liste des articles)"
               value={form.article}
               onChange={onArticleChange}
-              suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
+              suggestions={articlesBase.filter((a) => !a.continue_par_id && !a.endormi).map((a) => a.designation)}
               style={{ flex: 2 }}
             />
             <input type="number" placeholder="Quantité" value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} style={{ ...inputStyle, width: 100 }} />
