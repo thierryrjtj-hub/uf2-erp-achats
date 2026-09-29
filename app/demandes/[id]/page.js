@@ -102,7 +102,7 @@ export default function TCODetailPage() {
       supabase.from("lignes_demande").select("*").eq("demande_id", id).order("created_at"),
       supabase.from("fournisseurs").select("*").order("nom").limit(10000),
       supabase.from("offres").select("*").eq("demande_id", id),
-      supabase.from("articles").select("id, designation, unite_defaut, continue_par_id, designation_en, designation_mg, designation_hi, designation_mfe").limit(10000),
+      supabase.from("articles").select("id, designation, unite_defaut, continue_par_id, endormi, designation_en, designation_mg, designation_hi, designation_mfe").limit(10000),
       supabase.from("commandes").select("id, numero, fournisseur_nom, statut").eq("demande_id", id),
     ]);
     // Étape 2 : tout ce qui dépend des résultats ci-dessus, à nouveau en parallèle.
@@ -694,7 +694,7 @@ export default function TCODetailPage() {
                       <Autocomplete
                         value={l.designation}
                         onChange={(val) => onDesignationLigneChange(l.id, val)}
-                        suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
+                        suggestions={articlesBase.filter((a) => !a.continue_par_id && !a.endormi).map((a) => a.designation)}
                         style={{ width: "100%" }}
                       />
                       {langue !== "fr" && (() => {
