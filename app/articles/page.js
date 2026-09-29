@@ -105,6 +105,8 @@ export default function ArticlesListePage() {
       designation: a.designation, unite_defaut: a.unite_defaut || "pcs", categorie_id: a.categorie_id || "",
       dernier_prix_ht: a.dernier_prix_ht ?? "", endormi: !!a.endormi, continue_par_id: a.continue_par_id || "",
       continueParTexte: a.continue_par_id ? (designationParId[a.continue_par_id] || "") : "",
+      designation_en: a.designation_en || "", designation_mg: a.designation_mg || "",
+      designation_hi: a.designation_hi || "", designation_mfe: a.designation_mfe || "",
     };
     setEditForm(initial);
     suiviEditForm.reinitialiser(initial);
@@ -118,6 +120,8 @@ export default function ArticlesListePage() {
       dernier_prix_ht: editForm.dernier_prix_ht === "" ? null : Number(editForm.dernier_prix_ht),
       endormi: editForm.endormi,
       continue_par_id: editForm.continue_par_id || null,
+      designation_en: editForm.designation_en.trim() || null, designation_mg: editForm.designation_mg.trim() || null,
+      designation_hi: editForm.designation_hi.trim() || null, designation_mfe: editForm.designation_mfe.trim() || null,
     };
     await supabase.from("articles").update(payload).eq("id", editId);
     setEditId(null);
@@ -246,6 +250,16 @@ export default function ArticlesListePage() {
                               {t("art_rompre")}
                             </button>
                           )}
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>{t("art_traductions_titre")}</p>
+                        <p style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>{t("art_traductions_aide")}</p>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <input placeholder="English" value={editForm.designation_en} onChange={(e) => setEditForm({ ...editForm, designation_en: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+                          <input placeholder="Malagasy" value={editForm.designation_mg} onChange={(e) => setEditForm({ ...editForm, designation_mg: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+                          <input placeholder="हिन्दी" value={editForm.designation_hi} onChange={(e) => setEditForm({ ...editForm, designation_hi: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+                          <input placeholder="Kreol Morisien" value={editForm.designation_mfe} onChange={(e) => setEditForm({ ...editForm, designation_mfe: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
                         </div>
                       </div>
                       <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 8 }}>{t("btn_enregistrer")}</button>
