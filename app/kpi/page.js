@@ -5,7 +5,7 @@ import AuthGuard from "../components/AuthGuard";
 import CadreExtensible from "../components/CadreExtensible";
 import { exportExcel } from "../../lib/exportExcel";
 import { buttonStyle } from "../components/ui";
-import { calculerFrequenceAchats } from "../../lib/frequenceAchats";
+import { calculerFrequenceAchats, resoudreDesignation } from "../../lib/frequenceAchats";
 import { CATEGORIES_MATIERES_PREMIERES } from "../../lib/categoriesArticles";
 
 export default function KpiPage() {
@@ -73,7 +73,13 @@ export default function KpiPage() {
     const topFournisseurs = Object.entries(parFournisseur).sort((a, b) => b[1] - a[1]);
 
     const parArticle = {};
-    lignesBc.forEach((l) => { parArticle[l.designation] = (parArticle[l.designation] || 0) + Number(l.montant_ht || 0); });
+    lignesBc.forEach((l) => {
+      // Fusionne un article endormi avec celui qu'il "continue" (ex. SUCRE
+      // BRESIL -> SUCRE BLANC BRESIL), pour ne jamais avoir deux lignes
+      // distinctes dans le classement pour ce qui est en réalité le même achat.
+      const nomFinal = resoudreDesignation(l.designation, chaineParDesignation);
+      parArticle[nomFinal] = (parArticle[nomFinal] || 0) + Number(l.montant_ht || 0);
+    });
     const topArticles = Object.entries(parArticle).sort((a, b) => b[1] - a[1]);
 
     // ---- Fréquence d'achat par article : nombre de BC distincts (pas de lignes) ----
