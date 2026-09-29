@@ -6,12 +6,14 @@ import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import Autocomplete from "../../components/Autocomplete";
 import { inputStyle, buttonStyle, linkBtn } from "../../components/ui";
+import { useLangue } from "../../../lib/i18n";
 
 const UNITES_BASE = ["pcs", "kg", "litre", "fût", "unité", "boîte", "autre"];
 const empty = { designation: "", unite_defaut: "pcs", categorie_id: "", dernier_prix_ht: "" };
 
 export default function NouvelArticlePage() {
   const router = useRouter();
+  const { t } = useLangue();
   const [liste, setListe] = useState([]);
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(empty);
@@ -47,27 +49,27 @@ export default function NouvelArticlePage() {
 
   return (
     <AuthGuard>
-      <h1 style={{ fontSize: 18, marginBottom: 14 }}>Ajouter un article</h1>
+      <h1 style={{ fontSize: 18, marginBottom: 14 }}>{t("nav_articles_ajouter")}</h1>
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input placeholder="Désignation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+          <input placeholder={t("ph_designation")} value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
           <Autocomplete
-            placeholder="Unité (tape pour voir les suggestions)"
+            placeholder={t("art_ph_unite_suggestions")}
             value={form.unite_defaut}
             onChange={(val) => setForm({ ...form, unite_defaut: val })}
             suggestions={uniteOptions}
             style={{ width: 190 }}
           />
           <select value={form.categorie_id} onChange={(e) => setForm({ ...form, categorie_id: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
-            <option value="">— Choisir une catégorie —</option>
+            <option value="">{t("art_choisir_categorie")}</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
           </select>
-          <input type="number" placeholder="Dernier prix HT" value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
+          <input type="number" placeholder={t("art_l_dernier_prix_ht")} value={form.dernier_prix_ht} onChange={(e) => setForm({ ...form, dernier_prix_ht: e.target.value })} style={{ ...inputStyle, width: 150 }} />
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
-          <button onClick={enregistrer} disabled={envoi} style={buttonStyle}>{envoi ? "Création..." : "Ajouter"}</button>
-          <Link href="/articles/categories" style={linkBtn}>Gérer les catégories</Link>
+          <button onClick={enregistrer} disabled={envoi} style={buttonStyle}>{envoi ? t("ncmd_creation") : t("btn_ajouter_simple")}</button>
+          <Link href="/articles/categories" style={linkBtn}>{t("nav_articles_categories")}</Link>
         </div>
       </div>
     </AuthGuard>
