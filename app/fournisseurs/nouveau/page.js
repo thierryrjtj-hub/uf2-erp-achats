@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import AuthGuard from "../../components/AuthGuard";
 import { inputStyle, buttonStyle, boutonSelonModif, linkBtn } from "../../components/ui";
 import { useDirty } from "../../../lib/useDirty";
+import { useLangue } from "../../../lib/i18n";
 
 const empty = {
   nom: "", contact: "", telephone: "", email: "", adresse: "", code_postal: "",
@@ -16,8 +17,9 @@ const empty = {
 };
 
 export default function NouveauFournisseurPage() {
+  const { t } = useLangue();
   return (
-    <Suspense fallback={<AuthGuard><p>Chargement...</p></AuthGuard>}>
+    <Suspense fallback={<AuthGuard><p>{t("chargement")}</p></AuthGuard>}>
       <NouveauFournisseurInner />
     </Suspense>
   );
@@ -25,6 +27,7 @@ export default function NouveauFournisseurPage() {
 
 function NouveauFournisseurInner() {
   const router = useRouter();
+  const { t } = useLangue();
   const searchParams = useSearchParams();
   const editId = searchParams.get("id");
   const [form, setForm] = useState(empty);
@@ -91,27 +94,27 @@ function NouveauFournisseurInner() {
     router.back();
   };
 
-  if (!charge) return <AuthGuard><p>Chargement...</p></AuthGuard>;
+  if (!charge) return <AuthGuard><p>{t("chargement")}</p></AuthGuard>;
 
   return (
     <AuthGuard>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <button onClick={() => router.back()} style={linkBtn}>&larr; Retour</button>
-        <Link href="/fournisseurs" style={{ fontSize: 13, color: "#888" }}>Voir tous les fournisseurs</Link>
+        <button onClick={() => router.back()} style={linkBtn}>&larr; {t("retour")}</button>
+        <Link href="/fournisseurs" style={{ fontSize: 13, color: "#888" }}>{t("fournv_voir_tous")}</Link>
       </div>
-      <h1 style={{ fontSize: 18, marginBottom: 14 }}>{editId ? "Modifier le fournisseur" : "Ajouter un fournisseur"}</h1>
+      <h1 style={{ fontSize: 18, marginBottom: 14 }}>{editId ? t("fournv_titre_modifier") : t("nav_fournisseurs_ajouter")}</h1>
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <div style={rowStyle}>
-          <input placeholder="Nom ou raison sociale" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-          <input placeholder="Nom du contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
-          <input placeholder="Téléphone" value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder={t("fournv_ph_nom")} value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+          <input placeholder={t("fournv_ph_contact")} value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder={t("fournv_ph_telephone")} value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           <input placeholder="E-mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
         </div>
 
         <div style={rowStyle}>
-          <input placeholder="Adresse" value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
-          <input placeholder="Code postal" value={form.code_postal} onChange={(e) => setForm({ ...form, code_postal: e.target.value })} style={{ ...inputStyle, width: 120 }} />
+          <input placeholder={t("fournv_ph_adresse")} value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+          <input placeholder={t("fournv_ph_code_postal")} value={form.code_postal} onChange={(e) => setForm({ ...form, code_postal: e.target.value })} style={{ ...inputStyle, width: 120 }} />
         </div>
 
         <div style={rowStyle}>
@@ -123,53 +126,53 @@ function NouveauFournisseurInner() {
 
         <div style={rowStyle}>
           <select value={form.type_reglement} onChange={(e) => setForm({ ...form, type_reglement: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
-            <option>Chèque</option><option>Espèces</option><option>Chèque/Espèces</option><option>Virement</option>
+            <option value="Chèque">{t("fournv_reg_cheque")}</option><option value="Espèces">{t("fournv_reg_especes")}</option><option value="Chèque/Espèces">{t("fournv_reg_cheque_especes")}</option><option value="Virement">{t("fournv_reg_virement")}</option>
           </select>
           <select value={form.tva_defaut_pct} onChange={(e) => setForm({ ...form, tva_defaut_pct: Number(e.target.value) })} style={{ ...inputStyle, flex: 1 }}>
-            <option value={20}>TVA 20% (taxable)</option>
-            <option value={0}>Non assujetti (0%)</option>
+            <option value={20}>{t("fournv_tva_taxable")}</option>
+            <option value={0}>{t("fournv_tva_non_assujetti")}</option>
           </select>
-          <input placeholder="Activité / secteur" value={form.activite} onChange={(e) => setForm({ ...form, activite: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+          <input placeholder={t("fournv_ph_activite")} value={form.activite} onChange={(e) => setForm({ ...form, activite: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
         </div>
 
         <div style={rowStyle}>
           <div>
-            <label style={miniLabel}>Délai paiement (jours)</label>
-            <input type="number" placeholder="Délai paiement (jours)" value={form.conditions_paiement_jours} onChange={(e) => setForm({ ...form, conditions_paiement_jours: e.target.value })} style={{ ...inputStyle, width: 180 }} />
+            <label style={miniLabel}>{t("fournv_l_delai")}</label>
+            <input type="number" placeholder={t("fournv_l_delai")} value={form.conditions_paiement_jours} onChange={(e) => setForm({ ...form, conditions_paiement_jours: e.target.value })} style={{ ...inputStyle, width: 180 }} />
           </div>
           <div>
-            <label style={miniLabel}>Remise par défaut (%)</label>
-            <input type="number" placeholder="Remise par défaut (%)" value={form.remise_par_defaut_pct} onChange={(e) => setForm({ ...form, remise_par_defaut_pct: e.target.value })} style={{ ...inputStyle, width: 180 }} />
+            <label style={miniLabel}>{t("fournv_l_remise")}</label>
+            <input type="number" placeholder={t("fournv_l_remise")} value={form.remise_par_defaut_pct} onChange={(e) => setForm({ ...form, remise_par_defaut_pct: e.target.value })} style={{ ...inputStyle, width: 180 }} />
           </div>
         </div>
 
         <div style={rowStyle}>
           <div style={{ flex: 1 }}>
-            <div style={champLabel}>Moment du paiement</div>
+            <div style={champLabel}>{t("fournv_l_moment_paiement")}</div>
             <select value={form.moment_paiement} onChange={(e) => setForm({ ...form, moment_paiement: e.target.value })} style={{ ...inputStyle, width: "100%" }}>
-              <option>À réception facture</option>
-              <option>À la commande</option>
-              <option>À la livraison</option>
+              <option value="À réception facture">{t("fournv_moment_reception")}</option>
+              <option value="À la commande">{t("fournv_moment_commande")}</option>
+              <option value="À la livraison">{t("fournv_moment_livraison")}</option>
             </select>
           </div>
           <div style={{ width: 180 }}>
-            <div style={champLabel}>Acompte à la commande (%)</div>
-            <input type="number" min="0" max="100" placeholder="0 = pas d'acompte" value={form.acompte_pct} onChange={(e) => setForm({ ...form, acompte_pct: e.target.value })} style={{ ...inputStyle, width: "100%" }} />
+            <div style={champLabel}>{t("fournv_l_acompte")}</div>
+            <input type="number" min="0" max="100" placeholder={t("fournv_ph_pas_acompte")} value={form.acompte_pct} onChange={(e) => setForm({ ...form, acompte_pct: e.target.value })} style={{ ...inputStyle, width: "100%" }} />
           </div>
           {Number(form.acompte_pct) > 0 && (
             <div style={{ flex: 1 }}>
-              <div style={champLabel}>Solde payé à</div>
+              <div style={champLabel}>{t("fournv_l_solde")}</div>
               <select value={form.solde_a} onChange={(e) => setForm({ ...form, solde_a: e.target.value })} style={{ ...inputStyle, width: "100%" }}>
-                <option>À la livraison</option>
-                <option>À la fin des travaux</option>
+                <option value="À la livraison">{t("fournv_solde_livraison")}</option>
+                <option value="À la fin des travaux">{t("fournv_solde_fin_travaux")}</option>
               </select>
             </div>
           )}
         </div>
 
         <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={enregistrer} disabled={envoi} style={boutonSelonModif(suiviForm.modifie)}>{envoi ? "Enregistrement..." : (editId ? "Enregistrer" : "Ajouter")}</button>
-          <button onClick={() => router.back()} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
+          <button onClick={enregistrer} disabled={envoi} style={boutonSelonModif(suiviForm.modifie)}>{envoi ? t("enregistrement") : (editId ? t("btn_enregistrer") : t("btn_ajouter_simple"))}</button>
+          <button onClick={() => router.back()} style={{ ...buttonStyle, background: "#888" }}>{t("btn_annuler")}</button>
         </div>
       </div>
     </AuthGuard>
