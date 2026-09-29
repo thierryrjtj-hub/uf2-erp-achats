@@ -7,6 +7,7 @@ import Autocomplete from "../components/Autocomplete";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, buttonStyle, thStyle, tdStyle, linkBtn, boutonSelonModif } from "../components/ui";
 import { useDirty } from "../../lib/useDirty";
+import { useLangue } from "../../lib/i18n";
 import { chargerAvecCache, invaliderCache } from "../../lib/cache";
 import { formatDate } from "../../lib/format";
 
@@ -17,6 +18,7 @@ const empty = {
 
 export default function CarburantGazPage() {
   const role = useRole();
+  const { t } = useLangue();
   const [liste, setListe] = useState([]);
   const [articlesBase, setArticlesBase] = useState([]);
   const [fournisseurs, setFournisseurs] = useState([]);
@@ -189,7 +191,7 @@ export default function CarburantGazPage() {
   };
 
   const supprimer = async (p) => {
-    if (!confirm(p.demande_id ? "Supprimer cette ligne, ainsi que la demande et le BC qu'elle avait générés ?" : "Supprimer cette ligne ?")) return;
+    if (!confirm(p.demande_id ? t("pc_confirm_suppr_avec_bc") : t("confirm_suppr_ligne"))) return;
     if (p.commande_id) {
       const { data: receptionsC } = await supabase.from("receptions").select("id").eq("bc_id", p.commande_id);
       for (const r of receptionsC || []) {
@@ -210,32 +212,30 @@ export default function CarburantGazPage() {
   return (
     <AuthGuard>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <h1 style={{ fontSize: 18 }}>Carburant / Gaz ({filtrees.length})</h1>
+        <h1 style={{ fontSize: 18 }}>{t("cg_titre", { n: filtrees.length })}</h1>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title="Par défaut, seule l'année en cours est affichée">
+          <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title={t("annee_defaut_info")}>
             {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
-            <option value="toutes">Toutes les années</option>
+            <option value="toutes">{t("toutes_annees")}</option>
           </select>
-          <button onClick={() => setNouveauOuvert((o) => !o)} style={buttonStyle}>{nouveauOuvert ? "Fermer" : "+ Nouvelle opération"}</button>
+          <button onClick={() => setNouveauOuvert((o) => !o)} style={buttonStyle}>{nouveauOuvert ? t("pc_fermer") : t("cg_btn_nouveau")}</button>
         </div>
       </div>
 
       {nouveauOuvert && (
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 16 }}>
           <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
-            Dès l'enregistrement, une demande et un bon de commande sont créés automatiquement (achat déjà
-            autorisé via la carte, pas de signature à faire), visibles dans les listes Demandes/Commandes et
-            dans l'historique.
+            {t("cg_aide_creation")}
           </p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
             <input type="date" value={form.date_operation} onChange={(e) => setForm({ ...form, date_operation: e.target.value })} style={{ ...inputStyle, width: 150 }} />
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ ...inputStyle, width: 130 }}>
-              <option>Carburant</option>
-              <option>Gaz</option>
+              <option value="Carburant">{t("cg_type_carburant")}</option>
+              <option value="Gaz">{t("cg_type_gaz")}</option>
             </select>
-            <input placeholder="Véhicule / équipement (ex: 4107 TCD, Groupe électrogène...)" value={form.vehicule_equipement} onChange={(e) => setForm({ ...form, vehicule_equipement: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
+            <input placeholder={t("cg_ph_vehicule")} value={form.vehicule_equipement} onChange={(e) => setForm({ ...form, vehicule_equipement: e.target.value })} style={{ ...inputStyle, flex: 2 }} />
             <Autocomplete
-              placeholder="Fournisseur (Jovena, Galana... vide = Fournisseurs divers)"
+              placeholder={t("cg_ph_carte_fournisseur")}
               value={form.carte_fournisseur}
               onChange={(val) => setForm({ ...form, carte_fournisseur: val })}
               suggestions={fournisseurs.map((f) => f.nom)}
@@ -244,50 +244,50 @@ export default function CarburantGazPage() {
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Autocomplete
-              placeholder="Article (recherche dans la liste des articles)"
+              placeholder={t("pc_ph_article")}
               value={form.article}
               onChange={onArticleChange}
               suggestions={articlesBase.filter((a) => !a.continue_par_id && !a.endormi).map((a) => a.designation)}
               style={{ flex: 2 }}
             />
-            <input type="number" placeholder="Quantité" value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} style={{ ...inputStyle, width: 100 }} />
-            <input placeholder="Unité" value={form.unite} onChange={(e) => setForm({ ...form, unite: e.target.value })} style={{ ...inputStyle, width: 90 }} />
-            <input type="number" placeholder="Montant TTC (Ar)" title="Montant total payé, TVA comprise (le HT est recalculé automatiquement selon le fournisseur)" value={form.montant} onChange={(e) => setForm({ ...form, montant: e.target.value })} style={{ ...inputStyle, width: 160 }} />
-            <input placeholder="Responsable / chauffeur" value={form.responsable} onChange={(e) => setForm({ ...form, responsable: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
+            <input type="number" placeholder={t("cg_ph_quantite")} value={form.quantite} onChange={(e) => setForm({ ...form, quantite: e.target.value })} style={{ ...inputStyle, width: 100 }} />
+            <input placeholder={t("col_unite")} value={form.unite} onChange={(e) => setForm({ ...form, unite: e.target.value })} style={{ ...inputStyle, width: 90 }} />
+            <input type="number" placeholder={t("cg_ph_montant_ttc")} title={t("cg_info_montant")} value={form.montant} onChange={(e) => setForm({ ...form, montant: e.target.value })} style={{ ...inputStyle, width: 160 }} />
+            <input placeholder={t("cg_ph_responsable")} value={form.responsable} onChange={(e) => setForm({ ...form, responsable: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
           </div>
-          <button onClick={creer} disabled={envoi} style={{ ...buttonStyle, marginTop: 10 }}>{envoi ? "Création..." : "Enregistrer"}</button>
+          <button onClick={creer} disabled={envoi} style={{ ...buttonStyle, marginTop: 10 }}>{envoi ? t("ncmd_creation") : t("btn_enregistrer")}</button>
         </div>
       )}
 
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
           <select value={filtreType} onChange={(e) => setFiltreType(e.target.value)} style={inputStyle}>
-            <option value="">Tous les types</option>
-            <option>Carburant</option>
-            <option>Gaz</option>
+            <option value="">{t("cg_tous_types")}</option>
+            <option value="Carburant">{t("cg_type_carburant")}</option>
+            <option value="Gaz">{t("cg_type_gaz")}</option>
           </select>
           <select value={filtreVehicule} onChange={(e) => setFiltreVehicule(e.target.value)} style={inputStyle}>
-            <option value="">Tous les véhicules/équipements</option>
+            <option value="">{t("cg_tous_vehicules")}</option>
             {vehicules.map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
-          <span style={{ fontSize: 13, color: "#666" }}>Total : <strong>{totalMontant.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></span>
+          <span style={{ fontSize: 13, color: "#666" }}>{t("cg_total")} <strong>{totalMontant.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</strong></span>
         </div>
 
-        {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-        {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucune opération pour ce filtre.</p>}
+        {loading && <p style={{ color: "#888", fontSize: 13 }}>{t("chargement")}</p>}
+        {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>{t("cg_aucune_operation")}</p>}
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={thStyle}>Date</th>
-              <th style={thStyle}>Type</th>
-              <th style={thStyle}>Véhicule / équipement</th>
-              <th style={thStyle}>Carte / fournisseur</th>
-              <th style={thStyle}>Article</th>
-              <th style={thStyle}>Quantité</th>
-              <th style={thStyle}>Montant</th>
-              <th style={thStyle}>Responsable</th>
-              <th style={thStyle}>DA / BC liés</th>
+              <th style={thStyle}>{t("col_date")}</th>
+              <th style={thStyle}>{t("cg_h_type")}</th>
+              <th style={thStyle}>{t("cg_h_vehicule")}</th>
+              <th style={thStyle}>{t("cg_h_carte")}</th>
+              <th style={thStyle}>{t("col_article")}</th>
+              <th style={thStyle}>{t("cg_h_quantite")}</th>
+              <th style={thStyle}>{t("col_montant")}</th>
+              <th style={thStyle}>{t("cg_h_responsable")}</th>
+              <th style={thStyle}>{t("pc_h_da_bc_lies")}</th>
               <th style={thStyle}></th>
             </tr>
           </thead>
@@ -301,7 +301,7 @@ export default function CarburantGazPage() {
                       <td style={tdStyle}><input type="date" value={editForm.date_operation} onChange={(e) => setEditForm({ ...editForm, date_operation: e.target.value })} style={{ ...inputStyle, width: 140 }} /></td>
                       <td style={tdStyle}>
                         <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value })} style={{ ...inputStyle, width: 110 }}>
-                          <option>Carburant</option><option>Gaz</option>
+                          <option value="Carburant">{t("cg_type_carburant")}</option><option value="Gaz">{t("cg_type_gaz")}</option>
                         </select>
                       </td>
                       <td style={tdStyle}><input value={editForm.vehicule_equipement} onChange={(e) => setEditForm({ ...editForm, vehicule_equipement: e.target.value })} style={{ ...inputStyle, width: "100%" }} /></td>
@@ -319,13 +319,13 @@ export default function CarburantGazPage() {
                       </td>
                       <td style={tdStyle}>
                         <button onClick={enregistrerEdition} style={{ ...boutonSelonModif(suiviEditForm.modifie), marginRight: 6 }}>OK</button>
-                        <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>Annuler</button>
+                        <button onClick={() => { setEditId(null); setEditForm(null); }} style={{ ...buttonStyle, background: "#888" }}>{t("btn_annuler")}</button>
                       </td>
                     </>
                   ) : (
                     <>
                       <td style={tdStyle}>{formatDate(p.date_operation)}</td>
-                      <td style={tdStyle}>{p.type}</td>
+                      <td style={tdStyle}>{p.type === "Carburant" ? t("cg_type_carburant") : p.type === "Gaz" ? t("cg_type_gaz") : p.type}</td>
                       <td style={tdStyle}>{p.vehicule_equipement}</td>
                       <td style={tdStyle}>{p.carte_fournisseur || "—"}</td>
                       <td style={tdStyle}>{p.article || "—"}</td>
@@ -338,8 +338,8 @@ export default function CarburantGazPage() {
                         {!p.demande?.numero && !p.commande?.numero && "—"}
                       </td>
                       <td style={tdStyle}>
-                        <button onClick={() => modifier(p)} style={linkBtn}>Modifier</button>
-                        {role === "acheteur" && <button onClick={() => supprimer(p)} style={{ ...linkBtn, color: "#B3261E" }}>Suppr.</button>}
+                        <button onClick={() => modifier(p)} style={linkBtn}>{t("btn_modifier")}</button>
+                        {role === "acheteur" && <button onClick={() => supprimer(p)} style={{ ...linkBtn, color: "#B3261E" }}>{t("pc_suppr")}</button>}
                       </td>
                     </>
                   )}
