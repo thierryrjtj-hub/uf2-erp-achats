@@ -159,7 +159,7 @@ export default function CommandeDetailPage() {
   useEffect(() => {
     (async () => {
       const data = await chargerAvecCache("articles-liste-categorie", () =>
-        supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id, categorie:categories(nom)").limit(10000).then((r) => r.data)
+        supabase.from("articles").select("id, designation, unite_defaut, dernier_prix_ht, continue_par_id, endormi, categorie:categories(nom)").limit(10000).then((r) => r.data)
       );
       setArticlesBase(data || []);
     })();
@@ -704,7 +704,7 @@ export default function CommandeDetailPage() {
                       setTimeout(() => document.getElementById(`date-livraison-edit-${l.key}`)?.focus(), 0);
                     }
                   }}
-                  suggestions={articlesBase.filter((a) => !a.continue_par_id).map((a) => a.designation)}
+                  suggestions={articlesBase.filter((a) => !a.continue_par_id && !a.endormi).map((a) => a.designation)}
                   style={{ flex: 2, minWidth: 160 }}
                 />
                 <input id={`quantite-edit-${l.key}`} type="number" placeholder={t("ph_qte")} value={l.quantite} onChange={(e) => majEditLigne(l.key, "quantite", e.target.value)} style={{ ...inputStyle, width: 80 }} />
