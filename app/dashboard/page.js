@@ -51,7 +51,7 @@ export default function DashboardPage() {
   const [alertesReappro, setAlertesReappro] = useState([]);
   const [alertesStandByReappro, setAlertesStandByReappro] = useState([]);
   const [articlesParBc, setArticlesParBc] = useState({});
-  const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0, bcEnAttenteSignature: 0 });
+  const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0, bcEnAttenteSignature: 0, daEnStandBy: 0 });
   const [tendance, setTendance] = useState([]);
   const [agenda, setAgenda] = useState([]);
   const [taches, setTaches] = useState([]);
@@ -77,6 +77,7 @@ export default function DashboardPage() {
         { data: relancesData }, { data: lignesNonDispo },
         { data: articlesCategories }, { data: signalementsData },
         { data: demandesStandBy },
+        { data: agendaData }, { data: tachesData },
       ] = await Promise.all([
         supabase.from("demandes").select("id, numero, service, statut, created_at").not("statut", "in", '("Basculée en commande","Clôturée","Annulée")').limit(10000),
         supabase.from("offres").select("id, demande_id").limit(10000),
@@ -91,15 +92,26 @@ export default function DashboardPage() {
         supabase.from("articles").select("id, designation, endormi, continue_par_id, categorie:categories(nom)").limit(10000),
         supabase.from("reappro_signalements").select("designation, jours_avant_prochaine").limit(10000),
         supabase.from("demandes").select("id, numero, demandeur, motif_projet, historique_stand_by").eq("statut", "En stand-by").limit(10000),
+        supabase.from("agenda_rdv").select("*").eq("fait", false).order("date_rdv").limit(200),
+        supabase.from("taches_rapides").select("*").eq("fait", false).order("created_at", { ascending: false }).limit(200),
       ]);
+      setAgenda(agendaData || []);
+      setTaches(tachesData || []);
 
       // ---- Demandes en attente de devis ----
+      // Même principe d'indexation qu'au-dessus : on regroupe une seule fois
+      // plutôt que de refiltrer offres/lignesOffre en entier à chaque demande.
+      const offreAUnPrixId = new Set();
+      (lignesOffre || []).forEach((l) => { if (l.prix_unitaire_ht != null) offreAUnPrixId.add(l.offre_id); });
+      const offresParDemande = {};
+      (offres || []).forEach((o) => { (offresParDemande[o.demande_id] ||= []).push(o); });
+
       const devis = (demandes || []).filter((d) => {
         const j = joursDepuis(d.created_at);
         if (j === null || j < 1) return false;
-        const offresDeCetteDemande = (offres || []).filter((o) => o.demande_id === d.id);
+        const offresDeCetteDemande = offresParDemande[d.id] || [];
         if (offresDeCetteDemande.length === 0) return true;
-        const aUnPrix = offresDeCetteDemande.some((o) => (lignesOffre || []).some((l) => l.offre_id === o.id && l.prix_unitaire_ht != null));
+        const aUnPrix = offresDeCetteDemande.some((o) => offreAUnPrixId.has(o.id));
         return !aUnPrix;
       });
       setAlertesDevis(devis);
@@ -108,12 +120,19 @@ export default function DashboardPage() {
       const delaiParFournisseur = {};
       (fournisseursData || []).forEach((f) => { delaiParFournisseur[f.id] = f.conditions_paiement_jours || 30; });
 
+      // Indexé une seule fois (au lieu de refiltrer receptions/lignesReception
+      // en entier pour CHAQUE ligne de BC, qui devenait de plus en plus lent
+      // à mesure que l'historique grossissait) : un ligne_bc_id identifie
+      // toujours une seule ligne d'un seul BC, donc pas besoin de repasser
+      // par les réceptions pour savoir à quel BC une ligne de réception
+      // appartient — même résultat, en une fraction du temps.
+      const cumulParLigneBc = {};
+      (lignesReception || []).forEach((lr) => {
+        cumulParLigneBc[lr.ligne_bc_id] = (cumulParLigneBc[lr.ligne_bc_id] || 0) + (Number(lr.quantite_livree) || 0);
+      });
       const resteABcId = {};
       (lignesBc || []).forEach((l) => {
-        const receptionsDeCeBc = (receptions || []).filter((r) => r.bc_id === l.bc_id).map((r) => r.id);
-        const cumul = (lignesReception || [])
-          .filter((lr) => receptionsDeCeBc.includes(lr.reception_id) && lr.ligne_bc_id === l.id)
-          .reduce((s, lr) => s + (Number(lr.quantite_livree) || 0), 0);
+        const cumul = cumulParLigneBc[l.id] || 0;
         if (Number(l.quantite) - cumul > 0) resteABcId[l.bc_id] = true;
       });
 
@@ -233,7 +252,8 @@ export default function DashboardPage() {
       // ---- Résumé "à faire" en un coup d'œil ----
       const bcEnAttenteSignature = (commandes || []).filter((c) => c.date_envoi_signature && !c.date_signature && c.statut !== "Annulée").length;
       setResume({
-        demandesATraiter: (demandes || []).length,
+        demandesATraiter: (demandes || []).filter((d) => d.statut !== "En stand-by").length,
+        daEnStandBy: (demandesStandBy || []).length,
         bcEnLivraison: Object.keys(enAttenteLivraisonBcId).length,
         facturesImpayees: (commandes || []).filter((c) => bcRecuId[c.id] && c.statut_paiement !== "Payé").length,
         bcEnAttenteSignature,
@@ -251,7 +271,6 @@ export default function DashboardPage() {
       }
       setTendance(points);
 
-      await chargerAgendaTaches();
       setLoading(false);
     })();
   }, []);
@@ -293,6 +312,7 @@ export default function DashboardPage() {
           <ResumeCard href="/commandes?filtre=en_attente_livraison" valeur={resume.bcEnLivraison} label={t("db_resume_bc_livraison")} couleur="#1B4C7A" />
           <ResumeCard href="/commandes?filtre=en_attente_signature" valeur={resume.bcEnAttenteSignature} label={t("db_resume_bc_signature")} couleur="#8A6100" />
           <ResumeCard href="/commandes?filtre=impayees" valeur={resume.facturesImpayees} label={t("db_resume_factures")} couleur="#B3261E" />
+          <ResumeCard href="/demandes?filtre=stand_by" valeur={resume.daEnStandBy} label={t("db_resume_standby")} couleur="#7A6A53" />
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
