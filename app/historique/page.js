@@ -8,8 +8,10 @@ import Autocomplete from "../components/Autocomplete";
 import { inputStyle, buttonStyle } from "../components/ui";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 import { chargerAvecCache } from "../../lib/cache";
+import { useLangue, libelleStatut } from "../../lib/i18n";
 
 export default function HistoriquePage() {
+  const { t } = useLangue();
   const [lignes, setLignes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [recherche, setRecherche] = useState("");
@@ -90,9 +92,7 @@ export default function HistoriquePage() {
           date_signature: bc?.date_signature || "-",
           date_reception: derniereReception?.date_reception_reelle ? derniereReception.date_reception_reelle.slice(0, 10) : "-",
           receptionnaire: derniereReception?.receptionnaire || "-",
-          mode_envoi: bc?.mode_envoi_fournisseur === "Enlèvement par nos soins" && bc?.nom_coursier
-            ? `Enlèvement par ${bc.nom_coursier}`
-            : (bc?.mode_envoi_fournisseur || "-"),
+          mode_envoi_fournisseur: bc?.mode_envoi_fournisseur || "-", nom_coursier: bc?.nom_coursier || "",
           observation_reception: derniereReception?.observation || "",
           categorie: art?.categorie?.nom || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
           demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
@@ -118,7 +118,7 @@ export default function HistoriquePage() {
             id: `pending-${ld.id}`,
             date_da: dmd?.created_at ? dmd.created_at.slice(0, 10) : "-",
             designation: ld.designation, quantite: ld.quantite, unite: ld.unite, quantite_livree: 0,
-            fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-", receptionnaire: "-", mode_envoi: "-",
+            fournisseur_nom: "-", bc_numero: "-", bc_date: "-", date_signature: "-", date_reception: "-", receptionnaire: "-", mode_envoi_fournisseur: "-", nom_coursier: "",
             categorie: art?.categorie?.nom || "", demandeur: dmd?.demandeur || "", service: dmd?.service || "", usage_projet: dmd?.motif_projet || "",
             demande_cloturee: dmd ? (dmd.statut === "Basculée en commande" ? "Oui" : "Non") : "-",
             prix_unitaire_ht: null, remise_pct: null, montant_ht: 0, montant_ttc: 0, bc_total_ttc: 0, bc_montant_facture: 0, bc_numero_facture: "-", bc_date_facture: null, bc_id_pour_total: null, etat_livraison: "-",
@@ -189,7 +189,9 @@ export default function HistoriquePage() {
     const rows = filtrees.map((l) => ({
       dateDa: l.date_da, article: l.designation, qte: Number(l.quantite), qteLivree: l.bc_numero !== "-" ? Number(l.quantite_livree) : "", unite: l.unite,
       fournisseur: l.fournisseur_nom, bc: l.bc_numero, dateBc: l.bc_date, dateSignature: l.date_signature, dateReception: l.date_reception,
-      receptionnaire: l.receptionnaire, modeEnvoi: l.mode_envoi, etat: l.etat_livraison, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
+      receptionnaire: l.receptionnaire,
+      modeEnvoi: l.mode_envoi_fournisseur === "Enlèvement par nos soins" && l.nom_coursier ? `Enlèvement par ${l.nom_coursier}` : (l.mode_envoi_fournisseur || "-"),
+      etat: l.etat_livraison, categorie: l.categorie, service: l.service, demandeur: l.demandeur, usage: l.usage_projet,
       pu: l.prix_unitaire_ht != null ? Number(l.prix_unitaire_ht) : "", remise: Number(l.remise_pct) ? Number(l.remise_pct) : "",
       montantHt: Number(l.montant_ht) || 0, montantTtc: Number(l.montant_ttc) || 0, totalBc: Number(l.bc_total_ttc) || 0,
       montantFacture: Number(l.bc_montant_facture) || 0,
@@ -247,6 +249,18 @@ export default function HistoriquePage() {
     setExporting(false);
   };
 
+  const libelleEtat = (etat) => ({
+    "Livré": t("cmd_livre"), "Livré partiellement": t("cmd_livre_partiel"), "Non livré": t("cmd_non_livre"),
+    "Prestation effectuée": t("cmd_prestation_effectuee"), "Prestation partielle": t("cmd_prestation_partielle"), "Prestation non effectuée": t("cmd_prestation_non"),
+  }[etat] || etat);
+  const libelleModeEnvoi = (bc) => {
+    if (bc?.mode_envoi_fournisseur === "Enlèvement par nos soins" && bc?.nom_coursier) return t("cmd_par", { nom: bc.nom_coursier });
+    if (bc?.mode_envoi_fournisseur === "Enlèvement par nos soins") return t("bc_mode_enlevement");
+    if (bc?.mode_envoi_fournisseur === "Livraison fournisseur") return t("bc_mode_livraison_fournisseur");
+    if (bc?.mode_envoi_fournisseur === "Prestation / Travaux") return t("bc_mode_prestation");
+    return bc?.mode_envoi_fournisseur || "-";
+  };
+
   const badgeEtat = (etat) => ({
     fontSize: 11, padding: "2px 7px", borderRadius: 5,
     background: (etat === "Livré" || etat === "Prestation effectuée") ? "#EAF7EE" : (etat === "Livré partiellement" || etat === "Prestation partielle") ? "#FFF3D6" : "#F0EFEA",
@@ -266,51 +280,51 @@ export default function HistoriquePage() {
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <h1 style={{ fontSize: 18, marginBottom: 10, flexShrink: 0 }}>Historique des achats — situation globale</h1>
+        <h1 style={{ fontSize: 18, marginBottom: 10, flexShrink: 0 }}>{t("hist_titre")}</h1>
 
         <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center", flexShrink: 0 }}>
             <Autocomplete
-              placeholder="Rechercher — article, fournisseur, service, demandeur, catégorie, usage/projet, N° BC, statut..."
+              placeholder={t("hist_ph_recherche")}
               value={recherche}
               onChange={setRecherche}
               suggestions={suggestionsRecherche}
               style={{ flex: 1, minWidth: 320 }}
               inputAttrs={{ "data-search-field": true }}
             />
-            <label style={{ fontSize: 12, color: "#666" }}>Du</label>
+            <label style={{ fontSize: 12, color: "#666" }}>{t("hist_du")}</label>
             <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
-            <label style={{ fontSize: 12, color: "#666" }}>au</label>
+            <label style={{ fontSize: 12, color: "#666" }}>{t("hist_au")}</label>
             <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
-            <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title="Par défaut, seule l'année en cours est chargée">
+            <select value={filtreAnnee} onChange={(e) => setFiltreAnnee(e.target.value)} style={inputStyle} title={t("hist_annee_defaut_info")}>
               {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
-              <option value="toutes">Toutes les années</option>
+              <option value="toutes">{t("toutes_annees")}</option>
             </select>
             <TriMenu
               colonnes={[
-                { key: "date_tri", label: "Date" },
-                { key: "designation", label: "Article" },
-                { key: "fournisseur_nom", label: "Fournisseur" },
-                { key: "montant_ttc", label: "Montant TTC" },
-                { key: "statut", label: "Statut" },
+                { key: "date_tri", label: t("col_date") },
+                { key: "designation", label: t("col_article") },
+                { key: "fournisseur_nom", label: t("col_fournisseur") },
+                { key: "montant_ttc", label: t("col_montant_ttc") },
+                { key: "statut", label: t("col_statut") },
               ]}
               tri={tri}
               onChange={setTri}
             />
             <button onClick={exporter} disabled={exporting} style={buttonStyle}>
-              {exporting ? "Génération..." : "Exporter en Excel"}
+              {exporting ? t("generation") : t("btn_exporter_excel")}
             </button>
           </div>
 
           {recherche && filtrees.length > 0 && dernierAchatParArticle[filtrees[0].designation] && (
             <div style={{ background: "#F5F4F1", borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13, flexShrink: 0 }}>
-              <strong>Dernier achat de "{filtrees[0].designation}"</strong> : {Number(dernierAchatParArticle[filtrees[0].designation].prix_unitaire_ht).toLocaleString("fr-FR")} Ar
-              chez {dernierAchatParArticle[filtrees[0].designation].fournisseur_nom}, le {formatDate(dernierAchatParArticle[filtrees[0].designation].bc_date)}
+              <strong>{t("hist_dernier_achat", { article: filtrees[0].designation })}</strong> : {Number(dernierAchatParArticle[filtrees[0].designation].prix_unitaire_ht).toLocaleString("fr-FR")} Ar
+              {t("hist_chez", { fournisseur: dernierAchatParArticle[filtrees[0].designation].fournisseur_nom, date: formatDate(dernierAchatParArticle[filtrees[0].designation].bc_date) })}
             </div>
           )}
 
-          {loading && <p style={{ color: "#888", fontSize: 13 }}>Chargement...</p>}
-          {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>Aucun achat enregistré pour le moment.</p>}
+          {loading && <p style={{ color: "#888", fontSize: 13 }}>{t("chargement")}</p>}
+          {!loading && filtrees.length === 0 && <p style={{ color: "#888", fontSize: 13 }}>{t("hist_aucun_achat")}</p>}
 
           {filtrees.length > 0 && (
             <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
@@ -325,33 +339,33 @@ export default function HistoriquePage() {
                 </colgroup>
                 <thead>
                   <tr>
-                    <th style={thStyle}>Date DA</th>
-                    <th style={thStyle}>Article</th>
-                    <th style={thStyle}>Qté</th>
-                    <th style={thStyle}>Qté livrée</th>
-                    <th style={thStyle}>Unité</th>
-                    <th style={thStyle}>Fournisseur</th>
-                    <th style={thStyle}>N° BC</th>
-                    <th style={thStyle}>Date BC</th>
-                    <th style={thStyle}>Date signature</th>
-                    <th style={thStyle}>Date réception</th>
-                    <th style={thStyle}>Réceptionnaire</th>
-                    <th style={thStyle}>Mode envoi / Coursier</th>
-                    <th style={thStyle}>État livraison</th>
-                    <th style={thStyle}>Catégorie</th>
-                    <th style={thStyle}>Service demandeur</th>
+                    <th style={thStyle}>{t("hist_h_date_da")}</th>
+                    <th style={thStyle}>{t("col_article")}</th>
+                    <th style={thStyle}>{t("ph_qte")}</th>
+                    <th style={thStyle}>{t("hist_h_qte_livree")}</th>
+                    <th style={thStyle}>{t("col_unite")}</th>
+                    <th style={thStyle}>{t("col_fournisseur")}</th>
+                    <th style={thStyle}>{t("col_numero_bc")}</th>
+                    <th style={thStyle}>{t("hist_h_date_bc")}</th>
+                    <th style={thStyle}>{t("hist_h_date_signature")}</th>
+                    <th style={thStyle}>{t("hist_h_date_reception")}</th>
+                    <th style={thStyle}>{t("hist_h_receptionnaire")}</th>
+                    <th style={thStyle}>{t("hist_h_mode_envoi")}</th>
+                    <th style={thStyle}>{t("hist_h_etat_livraison")}</th>
+                    <th style={thStyle}>{t("art_l_categorie")}</th>
+                    <th style={thStyle}>{t("hist_h_service")}</th>
                     <th style={thStyle}>Demandeur</th>
-                    <th style={thStyle}>Usage / Projet</th>
-                    <th style={thStyle}>PU HT</th>
-                    <th style={thStyle}>Remise</th>
-                    <th style={thStyle}>Montant HT</th>
-                    <th style={thStyle}>Montant TTC</th>
-                    <th style={thStyle}>Total BC (TTC)</th>
-                    <th style={thStyle}>Montant facture fournisseur</th>
-                    <th style={thStyle}>N° facture</th>
-                    <th style={thStyle}>Date facture</th>
-                    <th style={thStyle}>Statut</th>
-                    <th style={thStyle}>Observation</th>
+                    <th style={thStyle}>{t("hist_h_usage")}</th>
+                    <th style={thStyle}>{t("col_pu_ht")}</th>
+                    <th style={thStyle}>{t("col_remise")}</th>
+                    <th style={thStyle}>{t("col_montant_ht")}</th>
+                    <th style={thStyle}>{t("col_montant_ttc")}</th>
+                    <th style={thStyle}>{t("hist_h_total_bc")}</th>
+                    <th style={thStyle}>{t("hist_h_montant_facture")}</th>
+                    <th style={thStyle}>{t("bc_h_num_facture")}</th>
+                    <th style={thStyle}>{t("bc_h_date_facture")}</th>
+                    <th style={thStyle}>{t("col_statut")}</th>
+                    <th style={thStyle}>{t("col_observation")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -371,7 +385,7 @@ export default function HistoriquePage() {
                       <td style={{ ...tdStyle, ...(l.bc_numero !== "-" && l.quantite_livree !== Number(l.quantite) ? { color: "#C85A2A", fontWeight: 600 } : {}) }}>
                         {l.bc_numero !== "-" ? l.quantite_livree : "-"}
                         {l.bc_numero !== "-" && l.quantite_livree !== Number(l.quantite) && !l.observation && (
-                          <span title="Écart de quantité sans observation renseignée sur le BC — préciser la cause (commande arrêtée, fournisseur en rupture...)"> ⚠️</span>
+                          <span title={t("hist_ecart_qte_info")}> ⚠️</span>
                         )}
                       </td>
                       <td style={tdStyle}>{l.unite}</td>
@@ -381,8 +395,8 @@ export default function HistoriquePage() {
                       <td style={tdStyle}>{formatDate(l.date_signature) || "-"}</td>
                       <td style={tdStyle}>{formatDate(l.date_reception) || "-"}</td>
                       <td style={tdStyle}>{l.receptionnaire}</td>
-                      <td style={tdStyle}>{l.mode_envoi}</td>
-                      <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{l.etat_livraison}</span> : "-"}</td>
+                      <td style={tdStyle}>{libelleModeEnvoi({ mode_envoi_fournisseur: l.mode_envoi_fournisseur, nom_coursier: l.nom_coursier })}</td>
+                      <td style={tdStyle}>{l.etat_livraison !== "-" ? <span style={badgeEtat(l.etat_livraison)}>{libelleEtat(l.etat_livraison)}</span> : "-"}</td>
                       <td style={tdStyle}>{l.categorie || "-"}</td>
                       <td style={tdStyle}>{l.service || "-"}</td>
                       <td style={tdStyle}>{l.demandeur || "-"}</td>
@@ -397,14 +411,14 @@ export default function HistoriquePage() {
                       </td>
                       <td style={{ ...tdStyle, textTransform: "uppercase" }}>{l.bc_numero_facture}</td>
                       <td style={tdStyle}>{l.bc_date_facture ? formatDate(l.bc_date_facture) : "-"}</td>
-                      <td style={tdStyle}>{l.statut}</td>
+                      <td style={tdStyle}>{libelleStatut(t, l.statut)}</td>
                       <td style={tdStyle}>{l.observation}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr style={{ borderTop: "2px solid #ddd" }}>
-                    <td colSpan={19} style={{ ...tdStyle, fontWeight: 700 }}>Total ({filtrees.length})</td>
+                    <td colSpan={19} style={{ ...tdStyle, fontWeight: 700 }}>{t("hist_total_n", { n: filtrees.length })}</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ht.toLocaleString("fr-FR")} Ar</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.ttc.toLocaleString("fr-FR")} Ar</td>
                     <td style={{ ...tdStyle, fontWeight: 700 }}>{totauxFiltres.totalBc.toLocaleString("fr-FR")} Ar</td>
