@@ -13,7 +13,7 @@ import { useLangue, libelleStatut, libellePriorite } from "../../lib/i18n";
 
 const GROUPE_TERMINAL = new Set(["Basculée en commande", "Clôturée", "Annulée", "En stand-by"]);
 const PAGE_SIZE = 100;
-const STATUTS_CONNUS = ["A faire", "Partiellement traitée", "Basculée en commande", "En stand-by", "Clôturée", "Annulée"];
+const STATUTS_CONNUS = ["A faire", "Consultation fournisseur en cours", "Partiellement traitée", "Basculée en commande", "En stand-by", "Clôturée", "Annulée"];
 
 export default function DemandesListePage() {
   const { t } = useLangue();
@@ -215,6 +215,16 @@ function DemandesInner() {
       } catch (e2) {
         alert(t("dem_copie_echec"));
       }
+    }
+
+    // Premier envoi de demande de devis sur cette demande : marque le début
+    // réel du traitement (contrairement à "À faire", qui veut dire que rien
+    // n'a encore été entamé) — jamais réécrit lors d'une copie suivante.
+    if (!d.date_envoi_devis) {
+      const maj = { date_envoi_devis: new Date().toISOString() };
+      if (d.statut === "A faire") maj.statut = "Consultation fournisseur en cours";
+      await supabase.from("demandes").update(maj).eq("id", d.id);
+      setListe((prev) => prev.map((x) => (x.id === d.id ? { ...x, ...maj } : x)));
     }
   };
 
