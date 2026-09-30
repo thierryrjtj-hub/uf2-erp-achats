@@ -282,9 +282,19 @@ export default function CommandeDetailPage() {
       return;
     }
 
+    // La date affichée dans l'historique (date_reception_reelle) doit être
+    // la date de livraison réelle choisie ci-dessus, jamais l'instant exact
+    // du clic "Enregistrer" — sinon une réception saisie en retard affiche
+    // le mauvais jour. Si aucune date n'est choisie, on retombe sur
+    // aujourd'hui (saisie sur le système, à défaut de date réelle connue).
+    const dateReceptionReelle = saisie.dateLivraisonTerrain
+      ? new Date(`${saisie.dateLivraisonTerrain}T12:00:00`).toISOString()
+      : new Date().toISOString();
+
     const { data: nouvelle } = await supabase.from("receptions").insert({
       bc_id: id, receptionnaire: receptionnaireFinal, numero_bl: saisie.numeroBl, type_livraison: saisie.typeLivraison,
-      date_livraison_terrain: saisie.dateLivraisonTerrain || null, confirme_par: emetteur.nom || emetteur.email,
+      date_livraison_terrain: saisie.dateLivraisonTerrain || null, date_reception_reelle: dateReceptionReelle,
+      confirme_par: emetteur.nom || emetteur.email,
       statut: toutLivreApres ? "Totale" : "Partielle", numero: bc.numero_pvr, observation: saisie.observation || null,
     }).select().single();
 
@@ -778,23 +788,51 @@ export default function CommandeDetailPage() {
             {receptions.map((r) => {
               const enEdition = editionReceptionId === r.id;
               return (
-                <div key={r.id} style={{ fontSize: 12, padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
-                  {t("bc_le")}{" "}
+                <div key={r.id} style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+                    <div>
+                      <label style={miniLabel}>{t("bc_le")}</label>
+                      {enEdition ? (
+                        <input
+                          type="date"
+                          defaultValue={new Date(r.date_reception_reelle).toISOString().slice(0, 10)}
+                          onChange={(e) => setReceptionEditee((prev) => ({ ...prev, date: e.target.value }))}
+                          style={{ ...inputStyle, width: 150 }}
+                        />
+                      ) : (
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{new Date(r.date_reception_reelle).toLocaleString("fr-FR")}</div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#999", textAlign: "right" }}>
+                      {t("bc_saisi_par", { nom: r.confirme_par })}
+                      {r.receptionnaire === "Import historique" && (
+                        <span style={{ color: "#1B4C7A", marginLeft: 6 }} title={t("cmd_import_info")}>{t("bc_import_note")}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, marginBottom: 8 }}>
+                    <div>
+                      <label style={miniLabel}>{t("cmd_h_reception")}</label>
+                      <div style={{ fontSize: 13 }}>{r.receptionnaire}</div>
+                    </div>
+                    <div>
+                      <label style={miniLabel}>{t("bc_l_mode")}</label>
+                      <div style={{ fontSize: 13 }}>{libelleMode(r.type_livraison)}</div>
+                    </div>
+                    {r.numero_bl && (
+                      <div>
+                        <label style={miniLabel}>BL</label>
+                        <div style={{ fontSize: 13 }}>{r.numero_bl}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <label style={miniLabel}>{t("col_article")}</label>
                   {enEdition ? (
-                    <input
-                      type="date"
-                      defaultValue={new Date(r.date_reception_reelle).toISOString().slice(0, 10)}
-                      onChange={(e) => setReceptionEditee((prev) => ({ ...prev, date: e.target.value }))}
-                      style={{ ...inputStyle, width: 140, display: "inline-block" }}
-                    />
-                  ) : (
-                    <strong>{new Date(r.date_reception_reelle).toLocaleString("fr-FR")}</strong>
-                  )}
-                  {" "}— {r.receptionnaire} ({r.type_livraison}{r.numero_bl ? `, BL ${r.numero_bl}` : ""}) —{" "}
-                  {enEdition ? (
-                    <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 8, verticalAlign: "middle" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
                       {r.lignes.map((x) => (
-                        <span key={x.id} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <span key={x.id} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13 }}>
                           {lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}:
                           <input
                             type="number"
@@ -804,24 +842,32 @@ export default function CommandeDetailPage() {
                           />
                         </span>
                       ))}
-                    </span>
+                    </div>
                   ) : (
-                    r.lignes.map((x) => `${lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}: ${x.quantite_livree}`).join(", ")
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 8 }}>
+                      <tbody>
+                        {r.lignes.map((x) => (
+                          <tr key={x.id} style={{ borderBottom: "1px solid #f7f7f4" }}>
+                            <td style={{ padding: "3px 0", color: "#444" }}>{lignes.find((l) => l.id === x.ligne_bc_id)?.designation || "?"}</td>
+                            <td style={{ padding: "3px 0", textAlign: "right", fontWeight: 600, width: 70 }}>{x.quantite_livree}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
-                  {" "}— {t("bc_saisi_par", { nom: r.confirme_par })}
-                  {r.observation && <span style={{ color: "#C85A2A", marginLeft: 6 }}>— {r.observation}</span>}
-                  {r.receptionnaire === "Import historique" && (
-                    <span style={{ color: "#1B4C7A", marginLeft: 6 }} title={t("cmd_import_info")}>{t("bc_import_note")}</span>
+
+                  {r.observation && (
+                    <div style={{ fontSize: 12, color: "#C85A2A", marginBottom: 6 }}>{r.observation}</div>
                   )}
-                  {" "}
+
                   {role === "acheteur" && (
                     enEdition ? (
                       <>
-                        <button onClick={() => enregistrerEditionReception(r)} style={{ ...linkBtn, marginLeft: 8 }}>{t("btn_enregistrer")}</button>
+                        <button onClick={() => enregistrerEditionReception(r)} style={linkBtn}>{t("btn_enregistrer")}</button>
                         <button onClick={() => setEditionReceptionId(null)} style={{ ...linkBtn, marginLeft: 8, color: "#888" }}>{t("btn_annuler")}</button>
                       </>
                     ) : (
-                      <button onClick={() => { setEditionReceptionId(r.id); setReceptionEditee({ date: "", quantites: {} }); }} style={{ ...linkBtn, marginLeft: 8 }}>{t("btn_modifier")}</button>
+                      <button onClick={() => { setEditionReceptionId(r.id); setReceptionEditee({ date: "", quantites: {} }); }} style={linkBtn}>{t("btn_modifier")}</button>
                     )
                   )}
                 </div>
