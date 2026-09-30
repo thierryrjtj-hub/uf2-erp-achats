@@ -169,6 +169,7 @@ export default function Nav() {
             <div><strong>{t("touche_entree")}</strong> — {t("aide_entree")}</div>
             <div><strong>{t("touche_entree")}</strong> {t("aide_entree_tco")}</div>
             <div><strong>{t("touche_echap")}</strong> — {t("aide_echap")}</div>
+            <div><strong>{t("touche_echap")}</strong> — {t("aide_echap_recherche")}</div>
             <div><strong>R</strong> {t("aide_actualiser")}</div>
             <div><strong>B</strong> {t("aide_retour")}</div>
             <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.15)" }}>
