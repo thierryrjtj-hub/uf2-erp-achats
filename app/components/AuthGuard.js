@@ -44,15 +44,37 @@ export default function AuthGuard({ children }) {
     return () => document.removeEventListener("keydown", surAppuiTouche);
   }, []);
 
-  // Ctrl+F (ou Cmd+F sur Mac) : au lieu de la recherche du navigateur, focalise
-  // directement le champ de recherche de la page si elle en a un (repéré par
-  // l'attribut data-search-field, posé sur les champs de recherche de l'appli).
+  // Recherche rapide : la touche "/" seule (sans modificateur) focalise le
+  // champ de recherche de la page si elle en a un (repéré par l'attribut
+  // data-search-field). Choisie à la place de Ctrl+F : aucun navigateur ne
+  // réserve "/" seul, contrairement à Ctrl+F que certains navigateurs
+  // (Firefox notamment) refusent purement et simplement de laisser une page
+  // web intercepter, même avec preventDefault() — d'où la boîte flottante
+  // qui apparaissait quand même de temps en temps. Motif de convention
+  // largement répandu (GitHub, Slack...), donc pas déroutant pour l'usager.
+  useEffect(() => {
+    const surSlash = (e) => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = document.activeElement;
+      const dejaDansUnChamp = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+      if (dejaDansUnChamp) return; // laisse taper un "/" normalement dans un champ déjà actif
+      const champ = document.querySelector("[data-search-field]");
+      if (!champ) return;
+      e.preventDefault();
+      champ.focus();
+      champ.select?.();
+    };
+    document.addEventListener("keydown", surSlash);
+    return () => document.removeEventListener("keydown", surSlash);
+  }, []);
+
+  // Ctrl+F (ou Cmd+F sur Mac) : conservé en complément pour qui a le réflexe,
+  // avec les mêmes limites qu'avant — certains navigateurs ignorent
+  // preventDefault() sur ce raccourci précis et gardent leur propre
+  // recherche, d'où la touche "/" ci-dessus comme raccourci fiable.
   useEffect(() => {
     const surCtrlF = (e) => {
       if (!(e.key === "f" && (e.ctrlKey || e.metaKey))) return;
-      // Toujours bloquer la recherche native du navigateur (barre flottante
-      // qui ne fait que surligner du texte) — même si la page n'a pas encore
-      // de champ de recherche à elle, sinon le navigateur reprend la main.
       e.preventDefault();
       const champ = document.querySelector("[data-search-field]");
       if (champ) {
