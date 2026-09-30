@@ -774,17 +774,27 @@ export default function CommandeDetailPage() {
 
       {/* ---- Réception ---- */}
       {onglet === "reception" && (
-      <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <h2 style={{ fontSize: 15 }}>{t("cmd_h_reception")}</h2>
-          <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#EAF7EE" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#FFF3D6" : etatLivraison().startsWith("Clôturé") ? "#F0EFEA" : "#F0EFEA", color: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#1B7A4C" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#8A6100" : "#888" }}>
-            {libelleEtat(etatLivraison())}
-          </span>
+      <div className="no-print" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 24, marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h1 style={{ fontSize: 20, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
+              <img src="/logo.png" alt="UNIFOODS" style={{ height: 32 }} /> — {t("cmd_h_reception")}
+            </h1>
+            <p style={{ fontSize: 14, color: "#666", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {bc.numero} — {formatDate(bc.date)}
+              <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#EAF7EE" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#FFF3D6" : "#F0EFEA", color: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#1B7A4C" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#8A6100" : "#888" }}>
+                {libelleEtat(etatLivraison())}
+              </span>
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }} className="no-print">
+            <button onClick={() => { setModeImpression("pv"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888", display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> {t("bc_btn_imprimer_pv")}</button>
+          </div>
         </div>
 
         {receptions.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>{t("bc_hist_receptions")}</div>
+          <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #f0f0f0" }}>
+            <h2 style={{ fontSize: 15, marginBottom: 12, color: "#1E3A34" }}>{t("bc_hist_receptions")}</h2>
             {receptions.map((r) => {
               const enEdition = editionReceptionId === r.id;
               return (
@@ -878,6 +888,7 @@ export default function CommandeDetailPage() {
 
         {resteGlobal ? (
           <>
+            <h2 style={{ fontSize: 15, marginBottom: 8, color: "#1E3A34" }}>{t("bc_nouvelle_reception")}</h2>
             <p style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
               {t("bc_aide_pv")}
             </p>
@@ -932,7 +943,6 @@ export default function CommandeDetailPage() {
             </table>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-              <button onClick={() => { setModeImpression("pv"); setTimeout(() => window.print(), 50); }} style={{ ...buttonStyle, background: "#888", display: "inline-flex", alignItems: "center", gap: 6 }}><IconPrint /> {t("bc_btn_imprimer_pv")}</button>
               <button onClick={enregistrerReception} disabled={enregistrement} style={buttonStyle}>
                 {enregistrement ? t("enregistrement") : t("bc_btn_enregistrer_reception")}
               </button>
