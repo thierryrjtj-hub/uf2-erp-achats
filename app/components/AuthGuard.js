@@ -68,6 +68,19 @@ export default function AuthGuard({ children }) {
     return () => document.removeEventListener("keydown", surSlash);
   }, []);
 
+  // Échap : quitte le champ de recherche s'il a le focus (rend la main au
+  // clavier pour les autres raccourcis, sans effacer ce qui était tapé —
+  // symétrique de "/" qui l'ouvre).
+  useEffect(() => {
+    const surEchap = (e) => {
+      if (e.key !== "Escape") return;
+      const el = document.activeElement;
+      if (el && el.hasAttribute("data-search-field")) el.blur();
+    };
+    document.addEventListener("keydown", surEchap);
+    return () => document.removeEventListener("keydown", surEchap);
+  }, []);
+
   // Ctrl+F (ou Cmd+F sur Mac) : conservé en complément pour qui a le réflexe,
   // avec les mêmes limites qu'avant — certains navigateurs ignorent
   // preventDefault() sur ce raccourci précis et gardent leur propre
