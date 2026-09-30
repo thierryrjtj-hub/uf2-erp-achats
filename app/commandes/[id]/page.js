@@ -832,7 +832,7 @@ export default function CommandeDetailPage() {
 
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, marginBottom: 8 }}>
                     <div>
-                      <label style={miniLabel}>{t("cmd_h_reception")}</label>
+                      <label style={miniLabel}>{t("bc_receptionne_par")}</label>
                       <div style={{ fontSize: 13 }}>{r.receptionnaire}</div>
                     </div>
                     <div>
