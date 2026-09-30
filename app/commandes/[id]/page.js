@@ -781,7 +781,16 @@ export default function CommandeDetailPage() {
               <img src="/logo.png" alt="UNIFOODS" style={{ height: 32 }} /> — {t("cmd_h_reception")}
             </h1>
             <p style={{ fontSize: 14, color: "#666", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              {bc.numero} — {formatDate(bc.date)}
+              {t("col_numero_bc")} {bc.numero} — {formatDate(bc.date)}
+              {demande && (
+                <>
+                  — {t("dem_h_numero_da")}{" "}
+                  <Link href={`/demandes/${demande.id}`} style={{ color: "#1E3A34", textDecoration: "underline" }}>
+                    {demande.numero_da || demande.numero}
+                  </Link>
+                </>
+              )}
+              {bc.numero_pvr && <>— PV {bc.numero_pvr}</>}
               <span style={{ fontSize: 12, padding: "3px 10px", borderRadius: 6, background: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#EAF7EE" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#FFF3D6" : "#F0EFEA", color: ["Livré", "Prestation effectuée"].includes(etatLivraison()) ? "#1B7A4C" : ["Livré partiellement", "Prestation partielle"].includes(etatLivraison()) ? "#8A6100" : "#888" }}>
                 {libelleEtat(etatLivraison())}
               </span>
@@ -960,7 +969,7 @@ export default function CommandeDetailPage() {
             </div>
           </>
         ) : (
-          <p style={{ fontSize: 13, color: "#1B7A4C" }}>{t("bc_tout_livre")}</p>
+          <p style={{ fontSize: 13, color: "#1B7A4C" }}>{t(estPrestation ? "bc_tout_effectue" : "bc_tout_livre")}</p>
         )}
       </div>
       )}
