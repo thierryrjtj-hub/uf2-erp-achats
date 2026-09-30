@@ -107,6 +107,7 @@ export default function DashboardPage() {
       (offres || []).forEach((o) => { (offresParDemande[o.demande_id] ||= []).push(o); });
 
       const devis = (demandes || []).filter((d) => {
+        if (d.statut === "En stand-by") return false;
         const j = joursDepuis(d.created_at);
         if (j === null || j < 1) return false;
         const offresDeCetteDemande = offresParDemande[d.id] || [];
