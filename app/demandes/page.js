@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { formatDate } from "../../lib/format";
@@ -26,6 +26,7 @@ export default function DemandesListePage() {
 
 function DemandesInner() {
   const role = useRole();
+  const router = useRouter();
   const { t } = useLangue();
   const searchParams = useSearchParams();
   const filtreATraiter = searchParams.get("filtre") === "a_traiter";
@@ -257,6 +258,28 @@ function DemandesInner() {
     charger();
   };
 
+  // Recrée une demande depuis une demande annulée : mêmes articles, à
+  // ajuster ensuite (ex. relancer la recherche du fournisseur le moins
+  // cher si l'annulation était due à un prix trop élevé). L'ancienne
+  // demande n'est jamais modifiée — l'observation de la nouvelle rappelle
+  // pourquoi l'ancienne a été annulée, pour garder la trace du contexte.
+  const recreerDemande = async (d) => {
+    if (!confirm(t("dem_confirm_recreer", { numero: d.numero }))) return;
+    const { data: lignesOriginales } = await supabase.from("lignes_demande").select("*").eq("demande_id", d.id);
+    const { data: nouvelle, error } = await supabase.from("demandes").insert({
+      service: d.service, demandeur: d.demandeur, priorite: d.priorite,
+      motif_projet: d.motif_projet, numero_da: d.numero_da, date_da: d.date_da,
+      observation: t("dem_obs_recreee", { numero: d.numero, motif: d.observation || "" }),
+    }).select().single();
+    if (error || !nouvelle) { alert(t("dem_erreur_recreation")); return; }
+    const copies = (lignesOriginales || []).map((l) => ({
+      demande_id: nouvelle.id, designation: l.designation, quantite: l.quantite, unite: l.unite,
+      non_disponible_localement: l.non_disponible_localement || false,
+    }));
+    if (copies.length) await supabase.from("lignes_demande").insert(copies);
+    router.push(`/demandes/${nouvelle.id}`);
+  };
+
   const standByDemande = async (d) => {
     const dateDuJour = new Date().toLocaleDateString("fr-FR");
     if (d.statut === "En stand-by") {
@@ -390,6 +413,11 @@ function DemandesInner() {
                         <button onClick={() => annulerDemande(d)} style={{ ...linkBtn, color: d.statut === "Annulée" ? "#1B7A4C" : "#8A6100", display: "inline-flex", alignItems: "center" }} title={d.statut === "Annulée" ? t("btn_reactiver") : t("btn_annuler")}>
                           <IconBan />
                         </button>
+                        {d.statut === "Annulée" && (
+                          <button onClick={() => recreerDemande(d)} style={{ ...linkBtn, display: "inline-flex", alignItems: "center" }} title={t("dem_recreer")}>
+                            <IconCopy />
+                          </button>
+                        )}
                         {(d.statut === "En stand-by" || !["Basculée en commande", "Clôturée", "Annulée"].includes(d.statut)) && (
                           <button
                             onClick={() => standByDemande(d)}
