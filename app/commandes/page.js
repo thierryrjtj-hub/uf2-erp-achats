@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import AuthGuard from "../components/AuthGuard";
 import { exportExcel } from "../../lib/exportExcel";
 import { useRole } from "../../lib/useRole";
 import { inputStyle, thStyle, tdStyle, linkBtn } from "../components/ui";
-import { IconTrash, IconBan } from "../components/Icons";
+import { IconTrash, IconBan, IconCopy } from "../components/Icons";
 import { formatDate } from "../../lib/format";
 import TriMenu, { appliquerTri } from "../components/TriMenu";
 import { chargerAvecCache } from "../../lib/cache";
@@ -30,6 +30,7 @@ export default function CommandesPage() {
 
 function CommandesInner() {
   const role = useRole();
+  const router = useRouter();
   const { t } = useLangue();
   const searchParams = useSearchParams();
   const filtreDepuisTableauDeBord = searchParams.get("filtre") === "en_attente_livraison";
@@ -226,6 +227,26 @@ function CommandesInner() {
       }
     }
     charger();
+  };
+
+  // Recrée une demande depuis un BC annulé : mêmes articles, à ajuster
+  // ensuite (ex. relancer la recherche du fournisseur le moins cher si
+  // l'annulation était due à un prix trop élevé). Le BC d'origine n'est
+  // jamais modifié.
+  const recreerDemandeDepuisBc = async (c) => {
+    if (!confirm(t("cmd_confirm_recreer", { numero: c.numero }))) return;
+    const { data: lignesOriginales } = await supabase.from("lignes_bc").select("*").eq("bc_id", c.id);
+    const dmd = demandeParId[c.demande_id];
+    const { data: nouvelle, error } = await supabase.from("demandes").insert({
+      service: dmd?.service || null, demandeur: dmd?.demandeur || null, motif_projet: dmd?.motif_projet || null,
+      observation: t("cmd_obs_recreee", { numero: c.numero, motif: c.observation || "" }),
+    }).select().single();
+    if (error || !nouvelle) { alert(t("cmd_erreur_recreation")); return; }
+    const copies = (lignesOriginales || []).map((l) => ({
+      demande_id: nouvelle.id, designation: l.designation, quantite: l.quantite, unite: l.unite,
+    }));
+    if (copies.length) await supabase.from("lignes_demande").insert(copies);
+    router.push(`/demandes/${nouvelle.id}`);
   };
 
   const annulerBc = async (c) => {
@@ -632,6 +653,9 @@ function CommandesInner() {
                   <td style={{ ...tdStyle, color: "#666" }}>{c.observation || "-"}</td>
                   <td style={tdStyle}>
                     <button onClick={() => annulerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: c.statut === "Annulée" ? "#1B7A4C" : "#8A6100", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, marginRight: 8 }} title={c.statut === "Annulée" ? t("btn_reactiver") : t("btn_annuler")}><IconBan /></button>
+                    {c.statut === "Annulée" && (
+                      <button onClick={() => recreerDemandeDepuisBc(c)} style={{ ...linkBtn, background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, marginRight: 8 }} title={t("cmd_recreer")}><IconCopy /></button>
+                    )}
                     <button onClick={() => supprimerBc(c)} style={{ ...linkBtn, background: "none", border: "none", color: "#B3261E", cursor: "pointer", display: role === "acheteur" ? "inline-flex" : "none", alignItems: "center", gap: 5 }} title={t("btn_supprimer")}><IconTrash /></button>
                   </td>
                 </tr>
