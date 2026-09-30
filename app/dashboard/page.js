@@ -51,7 +51,7 @@ export default function DashboardPage() {
   const [alertesReappro, setAlertesReappro] = useState([]);
   const [alertesStandByReappro, setAlertesStandByReappro] = useState([]);
   const [articlesParBc, setArticlesParBc] = useState({});
-  const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0, bcEnAttenteSignature: 0, daEnStandBy: 0 });
+  const [resume, setResume] = useState({ demandesATraiter: 0, bcEnLivraison: 0, facturesImpayees: 0, bcEnAttenteSignature: 0, daEnStandBy: 0, daEnConsultation: 0 });
   const [tendance, setTendance] = useState([]);
   const [agenda, setAgenda] = useState([]);
   const [taches, setTaches] = useState([]);
@@ -258,8 +258,9 @@ export default function DashboardPage() {
       // ---- Résumé "à faire" en un coup d'œil ----
       const bcEnAttenteSignature = (commandes || []).filter((c) => c.date_envoi_signature && !c.date_signature && c.statut !== "Annulée").length;
       setResume({
-        demandesATraiter: (demandes || []).filter((d) => d.statut !== "En stand-by").length,
+        demandesATraiter: (demandes || []).filter((d) => d.statut === "A faire").length,
         daEnStandBy: (demandesStandBy || []).length,
+        daEnConsultation: (demandes || []).filter((d) => d.statut === "Consultation fournisseur en cours").length,
         bcEnLivraison: Object.keys(enAttenteLivraisonBcId).length,
         facturesImpayees: (commandes || []).filter((c) => bcRecuId[c.id] && c.statut_paiement !== "Payé").length,
         bcEnAttenteSignature,
@@ -319,6 +320,7 @@ export default function DashboardPage() {
           <ResumeCard href="/commandes?filtre=en_attente_signature" valeur={resume.bcEnAttenteSignature} label={t("db_resume_bc_signature")} couleur="#8A6100" />
           <ResumeCard href="/commandes?filtre=impayees" valeur={resume.facturesImpayees} label={t("db_resume_factures")} couleur="#B3261E" />
           <ResumeCard href="/demandes?filtre=stand_by" valeur={resume.daEnStandBy} label={t("db_resume_standby")} couleur="#7A6A53" />
+          <ResumeCard href="/demandes?filtre=consultation" valeur={resume.daEnConsultation} label={t("db_resume_consultation")} couleur="#1B4C7A" />
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
