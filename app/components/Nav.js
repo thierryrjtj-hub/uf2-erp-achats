@@ -163,6 +163,7 @@ export default function Nav() {
         </button>
         {aideOuverte && (
           <div style={{ background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: 10, marginTop: 6, fontSize: 11, color: "#D8E8E2", lineHeight: 1.6 }}>
+            <div><strong>/</strong> — {t("aide_slash")}</div>
             <div><strong>Ctrl+F</strong> — {t("aide_ctrlf")}</div>
             <div><strong>↓ / ↑</strong> — {t("aide_fleches")}</div>
             <div><strong>{t("touche_entree")}</strong> — {t("aide_entree")}</div>
