@@ -19,7 +19,7 @@ import { useLangue, libelleStatut } from "../../../lib/i18n";
 
 const RECEPTIONNAIRES = ["Magasin", "Direction", "Site travaux", "Prestataire", "Autre"];
 const TYPES_LIVRAISON = ["Livraison fournisseur", "Enlèvement par nos soins", "Prestation / Travaux"];
-const nouvelleSaisie = () => ({ receptionnaire: "Magasin", receptionnaireAutre: "", numeroBl: "", typeLivraison: "Livraison fournisseur", dateLivraisonTerrain: new Date().toISOString().slice(0, 10), observation: "" });
+const nouvelleSaisie = () => ({ receptionnaire: "Magasin", receptionnaireAutre: "", nomReceptionnaire: "", numeroBl: "", typeLivraison: "Livraison fournisseur", dateLivraisonTerrain: new Date().toISOString().slice(0, 10), observation: "" });
 const estBoisDeChauffage = (designation) => {
   const d = (designation || "").toLowerCase();
   return d.includes("bois de chauffage") || d.includes("bois chauffage");
@@ -43,7 +43,7 @@ export default function CommandeDetailPage() {
   const [offreLiee, setOffreLiee] = useState(null);
   const [receptions, setReceptions] = useState([]); // historique complet, avec .lignes
   const [editionReceptionId, setEditionReceptionId] = useState(null);
-  const [receptionEditee, setReceptionEditee] = useState({ date: "", quantites: {} });
+  const [receptionEditee, setReceptionEditee] = useState({ date: "", quantites: {}, nomReceptionnaire: undefined });
   const [saisie, setSaisie] = useState(nouvelleSaisie());
   const [quantitesSaisie, setQuantitesSaisie] = useState({}); // ligne_bc_id -> qté livrée maintenant
   const [loading, setLoading] = useState(true);
@@ -251,6 +251,9 @@ export default function CommandeDetailPage() {
       nouvelle.setFullYear(annee, mois - 1, jour);
       await supabase.from("receptions").update({ date_reception_reelle: nouvelle.toISOString() }).eq("id", r.id);
     }
+    if (receptionEditee.nomReceptionnaire !== undefined) {
+      await supabase.from("receptions").update({ nom_receptionnaire: receptionEditee.nomReceptionnaire.trim() || null }).eq("id", r.id);
+    }
     for (const [ligneReceptionId, quantite] of Object.entries(receptionEditee.quantites)) {
       await supabase.from("lignes_reception").update({ quantite_livree: Number(quantite) || 0 }).eq("id", ligneReceptionId);
     }
@@ -292,7 +295,8 @@ export default function CommandeDetailPage() {
       : new Date().toISOString();
 
     const { data: nouvelle } = await supabase.from("receptions").insert({
-      bc_id: id, receptionnaire: receptionnaireFinal, numero_bl: saisie.numeroBl, type_livraison: saisie.typeLivraison,
+      bc_id: id, receptionnaire: receptionnaireFinal, nom_receptionnaire: saisie.nomReceptionnaire.trim() || null,
+      numero_bl: saisie.numeroBl, type_livraison: saisie.typeLivraison,
       date_livraison_terrain: saisie.dateLivraisonTerrain || null, date_reception_reelle: dateReceptionReelle,
       confirme_par: emetteur.nom || emetteur.email,
       statut: toutLivreApres ? "Totale" : "Partielle", numero: bc.numero_pvr, observation: saisie.observation || null,
@@ -834,6 +838,17 @@ export default function CommandeDetailPage() {
                     <div>
                       <label style={miniLabel}>{t("bc_receptionne_par")}</label>
                       <div style={{ fontSize: 13 }}>{r.receptionnaire}</div>
+                      {enEdition ? (
+                        <input
+                          data-casse-normale
+                          placeholder={t("bc_ph_nom_receptionnaire")}
+                          defaultValue={r.nom_receptionnaire || ""}
+                          onChange={(e) => setReceptionEditee((prev) => ({ ...prev, nomReceptionnaire: e.target.value }))}
+                          style={{ ...inputStyle, width: "100%", marginTop: 4 }}
+                        />
+                      ) : (
+                        r.nom_receptionnaire && <div style={{ fontSize: 12, color: "#666" }}>{r.nom_receptionnaire}</div>
+                      )}
                     </div>
                     <div>
                       <label style={miniLabel}>{t("bc_l_mode")}</label>
@@ -886,7 +901,7 @@ export default function CommandeDetailPage() {
                         <button onClick={() => setEditionReceptionId(null)} style={{ ...linkBtn, marginLeft: 8, color: "#888" }}>{t("btn_annuler")}</button>
                       </>
                     ) : (
-                      <button onClick={() => { setEditionReceptionId(r.id); setReceptionEditee({ date: "", quantites: {} }); }} style={linkBtn}>{t("btn_modifier")}</button>
+                      <button onClick={() => { setEditionReceptionId(r.id); setReceptionEditee({ date: "", quantites: {}, nomReceptionnaire: undefined }); }} style={linkBtn}>{t("btn_modifier")}</button>
                     )
                   )}
                 </div>
@@ -911,6 +926,7 @@ export default function CommandeDetailPage() {
               {saisie.receptionnaire === "Autre" && (
                 <input placeholder={t("bc_ph_preciser_recept")} value={saisie.receptionnaireAutre} onChange={(e) => setSaisie({ ...saisie, receptionnaireAutre: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
               )}
+              <input data-casse-normale placeholder={t("bc_ph_nom_receptionnaire")} value={saisie.nomReceptionnaire} onChange={(e) => setSaisie({ ...saisie, nomReceptionnaire: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 200 }} />
               <select value={saisie.typeLivraison} onChange={(e) => setSaisie({ ...saisie, typeLivraison: e.target.value })} style={inputStyle}>
                 {TYPES_LIVRAISON.map((m) => <option key={m} value={m}>{libelleMode(m)}</option>)}
               </select>
