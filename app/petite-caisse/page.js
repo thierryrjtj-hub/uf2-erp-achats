@@ -150,9 +150,13 @@ export default function PetiteCaissePage() {
       prix_unitaire_ht: montantHt / (Number(form.quantite) || 1), remise_pct: 0, montant_ht: montantHt,
     }).select().single();
 
+    // Une petite caisse est toujours un enlèvement direct sur place (jamais
+    // une livraison fournisseur), et le réceptionnaire est le demandeur lui-
+    // même : l'achat est utilisé directement, pas stocké au magasin.
     const { data: reception } = await supabase.from("receptions").insert({
-      bc_id: bc.id, statut: "Totale", date_reception_reelle: form.date_demande, type_livraison: "Achat direct",
-      receptionnaire: `Achat direct par petite caisse, effectué par ${form.signataire_direction || "N/A"}, pour ${form.motif || form.article}`,
+      bc_id: bc.id, statut: "Totale", date_reception_reelle: form.date_demande, type_livraison: "Enlèvement par nos soins",
+      receptionnaire: form.signataire_direction || "N/A",
+      observation: `Achat direct par petite caisse, pour ${form.motif || form.article}`,
       confirme_par: form.signataire_direction || "Petite caisse",
     }).select().single();
     if (reception && ligneBc) {
