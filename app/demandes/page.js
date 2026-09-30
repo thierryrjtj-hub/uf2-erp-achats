@@ -37,7 +37,10 @@ function DemandesInner() {
   const [loadingPlus, setLoadingPlus] = useState(false);
   const [recherche, setRecherche] = useState("");
   const [rechercheEffective, setRechercheEffective] = useState("");
-  const [filtreStatut, setFiltreStatut] = useState("");
+  // "?filtre=stand_by" (venant du tableau de bord) présélectionne le statut
+  // En stand-by, en s'appuyant sur le même filtre par statut que le menu
+  // déroulant normal — pas de mode spécial supplémentaire à maintenir.
+  const [filtreStatut, setFiltreStatut] = useState(searchParams.get("filtre") === "stand_by" ? "En stand-by" : "");
   const [tri, setTri] = useState({ colonne: "defaut", sens: "desc" });
   const anneeActuelle = new Date().getFullYear();
   const [filtreAnnee, setFiltreAnnee] = useState(String(anneeActuelle));
