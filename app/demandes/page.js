@@ -268,7 +268,7 @@ function DemandesInner() {
     const { data: lignesOriginales } = await supabase.from("lignes_demande").select("*").eq("demande_id", d.id);
     const { data: nouvelle, error } = await supabase.from("demandes").insert({
       service: d.service, demandeur: d.demandeur, priorite: d.priorite,
-      motif_projet: d.motif_projet, numero_da: d.numero_da, date_da: d.date_da,
+      motif_projet: d.motif_projet, numero_da: d.numero_da, date_da: new Date().toISOString().slice(0, 10),
       observation: t("dem_obs_recreee", { numero: d.numero, motif: d.observation || "" }),
     }).select().single();
     if (error || !nouvelle) { alert(t("dem_erreur_recreation")); return; }
