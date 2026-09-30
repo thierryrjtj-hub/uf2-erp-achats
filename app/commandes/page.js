@@ -239,6 +239,7 @@ function CommandesInner() {
     const dmd = demandeParId[c.demande_id];
     const { data: nouvelle, error } = await supabase.from("demandes").insert({
       service: dmd?.service || null, demandeur: dmd?.demandeur || null, motif_projet: dmd?.motif_projet || null,
+      date_da: new Date().toISOString().slice(0, 10),
       observation: t("cmd_obs_recreee", { numero: c.numero, motif: c.observation || "" }),
     }).select().single();
     if (error || !nouvelle) { alert(t("cmd_erreur_recreation")); return; }
