@@ -6,6 +6,7 @@ import { exportExcel } from "../../../lib/exportExcel";
 import { formatDate } from "../../../lib/format";
 import { inputStyle, buttonStyle, thStyle, tdStyle } from "../../components/ui";
 import TriMenu, { appliquerTri } from "../../components/TriMenu";
+import { useLangue, moisCourt } from "../../../lib/i18n";
 
 const MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
@@ -14,6 +15,7 @@ function premierJourMois() { const d = new Date(); return `${d.getFullYear()}-${
 function premierJourAnnee() { return `${new Date().getFullYear()}-01-01`; }
 
 export default function BoisChauffagePage() {
+  const { langue, t } = useLangue();
   const [evenements, setEvenements] = useState([]); // { date, fournisseur, m3, montant }
   const [evenementsSansDate, setEvenementsSansDate] = useState([]); // lignes sans date de voyage fiable, jamais fondues dans un total
   const [loading, setLoading] = useState(true);
@@ -152,19 +154,19 @@ export default function BoisChauffagePage() {
     setExporting(false);
   };
 
-  if (loading) return <AuthGuard><p>Chargement...</p></AuthGuard>;
+  if (loading) return <AuthGuard><p>{t("chargement")}</p></AuthGuard>;
 
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
-          <h1 style={{ fontSize: 18 }}>Bois de chauffage — livraisons</h1>
-          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? "Génération..." : "Exporter en Excel"}</button>
+          <h1 style={{ fontSize: 18 }}>{t("bois_titre")}</h1>
+          <button onClick={exporter} disabled={exporting} style={buttonStyle}>{exporting ? t("generation") : t("btn_exporter_excel")}</button>
         </div>
 
         {evenements.length === 0 && (
           <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20 }}>
-            <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison de bois de chauffage réceptionnée pour l'instant. Ce rapport se remplit automatiquement dès qu'une réception est enregistrée sur un article "Bois de chauffage".</p>
+            <p style={{ color: "#888", fontSize: 13 }}>{t("bois_aucune")}</p>
           </div>
         )}
 
@@ -172,19 +174,19 @@ export default function BoisChauffagePage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 16, flex: 1, minHeight: 0 }}>
             <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8, flexShrink: 0 }}>
-                <h2 style={{ fontSize: 15 }}>Détail journalier</h2>
+                <h2 style={{ fontSize: 15 }}>{t("bois_detail_journalier")}</h2>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <button onClick={() => { setDateDebut(todayISO()); setDateFin(todayISO()); }} style={smallBtn}>Aujourd'hui</button>
-                  <button onClick={() => { const d = new Date(); d.setDate(d.getDate() - 7); setDateDebut(d.toISOString().slice(0, 10)); setDateFin(todayISO()); }} style={smallBtn}>Cette semaine</button>
-                  <button onClick={() => { setDateDebut(premierJourMois()); setDateFin(todayISO()); }} style={smallBtn}>Ce mois</button>
-                  <button onClick={() => { setDateDebut(premierJourAnnee()); setDateFin(todayISO()); }} style={smallBtn}>Cette année</button>
+                  <button onClick={() => { setDateDebut(todayISO()); setDateFin(todayISO()); }} style={smallBtn}>{t("bois_aujourdhui")}</button>
+                  <button onClick={() => { const d = new Date(); d.setDate(d.getDate() - 7); setDateDebut(d.toISOString().slice(0, 10)); setDateFin(todayISO()); }} style={smallBtn}>{t("bois_cette_semaine")}</button>
+                  <button onClick={() => { setDateDebut(premierJourMois()); setDateFin(todayISO()); }} style={smallBtn}>{t("bois_ce_mois")}</button>
+                  <button onClick={() => { setDateDebut(premierJourAnnee()); setDateFin(todayISO()); }} style={smallBtn}>{t("bois_cette_annee")}</button>
                   <input type="date" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} style={inputStyle} />
-                  <span style={{ alignSelf: "center", fontSize: 12 }}>au</span>
+                  <span style={{ alignSelf: "center", fontSize: 12 }}>{t("bois_au")}</span>
                   <input type="date" value={dateFin} onChange={(e) => setDateFin(e.target.value)} style={inputStyle} />
                   <TriMenu
                     colonnes={[
-                      { key: "date", label: "Date" },
-                      { key: "total", label: "Total journalier" },
+                      { key: "date", label: t("col_date") },
+                      { key: "total", label: t("bois_total_journalier") },
                     ]}
                     tri={tri}
                     onChange={setTri}
@@ -193,15 +195,15 @@ export default function BoisChauffagePage() {
               </div>
 
               {joursDistincts.length === 0 ? (
-                <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur cette période.</p>
+                <p style={{ color: "#888", fontSize: 13 }}>{t("bois_aucune_periode")}</p>
               ) : (
                 <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr>
-                        <th style={thStyle}>Date</th>
+                        <th style={thStyle}>{t("col_date")}</th>
                         {fournisseurs.map((f) => <th key={f} style={thStyle}>{f}</th>)}
-                        <th style={thStyle}>Total journalier (m³)</th>
+                        <th style={thStyle}>{t("bois_h_total_journalier_m3")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -215,7 +217,7 @@ export default function BoisChauffagePage() {
                     </tbody>
                     <tfoot>
                       <tr style={{ borderTop: "2px solid #ddd" }}>
-                        <td style={{ ...tdStyle, fontWeight: 700 }}>Total</td>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>{t("bois_total")}</td>
                         {fournisseurs.map((f) => <td key={f} style={{ ...tdStyle, fontWeight: 700 }}>{(totauxParFournisseurPeriode[f] || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>)}
                         <td style={{ ...tdStyle, fontWeight: 700 }}>{totalGeneralPeriode.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
@@ -227,19 +229,18 @@ export default function BoisChauffagePage() {
 
             {evenementsSansDate.length > 0 && (
               <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #FFE0B2", padding: 20 }}>
-                <h2 style={{ fontSize: 15, marginBottom: 6, color: "#8A6100" }}>Lignes sans date de voyage précise ({evenementsSansDate.length})</h2>
+                <h2 style={{ fontSize: 15, marginBottom: 6, color: "#8A6100" }}>{t("bois_lignes_sans_date", { n: evenementsSansDate.length })}</h2>
                 <p style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>
-                  Ces livraisons n'ont pas de date fiable par voyage (données anciennes, avant la saisie systématique) —
-                  affichées ligne par ligne plutôt que fondues dans un total journalier qui serait faux.
+                  {t("bois_aide_sans_date")}
                 </p>
                 <div style={{ maxHeight: 260, overflow: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr>
-                        <th style={thStyle}>N° BC</th>
-                        <th style={thStyle}>Fournisseur</th>
-                        <th style={thStyle}>Quantité (m³)</th>
-                        <th style={thStyle}>Date approchée (réception du BC)</th>
+                        <th style={thStyle}>{t("col_numero_bc")}</th>
+                        <th style={thStyle}>{t("col_fournisseur")}</th>
+                        <th style={thStyle}>{t("bois_h_quantite_m3")}</th>
+                        <th style={thStyle}>{t("bois_h_date_approchee")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -259,22 +260,22 @@ export default function BoisChauffagePage() {
 
             <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(16,24,40,0.05)", border: "1px solid #ECEBE6", padding: 20, flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexShrink: 0 }}>
-                <h2 style={{ fontSize: 15 }}>Récapitulatif annuel</h2>
+                <h2 style={{ fontSize: 15 }}>{t("bois_recap_annuel")}</h2>
                 <select value={annee} onChange={(e) => setAnnee(Number(e.target.value))} style={inputStyle}>
                   {anneesDisponibles.map((a) => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               {recapAnnuel.length === 0 ? (
-                <p style={{ color: "#888", fontSize: 13 }}>Aucune livraison sur {annee}.</p>
+                <p style={{ color: "#888", fontSize: 13 }}>{t("bois_aucune_annee", { annee })}</p>
               ) : (
                 <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr>
-                        <th style={thStyle}>Fournisseur</th>
-                        {MOIS.map((m) => <th key={m} style={thStyle}>{m}</th>)}
-                        <th style={thStyle}>Total (m³)</th>
-                        <th style={thStyle}>Montant total</th>
+                        <th style={thStyle}>{t("col_fournisseur")}</th>
+                        {MOIS.map((m, i) => <th key={m} style={thStyle}>{moisCourt(langue, i)}</th>)}
+                        <th style={thStyle}>{t("bois_h_total_m3")}</th>
+                        <th style={thStyle}>{t("bois_h_montant_total")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -289,7 +290,7 @@ export default function BoisChauffagePage() {
                     </tbody>
                     <tfoot>
                       <tr style={{ borderTop: "2px solid #ddd" }}>
-                        <td style={{ ...tdStyle, fontWeight: 700 }}>Total mensuel</td>
+                        <td style={{ ...tdStyle, fontWeight: 700 }}>{t("bois_total_mensuel")}</td>
                         {totalMensuelAnnee.map((v, i) => <td key={i} style={{ ...tdStyle, fontWeight: 700 }}>{v ? v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}</td>)}
                         <td style={{ ...tdStyle, fontWeight: 700 }}>{totalGeneralAnnee.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                         <td style={{ ...tdStyle, fontWeight: 700 }}>{totalMontantAnnee.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Ar</td>
