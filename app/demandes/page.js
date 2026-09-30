@@ -40,7 +40,14 @@ function DemandesInner() {
   // "?filtre=stand_by" (venant du tableau de bord) présélectionne le statut
   // En stand-by, en s'appuyant sur le même filtre par statut que le menu
   // déroulant normal — pas de mode spécial supplémentaire à maintenir.
-  const [filtreStatut, setFiltreStatut] = useState(searchParams.get("filtre") === "stand_by" ? "En stand-by" : "");
+  // "?filtre=stand_by" ou "?filtre=consultation" (venant du tableau de bord)
+  // présélectionnent le statut correspondant, via le même filtre par statut
+  // que le menu déroulant normal.
+  const [filtreStatut, setFiltreStatut] = useState(
+    searchParams.get("filtre") === "stand_by" ? "En stand-by"
+    : searchParams.get("filtre") === "consultation" ? "Consultation fournisseur en cours"
+    : ""
+  );
   const [tri, setTri] = useState({ colonne: "defaut", sens: "desc" });
   const anneeActuelle = new Date().getFullYear();
   const [filtreAnnee, setFiltreAnnee] = useState(String(anneeActuelle));
@@ -146,7 +153,10 @@ function DemandesInner() {
     const base = liste.filter((d) => {
       const okRecherche = !q || [d.numero, d.service, d.demandeur, d.motif_projet].some((v) => (v || "").toLowerCase().includes(q));
       const okStatut = !filtreStatut || d.statut === filtreStatut;
-      if (filtreATraiter && GROUPE_TERMINAL.has(d.statut)) return false;
+      // "À traiter" au sens strict : uniquement les demandes tout juste
+      // saisies, sans aucun mouvement encore côté achat (le début du
+      // process est soit l'envoi d'une demande de devis, soit un BC direct).
+      if (filtreATraiter && (GROUPE_TERMINAL.has(d.statut) || d.statut === "Consultation fournisseur en cours")) return false;
       return okRecherche && okStatut;
     });
     const preTrie = [...base].sort((a, b) => (b.numero || "").localeCompare(a.numero || ""));
