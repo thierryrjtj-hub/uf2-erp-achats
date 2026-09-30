@@ -79,7 +79,7 @@ export default function DashboardPage() {
         { data: demandesStandBy },
         { data: agendaData }, { data: tachesData },
       ] = await Promise.all([
-        supabase.from("demandes").select("id, numero, service, statut, created_at").not("statut", "in", '("Basculée en commande","Clôturée","Annulée")').limit(10000),
+        supabase.from("demandes").select("id, numero, service, statut, created_at, date_envoi_devis").not("statut", "in", '("Basculée en commande","Clôturée","Annulée")').limit(10000),
         supabase.from("offres").select("id, demande_id").limit(10000),
         supabase.from("lignes_offre").select("offre_id, prix_unitaire_ht").limit(10000),
         supabase.from("commandes").select("id, numero, fournisseur_nom, fournisseur_id, date, date_signature, date_envoi_signature, date_envoi_fournisseur, statut, statut_paiement, date_facture, date_estimee_reste, mode_envoi_fournisseur").limit(10000),
@@ -106,9 +106,14 @@ export default function DashboardPage() {
       const offresParDemande = {};
       (offres || []).forEach((o) => { (offresParDemande[o.demande_id] ||= []).push(o); });
 
+      // La relance ne concerne que les demandes pour lesquelles une demande de
+      // devis a réellement été envoyée (date_envoi_devis renseignée) — une
+      // demande tout juste créée, jamais encore transmise à un fournisseur,
+      // reste simplement "à traiter", pas "à relancer".
       const devis = (demandes || []).filter((d) => {
         if (d.statut === "En stand-by") return false;
-        const j = joursDepuis(d.created_at);
+        if (!d.date_envoi_devis) return false;
+        const j = joursDepuis(d.date_envoi_devis);
         if (j === null || j < 1) return false;
         const offresDeCetteDemande = offresParDemande[d.id] || [];
         if (offresDeCetteDemande.length === 0) return true;
@@ -329,7 +334,7 @@ export default function DashboardPage() {
             <Section titre={t("db_sec_devis")} couleur="#8A6100" fond="#FFF3D6">
               {alertesDevis.map((d) => (
                 <LigneAlerte key={d.id} href={`/demandes/${d.id}`}>
-                  <strong>{d.numero}</strong> ({d.service || "-"}) — {t("db_devis_ligne", { n: joursDepuis(d.created_at) })}
+                  <strong>{d.numero}</strong> ({d.service || "-"}) — {t("db_devis_ligne_envoye", { n: joursDepuis(d.date_envoi_devis) })}
                 </LigneAlerte>
               ))}
             </Section>
