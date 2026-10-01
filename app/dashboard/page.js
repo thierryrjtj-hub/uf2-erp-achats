@@ -316,11 +316,11 @@ export default function DashboardPage() {
 
         <div style={{ display: "flex", gap: 12, marginBottom: 18, flexShrink: 0, flexWrap: "wrap" }}>
           <ResumeCard href="/demandes?filtre=a_traiter" valeur={resume.demandesATraiter} label={t("db_resume_demandes")} couleur="#F5A623" />
-          <ResumeCard href="/commandes?filtre=en_attente_livraison" valeur={resume.bcEnLivraison} label={t("db_resume_bc_livraison")} couleur="#1B4C7A" />
-          <ResumeCard href="/commandes?filtre=en_attente_signature" valeur={resume.bcEnAttenteSignature} label={t("db_resume_bc_signature")} couleur="#8A6100" />
-          <ResumeCard href="/commandes?filtre=impayees" valeur={resume.facturesImpayees} label={t("db_resume_factures")} couleur="#B3261E" />
-          <ResumeCard href="/demandes?filtre=stand_by" valeur={resume.daEnStandBy} label={t("db_resume_standby")} couleur="#7A6A53" />
           <ResumeCard href="/demandes?filtre=consultation" valeur={resume.daEnConsultation} label={t("db_resume_consultation")} couleur="#1B4C7A" />
+          <ResumeCard href="/demandes?filtre=stand_by" valeur={resume.daEnStandBy} label={t("db_resume_standby")} couleur="#7A6A53" />
+          <ResumeCard href="/commandes?filtre=en_attente_signature" valeur={resume.bcEnAttenteSignature} label={t("db_resume_bc_signature")} couleur="#8A6100" />
+          <ResumeCard href="/commandes?filtre=en_attente_livraison" valeur={resume.bcEnLivraison} label={t("db_resume_bc_livraison")} couleur="#1B4C7A" />
+          <ResumeCard href="/commandes?filtre=impayees" valeur={resume.facturesImpayees} label={t("db_resume_factures")} couleur="#B3261E" />
         </div>
 
         <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
