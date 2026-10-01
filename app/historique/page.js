@@ -412,7 +412,7 @@ export default function HistoriquePage() {
                       <td style={{ ...tdStyle, textTransform: "uppercase" }}>{l.bc_numero_facture}</td>
                       <td style={tdStyle}>{l.bc_date_facture ? formatDate(l.bc_date_facture) : "-"}</td>
                       <td style={tdStyle}>{libelleStatut(t, l.statut)}</td>
-                      <td style={tdStyle}>{l.observation}</td>
+                      <td style={tdStyle}><span style={{ textDecoration: "none", display: "inline-block" }}>{l.observation}</span></td>
                     </tr>
                   ))}
                 </tbody>
