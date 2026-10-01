@@ -473,9 +473,9 @@ function CommandesInner() {
   return (
     <AuthGuard>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexShrink: 0, flexWrap: "wrap", gap: 10 }}>
           <h1 style={{ fontSize: 18 }}>{t("cmd_titre")}</h1>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link href="/commandes/nouveau" style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #1B2430", background: "#fff", color: "#1B2430", fontSize: 13, cursor: "pointer", textDecoration: "none" }}>
               {t("cmd_btn_creer")}
             </Link>
