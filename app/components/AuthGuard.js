@@ -75,7 +75,14 @@ export default function AuthGuard({ children }) {
     const surEchap = (e) => {
       if (e.key !== "Escape") return;
       const el = document.activeElement;
-      if (el && el.hasAttribute("data-search-field")) el.blur();
+      if (el && el.hasAttribute("data-search-field")) {
+        // Bloque le comportement natif de certains navigateurs, qui annule
+        // la saisie en cours sur Échap (revient à la valeur d'avant le
+        // focus) avant même que ce gestionnaire ne s'exécute — d'où le
+        // texte tapé qui disparaissait et réaffichait tout le contenu.
+        e.preventDefault();
+        el.blur();
+      }
     };
     document.addEventListener("keydown", surEchap);
     return () => document.removeEventListener("keydown", surEchap);
