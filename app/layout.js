@@ -54,9 +54,16 @@ export default function RootLayout({ children }) {
             html, body { background: #fff !important; }
           }
 
+          /* ---- Bouton +/− de repliage des sous-onglets : utile uniquement
+             sur mobile (où les libellés sont cachés) — invisible sur
+             ordinateur, où le sous-menu continue de s'afficher comme avant
+             dès qu'on est dans la section, sans bouton superflu. ---- */
+          .nav-toggle-sous-menu { display: none; }
+
           /* ---- Adaptation mobile ---- */
           @media (max-width: 680px) {
             .nav-sidebar { width: 60px !important; }
+            .nav-toggle-sous-menu { display: flex !important; }
             .nav-label, .nav-footer { display: none !important; }
             .nav-logo-chip { padding: 6px !important; }
             .nav-logo-chip img { height: 22px !important; }
