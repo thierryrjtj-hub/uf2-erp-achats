@@ -486,6 +486,17 @@ export default function TCODetailPage() {
         }
         const restantsAvecPrix = restants.filter((ld) => !restantsSansPrix.some((r) => r.id === ld.id));
         statutFinal = restantsAvecPrix.length === 0 ? "Basculée en commande" : "Partiellement traitée";
+
+        // Référence croisée sur l'ancienne demande : en la consultant, on voit
+        // tout de suite que les articles disponibles sont partis en BC et où
+        // est passé le reste — pas seulement "Partiellement traitée" sans
+        // autre explication.
+        if (nouvelleDemandeReliquat.numero) {
+          const note = t("dt_note_reliquat_cree", { numero: nouvelleDemandeReliquat.numero });
+          await supabase.from("demandes").update({
+            observation: demande.observation ? `${demande.observation} — ${note}` : note,
+          }).eq("id", id);
+        }
       }
     }
 
