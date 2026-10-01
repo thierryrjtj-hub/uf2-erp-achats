@@ -56,6 +56,10 @@ export default function Nav() {
   const router = useRouter();
   const pathname = usePathname();
   const [aideOuverte, setAideOuverte] = useState(false);
+  // Repliage manuel des sous-onglets (utile surtout sur mobile, où les
+  // libellés sont cachés et le sous-menu ne s'affiche sinon qu'une fois
+  // DANS la section) : indépendant du fait que la section soit déjà active.
+  const [souMenusOuverts, setSouMenusOuverts] = useState({});
   const { langue, t } = useLangue();
 
   const logout = async () => {
@@ -77,24 +81,40 @@ export default function Nav() {
           const Icon = l.icon;
           return (
             <div key={l.href} className="nav-parent-item">
-              <Link
-                href={l.href}
-                title={t(l.cle)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "9px 12px", borderRadius: 999,
-                  fontSize: 13.5, textDecoration: "none",
-                  color: actif ? "#fff" : "#A9C2BB",
-                  background: actif ? "rgba(255,255,255,0.12)" : "transparent",
-                  fontWeight: actif ? 600 : 400,
-                  transition: "background 0.12s ease",
-                }}
-              >
-                <Icon color={actif ? "#fff" : "#A9C2BB"} />
-                <span className="nav-label" style={{ flex: 1 }}>{t(l.cle)}</span>
-                {actif && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", flexShrink: 0 }} />}
-              </Link>
-              {l.children && actif && (
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <Link
+                  href={l.href}
+                  title={t(l.cle)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0,
+                    padding: "9px 12px", borderRadius: 999,
+                    fontSize: 13.5, textDecoration: "none",
+                    color: actif ? "#fff" : "#A9C2BB",
+                    background: actif ? "rgba(255,255,255,0.12)" : "transparent",
+                    fontWeight: actif ? 600 : 400,
+                    transition: "background 0.12s ease",
+                  }}
+                >
+                  <Icon color={actif ? "#fff" : "#A9C2BB"} />
+                  <span className="nav-label" style={{ flex: 1 }}>{t(l.cle)}</span>
+                  {actif && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", flexShrink: 0 }} />}
+                </Link>
+                {l.children && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); setSouMenusOuverts((p) => ({ ...p, [l.href]: !(p[l.href] ?? actif) })); }}
+                    className="nav-toggle-sous-menu"
+                    title={(souMenusOuverts[l.href] ?? actif) ? t("nav_reduire_sous_menu") : t("nav_ouvrir_sous_menu")}
+                    style={{
+                      border: "none", background: "transparent", color: "#A9C2BB", cursor: "pointer",
+                      width: 26, height: 26, flexShrink: 0, borderRadius: 6, fontSize: 15, lineHeight: 1,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {(souMenusOuverts[l.href] ?? actif) ? "−" : "+"}
+                  </button>
+                )}
+              </div>
+              {l.children && (souMenusOuverts[l.href] ?? actif) && (
                 <div className="nav-souslabel" style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 2, marginBottom: 2, background: BRAND }}>
                   {l.children.map((c) => {
                     const sousActif = pathname === c.href;
