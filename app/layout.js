@@ -58,7 +58,7 @@ export default function RootLayout({ children }) {
              sur mobile (où les libellés sont cachés) — invisible sur
              ordinateur, où le sous-menu continue de s'afficher comme avant
              dès qu'on est dans la section, sans bouton superflu. ---- */
-          .nav-toggle-sous-menu { display: none; }
+          .nav-toggle-sous-menu { display: none !important; }
 
           /* ---- Adaptation mobile ---- */
           @media (max-width: 680px) {
